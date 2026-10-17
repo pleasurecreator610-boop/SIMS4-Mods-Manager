@@ -261,3 +261,148 @@ def test_dependencies_dialog_partial_installation():
     confirm_btn = next((b for b in buttons if "Partielle" in b.text()), None)
     assert confirm_btn is not None
     assert "Installation Partielle" in confirm_btn.text()
+
+
+def test_concurrent_mod_installs_sharing_same_dependency(monkeypatch):
+    """
+    Verifies that when two distinct parent mods are installed concurrently and share
+    the exact same missing dependency, ActiveInstallationRegistry prevents duplicate
+    installation of the shared dependency and both parent mods succeed.
+    """
+    import threading
+    import time
+    from src.application.mods.active_installation_registry import ActiveInstallationRegistry
+
+    ActiveInstallationRegistry.reset()
+
+    db = DatabaseManager.get_instance()
+    with db.get_session() as session:
+        session.query(CatalogMod).filter(
+            CatalogMod.remote_id.in_(["shared_dep_c1", "parent_c_a", "parent_c_b"])
+        ).delete()
+        session.query(InstalledMod).filter(
+            InstalledMod.remote_id.in_(["shared_dep_c1", "parent_c_a", "parent_c_b"])
+        ).delete()
+        session.commit()
+
+        shared_dep = CatalogMod(
+            source="loverslab",
+            remote_id="shared_dep_c1",
+            title="Shared Dependency C1",
+            page_url="https://loverslab.com/files/file/shared_dep_c1/",
+            requirements_status="NONE",
+        )
+        session.add(shared_dep)
+
+        parent_a = CatalogMod(
+            source="loverslab",
+            remote_id="parent_c_a",
+            title="Parent Mod A",
+            page_url="https://loverslab.com/files/file/parent_c_a/",
+            requirements_status="RESOLVED",
+        )
+        parent_a.set_requirements_mods_list(
+            [
+                {
+                    "source": "loverslab",
+                    "remote_id": "shared_dep_c1",
+                    "title": "Shared Dependency C1",
+                    "url": "https://loverslab.com/files/file/shared_dep_c1/",
+                }
+            ]
+        )
+        session.add(parent_a)
+
+        parent_b = CatalogMod(
+            source="loverslab",
+            remote_id="parent_c_b",
+            title="Parent Mod B",
+            page_url="https://loverslab.com/files/file/parent_c_b/",
+            requirements_status="RESOLVED",
+        )
+        parent_b.set_requirements_mods_list(
+            [
+                {
+                    "source": "loverslab",
+                    "remote_id": "shared_dep_c1",
+                    "title": "Shared Dependency C1",
+                    "url": "https://loverslab.com/files/file/shared_dep_c1/",
+                }
+            ]
+        )
+        session.add(parent_b)
+        session.commit()
+        pa_id = parent_a.id
+        pb_id = parent_b.id
+
+    client = TestClient(app)
+    install_calls = []
+    install_lock = threading.Lock()
+
+    from plugins.loverslab import LoversLabProvider
+    from src.application.mods.mod_installer_service import ModInstaller
+
+    def mock_get_details(self, url):
+        return {
+            "description": "Mock",
+            "download_urls": [{"name": "Direct", "url": f"{url}?do=download"}],
+            "external_links": [],
+            "requirements_mods": [],
+            "requirements_status": "NONE",
+            "screenshots": [],
+        }
+
+    def mock_download(self, url, dest_path, progress_callback=None):
+        dest_path.write_bytes(b"DBPF\x00\x00\x00\x00")
+        return True, str(dest_path)
+
+    def mock_install_mod_from_file(file_path, catalog_mod, source, custom_title, **kwargs):
+        # Simulate realistic extraction duration for the shared dependency
+        if "Shared Dependency" in custom_title:
+            time.sleep(0.1)
+
+        with install_lock:
+            install_calls.append(custom_title)
+
+        with db.get_session() as s:
+            rec = InstalledMod(
+                source=source,
+                remote_id=catalog_mod.remote_id if catalog_mod else "custom",
+                title=custom_title,
+                folder_name=f"Mock_{custom_title.replace(' ', '_')}",
+                is_enabled=True,
+            )
+            s.add(rec)
+            s.commit()
+        return True, "Installation réussie"
+
+    monkeypatch.setattr(LoversLabProvider, "get_mod_details", mock_get_details)
+    monkeypatch.setattr(LoversLabProvider, "download_mod_file", mock_download)
+    monkeypatch.setattr(ModInstaller, "install_mod_from_file", mock_install_mod_from_file)
+
+    responses = {}
+
+    def install_mod_thread(mod_id, key):
+        resp = client.post("/api/catalog/install", json={"catalog_mod_id": mod_id, "install_dependencies": True})
+        responses[key] = resp
+
+    t1 = threading.Thread(target=install_mod_thread, args=(pa_id, "A"))
+    t2 = threading.Thread(target=install_mod_thread, args=(pb_id, "B"))
+
+    t1.start()
+    t2.start()
+
+    t1.join(timeout=10.0)
+    t2.join(timeout=10.0)
+
+    assert responses["A"].status_code == 200
+    assert responses["A"].json()["success"] is True
+    assert responses["B"].status_code == 200
+    assert responses["B"].json()["success"] is True
+
+    # Critical Assertion: The shared dependency was installed exactly ONCE across concurrent runs!
+    shared_dep_count = install_calls.count("Shared Dependency C1")
+    assert shared_dep_count == 1
+    assert "Parent Mod A" in install_calls
+    assert "Parent Mod B" in install_calls
+

@@ -149,6 +149,7 @@ class MainWindow(QMainWindow):
 
         self.catalog_view.install_finished.connect(self._on_mods_state_changed)
         self.downloads_view.install_finished.connect(self._on_mods_state_changed)
+        self.downloads_view.install_finished.connect(self.catalog_view.on_external_install_finished)
         self.installed_view.mods_changed.connect(self._on_mods_state_changed)
         self.updates_view.updates_applied.connect(self._on_mods_state_changed)
 

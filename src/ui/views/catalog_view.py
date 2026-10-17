@@ -18,7 +18,7 @@ from src.ui.components.mod_card import ModCard
 from src.ui.components.responsive_card_grid import ResponsiveCardGrid
 from src.ui.components.dependencies_dialog import DependenciesDialog
 from src.ui.components.provider_drawer import ProviderDrawer
-from src.ui.workers.catalog_workers import SyncTriggerWorker, CatalogFetchWorker
+from src.ui.workers.catalog_workers import SyncTriggerWorker, CatalogFetchWorker, CheckDependenciesWorker
 from src.ui.views.catalog.filter_adapter import build_catalog_api_params
 from src.ui.views.catalog.catalog_widgets import CatalogSyncBannerWidget, CatalogPaginationBar
 from src.i18n import tr
@@ -49,6 +49,7 @@ class CatalogView(QWidget):
         self._last_pages_completed = 0
         self._fetch_worker = None
         self._fetch_id = 0
+        self._dep_workers = []
 
         self.IDLE_MONITOR_INTERVAL_MS = 8000
         self.ACTIVE_MONITOR_INTERVAL_MS = 1200
@@ -399,7 +400,7 @@ class CatalogView(QWidget):
             logger.debug(f"Erreur vérification statut sync: {e}")
 
     def install_mod(self, mod_data: dict) -> bool:
-        """Exécute l'opération install mod avec protection anti-doublon et rafraîchissement UI immédiat."""
+        """Exécute l'opération install mod de façon non-bloquante avec protection anti-doublon."""
         mod_key = str(mod_data.get("id") or mod_data.get("remote_id") or mod_data.get("title") or "")
         if mod_key and mod_key in self._installing_mod_ids:
             logger.info(f"Installation déjà demandée pour '{mod_key}', clic doublon ignoré.")
@@ -408,52 +409,76 @@ class CatalogView(QWidget):
         if mod_key:
             self._installing_mod_ids.add(mod_key)
 
-        # Forcer le rafraîchissement graphique immédiat pour que le bouton désactivé s'affiche sans latence
-        from PySide6.QtWidgets import QApplication
-        QApplication.processEvents()
+        # Si le mod n'a pas de dépendances connues à vérifier, émettre immédiatement sans attente
+        dependencies = mod_data.get("dependencies") or []
+        req_status = mod_data.get("requirements_status") or "NONE"
+        has_unfound_deps = req_status == "PENDING_VERIFICATION" or any(
+            (d.get("status") if isinstance(d, dict) else getattr(d, "status", ""))
+            in ["NOT_DETECTED_FINISHED", "NOT_DETECTED_SCANNING"]
+            for d in dependencies
+        )
+
+        if not has_unfound_deps and not dependencies:
+            self._trigger_download(mod_data)
+            return True
 
         mod_id = mod_data.get("id")
-        try:
-            payload = {
-                "catalog_mod_id": mod_id,
-                "source": mod_data.get("source", "loverslab"),
-                "remote_id": mod_data.get("remote_id"),
-                "page_url": mod_data.get("page_url"),
-                "title": mod_data.get("title"),
-            }
-            dep_res = self.api_client.check_dependencies(payload)
-            al_inst = dep_res.get("already_installed_dependencies") or dep_res.get("already_installed") or []
-            missing = dep_res.get("missing_dependencies") or dep_res.get("missing") or []
-            unfound = dep_res.get("unfound_dependencies") or dep_res.get("unfound") or []
-            dlcs = dep_res.get("game_dlc_dependencies") or dep_res.get("game_dlcs") or []
-            if dep_res and (missing or al_inst or dlcs or unfound):
-                dlg = DependenciesDialog(
-                    mod_title=dep_res.get("mod_title", mod_data.get("title", "")),
-                    already_installed=al_inst,
-                    missing=missing,
-                    unfound=unfound,
-                    is_partial=dep_res.get("is_partial", False),
-                    game_dlcs=dlcs,
-                    mod_data=mod_data,
-                    parent=self,
-                )
-                if dlg.exec() != QDialog.DialogCode.Accepted:
-                    if mod_key:
-                        self._installing_mod_ids.discard(mod_key)
-                    return False
-        except Exception as e:
-            logger.warning(f"Impossible de vérifier les dépendances avant installation: {e}")
+        payload = {
+            "catalog_mod_id": mod_id,
+            "source": mod_data.get("source", "loverslab"),
+            "remote_id": mod_data.get("remote_id"),
+            "page_url": mod_data.get("page_url"),
+            "title": mod_data.get("title"),
+        }
 
-        # Emit download request for dedicated downloads tab (non-blocking)
+        # Lance la vérification des dépendances en arrière-plan sans bloquer l'interface Qt
+        worker = CheckDependenciesWorker(self.api_client, payload, mod_data)
+        worker.finished_signal.connect(self._on_dependencies_checked)
+        self._dep_workers.append(worker)
+        worker.start()
+        return True
+
+    def _trigger_download(self, mod_data: dict):
+        """Émet la demande de téléchargement et affiche la bannière toast."""
         self.download_requested.emit(mod_data)
-
-        # Show non-intrusive toast banner allowing user to continue browsing the catalog
         title = mod_data.get("title") or "Mod"
         if hasattr(self, "toast_banner"):
             self.toast_label.setText(tr("downloads.toast_started", title=title))
             self.toast_banner.setVisible(True)
             QTimer.singleShot(6000, lambda: self.toast_banner.setVisible(False))
-        return True
+
+    def _on_dependencies_checked(self, dep_res: dict, mod_data: dict):
+        """Appelé lorsque la vérification asynchrone des dépendances est terminée."""
+        mod_key = str(mod_data.get("id") or mod_data.get("remote_id") or mod_data.get("title") or "")
+        al_inst = dep_res.get("already_installed_dependencies") or dep_res.get("already_installed") or []
+        missing = dep_res.get("missing_dependencies") or dep_res.get("missing") or []
+        unfound = dep_res.get("unfound_dependencies") or dep_res.get("unfound") or []
+        dlcs = dep_res.get("game_dlc_dependencies") or dep_res.get("game_dlcs") or []
+
+        if dep_res and (missing or al_inst or dlcs or unfound):
+            dlg = DependenciesDialog(
+                mod_title=dep_res.get("mod_title", mod_data.get("title", "")),
+                already_installed=al_inst,
+                missing=missing,
+                unfound=unfound,
+                is_partial=dep_res.get("is_partial", False),
+                game_dlcs=dlcs,
+                mod_data=mod_data,
+                parent=self,
+            )
+            if dlg.exec() != QDialog.DialogCode.Accepted:
+                if mod_key:
+                    self._installing_mod_ids.discard(mod_key)
+                self.refresh_catalog()
+                return
+
+        # Émet la demande de téléchargement vers l'onglet Téléchargements (non-bloquant)
+        self._trigger_download(mod_data)
+
+    def on_external_install_finished(self, success: bool, msg: str):
+        """Déclenché lorsqu'un téléchargement se termine dans DownloadsView pour libérer l'état du catalogue."""
+        self._installing_mod_ids.clear()
+        self.refresh_catalog()
 
     def _on_install_progress(self, percent: int, status: str, details: str = ""):
         if hasattr(self, "progress_dlg") and self.progress_dlg.isVisible():

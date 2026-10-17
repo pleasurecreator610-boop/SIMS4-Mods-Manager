@@ -70,6 +70,33 @@ class CatalogFetchWorker(BaseWorker):
             self._is_running = False
 
 
+class CheckDependenciesWorker(BaseWorker):
+    """Checks mod dependencies in background to keep UI thread responsive."""
+
+    finished_signal = Signal(dict, dict)  # dep_res, mod_data
+
+    def __init__(self, api_client, payload: dict, mod_data: dict):
+        super().__init__()
+        self.api_client = api_client
+        self.payload = payload
+        self.mod_data = mod_data
+
+    def run(self):
+        try:
+            self._is_running = True
+            if self._is_cancelled:
+                return
+            dep_res = self.api_client.check_dependencies(self.payload)
+            if not self._is_cancelled:
+                self.finished_signal.emit(dep_res or {}, self.mod_data)
+        except Exception as e:
+            logger.warning(f"CheckDependenciesWorker error: {e}")
+            if not self._is_cancelled:
+                self.finished_signal.emit({}, self.mod_data)
+        finally:
+            self._is_running = False
+
+
 class InstallWorker(BaseWorker):
     """Classe InstallWorker : assure la gestion et l'orchestration de Installworker."""
 

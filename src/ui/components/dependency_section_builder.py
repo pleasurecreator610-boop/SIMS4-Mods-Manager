@@ -21,11 +21,11 @@ def build_dlcs_section(layout: QVBoxLayout, dlcs: List[dict]) -> None:
         return
 
     dlc_header = QLabel(tr("dependencies.dlc_header", count=len(dlcs)))
-    dlc_header.setStyleSheet("font-size: 13px; font-weight: 700; color: #a78bfa;")
+    dlc_header.setStyleSheet("font-size: 13px; font-weight: 700; color: #c084fc; margin-top: 4px;")
     layout.addWidget(dlc_header)
 
     dlc_notice = QLabel(tr("dependencies.dlc_notice"))
-    dlc_notice.setStyleSheet("font-size: 11px; color: #c4b5fd; margin-bottom: 2px;")
+    dlc_notice.setStyleSheet("font-size: 11px; color: #a5b4fc; margin-bottom: 4px;")
     dlc_notice.setWordWrap(True)
     layout.addWidget(dlc_notice)
 
@@ -52,12 +52,28 @@ def build_unfound_section(
         return
 
     unf_header = QLabel(tr("dependencies.unfound_header", count=len(unfound)))
-    unf_header.setStyleSheet("font-size: 13px; font-weight: 800; color: #f87171;")
+    unf_header.setStyleSheet("font-size: 13px; font-weight: 800; color: #f87171; margin-top: 4px;")
     layout.addWidget(unf_header)
 
     for dep in unfound:
         dep_title = dep.get("title") or f"Mod #{dep.get('remote_id')}"
-        btn_comment = QPushButton(tr("dependencies.btn_mark_comment"))
+        btn_comment = QPushButton("💬 " + tr("dependencies.btn_mark_comment"))
+        btn_comment.setStyleSheet("""
+            QPushButton {
+                background-color: #1e293b;
+                color: #cbd5e1;
+                border: 1px solid #334155;
+                border-radius: 6px;
+                padding: 4px 10px;
+                font-size: 11px;
+                font-weight: 600;
+            }
+            QPushButton:hover {
+                background-color: #334155;
+                color: #f8fafc;
+                border-color: #64748b;
+            }
+        """)
         btn_comment.clicked.connect(lambda _, d=dep: toggle_callback(d, True))
         card = DependencyCardWidget(
             dep_title,
@@ -79,12 +95,27 @@ def build_comments_section(
         return
 
     com_header = QLabel(tr("dependencies.comments_header", count=len(comments)))
-    com_header.setStyleSheet("font-size: 13px; font-weight: 700; color: #38bdf8; margin-top: 4px;")
+    com_header.setStyleSheet("font-size: 13px; font-weight: 700; color: #38bdf8; margin-top: 6px;")
     layout.addWidget(com_header)
 
     for dep in comments:
         dep_title = dep.get("title") or f"Mod #{dep.get('remote_id')}"
-        btn_uncomment = QPushButton(tr("dependencies.btn_mark_mod"))
+        btn_uncomment = QPushButton("📦 " + tr("dependencies.btn_mark_mod"))
+        btn_uncomment.setStyleSheet("""
+            QPushButton {
+                background-color: #1e293b;
+                color: #38bdf8;
+                border: 1px solid #0284c7;
+                border-radius: 6px;
+                padding: 4px 10px;
+                font-size: 11px;
+                font-weight: 600;
+            }
+            QPushButton:hover {
+                background-color: #0369a1;
+                color: #ffffff;
+            }
+        """)
         btn_uncomment.clicked.connect(lambda _, d=dep: toggle_callback(d, False))
         card = DependencyCardWidget(
             dep_title,
@@ -92,6 +123,7 @@ def build_comments_section(
             badge_variant="info",
             prefix="💬",
             action_btn=btn_uncomment,
+            dashed=True,
         )
         layout.addWidget(card)
 

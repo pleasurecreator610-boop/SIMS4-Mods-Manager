@@ -5,7 +5,7 @@ Shared between ModDetailView and DependenciesDialog.
 """
 
 from typing import Optional, List
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QWidget, QHBoxLayout, QPushButton, QMessageBox
 
 from src.api.client import get_api_client
@@ -71,7 +71,8 @@ class AuthorInterpellateWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
 
         self.btn_report = QPushButton(tr("dependencies.btn_report_author"))
-        self.btn_report.setFixedHeight(30)
+        self.btn_report.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_report.setFixedHeight(34)
         self.btn_report.clicked.connect(self._on_clicked)
         self._apply_checking_style()
         layout.addWidget(self.btn_report)
@@ -194,40 +195,43 @@ class AuthorInterpellateWidget(QWidget):
     def _apply_checking_style(self):
         self.btn_report.setStyleSheet("""
             QPushButton {
-                background-color: #1e1b4b;
-                color: #818cf8;
-                border: 1px solid #4338ca;
-                border-radius: 6px;
-                padding: 4px 12px;
+                background-color: #1e2238;
+                color: #94a3b8;
+                border: 1px solid #334155;
+                border-radius: 8px;
+                padding: 6px 14px;
                 font-weight: 600;
-                font-size: 11px;
+                font-size: 12px;
             }
         """)
 
     def _apply_can_report_style(self):
         self.btn_report.setStyleSheet("""
             QPushButton {
-                background-color: #4f46e5;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #4338ca, stop:1 #6366f1);
                 color: #ffffff;
-                border: 1px solid #6366f1;
-                border-radius: 6px;
-                padding: 4px 12px;
+                border: 1px solid #818cf8;
+                border-radius: 8px;
+                padding: 6px 16px;
                 font-weight: 700;
-                font-size: 11px;
+                font-size: 12px;
             }
-            QPushButton:hover { background-color: #6366f1; }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #3730a3, stop:1 #4f46e5);
+                border-color: #a5b4fc;
+            }
         """)
 
     def _apply_already_reported_style(self):
         self.btn_report.setStyleSheet("""
             QPushButton {
-                background-color: #141724;
-                color: #64748b;
-                border: 1px solid #232738;
-                border-radius: 6px;
-                padding: 4px 12px;
+                background-color: #064e3b;
+                color: #a7f3d0;
+                border: 1px solid #059669;
+                border-radius: 8px;
+                padding: 6px 14px;
                 font-weight: 600;
-                font-size: 11px;
+                font-size: 12px;
             }
         """)
 

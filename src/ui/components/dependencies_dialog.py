@@ -159,10 +159,31 @@ class DependenciesDialog(QDialog):
         self.scroll.setWidget(self.scroll_content)
         main_layout.addWidget(self.scroll, stretch=1)
 
-        # Author Interpellate Widget (hidden by default to avoid floating at 0, 0)
+        # Dedicated Author Interpellation Panel (pinned cleanly above dialog actions)
+        self.interpellate_container = QWidget(self)
+        self.interpellate_container.setStyleSheet("""
+            QWidget {
+                background-color: #0f172a;
+                border: 1px solid #1e293b;
+                border-radius: 8px;
+            }
+        """)
+        ic_layout = QHBoxLayout(self.interpellate_container)
+        ic_layout.setContentsMargins(12, 8, 12, 8)
+        ic_layout.setSpacing(12)
+
+        self.interpellate_desc = QLabel("💡 Un prérequis introuvable ou un faux positif ? Signalez-le à l'auteur :")
+        self.interpellate_desc.setStyleSheet("color: #94a3b8; font-size: 11px; font-weight: 500; border: none; background: transparent;")
+        self.interpellate_desc.setWordWrap(True)
+        ic_layout.addWidget(self.interpellate_desc, stretch=1)
+
         self.interpellate_widget = AuthorInterpellateWidget(self)
-        self.interpellate_widget.hide()
+        self.interpellate_widget.setStyleSheet("border: none; background: transparent;")
         self.interpellate_widget.override_changed.connect(self._on_dialog_override_changed)
+        ic_layout.addWidget(self.interpellate_widget)
+
+        self.interpellate_container.hide()
+        main_layout.addWidget(self.interpellate_container)
 
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(12)
@@ -250,9 +271,6 @@ class DependenciesDialog(QDialog):
             item = layout.takeAt(0)
             widget = item.widget()
             if widget:
-                if widget is self.interpellate_widget:
-                    widget.hide()
-                    continue
                 widget.deleteLater()
             elif item.layout():
                 self._clear_layout(item.layout())
@@ -269,19 +287,18 @@ class DependenciesDialog(QDialog):
         # 2. Comments / Text Notes section
         build_comments_section(self.c_layout, self.comments, self._toggle_comment)
 
-        # Author Interpellation Button
-        if self.unfound or self.comments:
-            self.c_layout.addWidget(self.interpellate_widget)
-            self.interpellate_widget.show()
-            self._start_live_status_check()
-        else:
-            self.interpellate_widget.hide()
+        # 3. Missing dependencies to install
+        build_missing_section(self.c_layout, self.missing)
 
-        # 3. Already installed section
+        # 4. Already installed section
         build_installed_section(self.c_layout, self.already_installed)
 
-        # 4. Missing dependencies to install
-        build_missing_section(self.c_layout, self.missing)
+        # Dedicated author interpellation container toggle
+        if self.unfound or self.comments:
+            self.interpellate_container.show()
+            self._start_live_status_check()
+        else:
+            self.interpellate_container.hide()
 
         self.c_layout.addStretch()
 

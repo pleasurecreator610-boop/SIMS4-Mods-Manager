@@ -222,30 +222,83 @@ class ModInstallCoordinator:
                 logger.error(f"[INSTALL-DEP] ❌ URL introuvable pour '{dep_title}' (#{dep_remote_id}).")
                 continue
 
-            dep_payload = CatalogInstallRequest(
-                source=dep_source,
-                remote_id=dep_remote_id,
-                page_url=dep_url,
-                title=dep_title,
-                install_dependencies=True,
-            )
-            dep_res = install_func(dep_payload, progress_callback)
-            if dep_res.success:
-                installed_deps.append(dep_title)
-            else:
-                err_msg = f"Échec de l'installation de la dépendance requise '{dep_title}': {dep_res.message}"
-                logger.error(f"[INSTALL-DEP] ❌ {err_msg}")
-                if allow_partial:
-                    not_detected_deps.append(
-                        DependencyItem(
-                            source=dep_source,
-                            remote_id=dep_remote_id,
-                            title=dep_title,
-                            url=dep_url or "",
-                            status="NOT_DETECTED_FINISHED",
-                        )
+            from src.application.mods.active_installation_registry import ActiveInstallationRegistry
+
+            registry = ActiveInstallationRegistry.get_instance()
+            # Double check if the dependency was installed while we were processing previous items
+            with self.db.get_session() as s:
+                already = None
+                if dep_remote_id and dep_source:
+                    already = s.query(InstalledMod).filter_by(remote_id=dep_remote_id, source=dep_source).first()
+                if not already and dep_title:
+                    already = s.query(InstalledMod).filter_by(title=dep_title).first()
+                if already:
+                    logger.info(f"[INSTALL-DEP] Dépendance '{dep_title}' déjà installée en base, passage.")
+                    installed_deps.append(dep_title)
+                    continue
+
+            # Try to register this installation as active or wait if another thread is already installing it
+            acquired, active_event = registry.register_install(dep_source, dep_remote_id, dep_title)
+            if not acquired:
+                if progress_callback:
+                    pct = int(10 + (idx - 1) / max(total_missing, 1) * 35)
+                    progress_callback(
+                        pct,
+                        f"Dépendance partagée '{dep_title}' en cours d'installation, attente...",
+                        f"ID #{dep_remote_id}",
                     )
+                wait_ok, wait_msg = registry.wait_for_active_install(dep_source, dep_remote_id, dep_title, timeout=180.0)
+                if wait_ok:
+                    installed_deps.append(dep_title)
+                    continue
                 else:
-                    return False, installed_deps, not_detected_deps, err_msg
+                    err_msg = f"Échec de l'installation de la dépendance partagée '{dep_title}': {wait_msg}"
+                    logger.error(f"[INSTALL-DEP] ❌ {err_msg}")
+                    if allow_partial:
+                        not_detected_deps.append(
+                            DependencyItem(
+                                source=dep_source,
+                                remote_id=dep_remote_id,
+                                title=dep_title,
+                                url=dep_url or "",
+                                status="NOT_DETECTED_FINISHED",
+                            )
+                        )
+                        continue
+                    else:
+                        return False, installed_deps, not_detected_deps, err_msg
+
+            # We acquired the lock: perform the installation and notify waiting threads upon completion
+            try:
+                dep_payload = CatalogInstallRequest(
+                    source=dep_source,
+                    remote_id=dep_remote_id,
+                    page_url=dep_url,
+                    title=dep_title,
+                    install_dependencies=True,
+                )
+                dep_res = install_func(dep_payload, progress_callback)
+                if dep_res.success:
+                    installed_deps.append(dep_title)
+                    registry.complete_install(dep_source, dep_remote_id, dep_title, success=True, message=dep_res.message)
+                else:
+                    err_msg = f"Échec de l'installation de la dépendance requise '{dep_title}': {dep_res.message}"
+                    logger.error(f"[INSTALL-DEP] ❌ {err_msg}")
+                    registry.complete_install(dep_source, dep_remote_id, dep_title, success=False, message=err_msg)
+                    if allow_partial:
+                        not_detected_deps.append(
+                            DependencyItem(
+                                source=dep_source,
+                                remote_id=dep_remote_id,
+                                title=dep_title,
+                                url=dep_url or "",
+                                status="NOT_DETECTED_FINISHED",
+                            )
+                        )
+                    else:
+                        return False, installed_deps, not_detected_deps, err_msg
+            except Exception as e:
+                registry.complete_install(dep_source, dep_remote_id, dep_title, success=False, message=str(e))
+                raise
 
         return True, installed_deps, not_detected_deps, None
