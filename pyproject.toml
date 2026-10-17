@@ -78,6 +78,10 @@ ignore = ["E501", "B008", "B904"]
 
 [tool.pytest.ini_options]
 addopts = "--capture=sys"
+testpaths = ["tests/unit", "tests/e2e"]
+markers = [
+    "live: Live simulation tests requiring network and Playwright",
+]
 filterwarnings = [
     "ignore:.*StarletteDeprecationWarning.*",
     "ignore:.*httpx2.*",

@@ -14,7 +14,9 @@ def test_supported_languages():
 
 
 def test_locale_files_valid_and_parity():
-    locales_dir = Path(__file__).parents[2] / "src" / "i18n" / "locales"
+    locales_dir = Path(__file__).resolve().parents[3] / "src" / "i18n" / "locales"
+    if not locales_dir.exists():
+        locales_dir = Path(__file__).resolve().parents[2] / "src" / "i18n" / "locales"
 
     # Load all three json files
     with open(locales_dir / "fr.json", "r", encoding="utf-8") as f:
