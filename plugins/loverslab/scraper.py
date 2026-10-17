@@ -301,7 +301,7 @@ class LoversLabProvider(BaseSourceProvider):
         }
 
         try:
-            resp = session.get(mod_url, timeout=20)
+            resp = session.get(mod_url, timeout=10)
             if resp.status_code != 200:
                 return details
 
@@ -428,7 +428,11 @@ class LoversLabProvider(BaseSourceProvider):
                 details["version_str"] = v_elem.get_text(strip=True)
 
         except Exception as e:
-            logger.error(f"Error extracting details for {mod_url}: {e}", exc_info=True)
+            err_str = str(e).lower()
+            if "timed out" in err_str or "timeout" in err_str or "28" in err_str:
+                logger.warning(f"Timeout lors de l'extraction des détails pour {mod_url} (serveur LoversLab indisponible ou lent)")
+            else:
+                logger.error(f"Error extracting details for {mod_url}: {e}", exc_info=True)
 
         return details
 

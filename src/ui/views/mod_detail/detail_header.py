@@ -131,6 +131,8 @@ class DetailHeaderWidget(QWidget):
             self.uninstall_requested.emit()
         else:
             self.set_installing(True)
+            from PySide6.QtWidgets import QApplication
+            QApplication.processEvents()
             self.install_requested.emit()
 
     def set_installing(self, is_installing: bool):

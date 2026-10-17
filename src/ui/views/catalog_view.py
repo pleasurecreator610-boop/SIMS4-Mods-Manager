@@ -58,6 +58,8 @@ class CatalogView(QWidget):
         self.monitor_timer.timeout.connect(self._check_sync_status)
         self.monitor_timer.start()
 
+        self._installing_mod_ids = set()
+
         self.init_ui()
 
     def init_ui(self):
@@ -396,12 +398,20 @@ class CatalogView(QWidget):
         except Exception as e:
             logger.debug(f"Erreur vérification statut sync: {e}")
 
-    def install_mod(self, mod_data: dict):
-        """Exécute l'opération install mod.
+    def install_mod(self, mod_data: dict) -> bool:
+        """Exécute l'opération install mod avec protection anti-doublon et rafraîchissement UI immédiat."""
+        mod_key = str(mod_data.get("id") or mod_data.get("remote_id") or mod_data.get("title") or "")
+        if mod_key and mod_key in self._installing_mod_ids:
+            logger.info(f"Installation déjà demandée pour '{mod_key}', clic doublon ignoré.")
+            return False
 
-        Args:
-            mod_data: Paramètre mod_data.
-        """
+        if mod_key:
+            self._installing_mod_ids.add(mod_key)
+
+        # Forcer le rafraîchissement graphique immédiat pour que le bouton désactivé s'affiche sans latence
+        from PySide6.QtWidgets import QApplication
+        QApplication.processEvents()
+
         mod_id = mod_data.get("id")
         try:
             payload = {
@@ -428,6 +438,8 @@ class CatalogView(QWidget):
                     parent=self,
                 )
                 if dlg.exec() != QDialog.DialogCode.Accepted:
+                    if mod_key:
+                        self._installing_mod_ids.discard(mod_key)
                     return False
         except Exception as e:
             logger.warning(f"Impossible de vérifier les dépendances avant installation: {e}")
@@ -454,6 +466,7 @@ class CatalogView(QWidget):
             QMessageBox.information(self, tr("catalog.install_success_title"), msg)
         else:
             QMessageBox.warning(self, tr("catalog.install_error_title"), msg)
+        self._installing_mod_ids.clear()
         self.refresh_catalog()
         self.install_finished.emit(success, msg)
 

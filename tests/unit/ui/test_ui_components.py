@@ -53,6 +53,7 @@ def test_mod_card_rendering_and_signals(qapp):
     card.action_btn.click()
     assert len(install_called) == 1
     assert install_called[0]["id"] == 1
+    assert card.action_btn.isEnabled() is False
 
     # Already installed state with update
     card_inst = ModCard(mod_data, is_installed=True, has_update=True, is_patreon_auth=True, is_loverslab_auth=True)

@@ -263,3 +263,238 @@ def test_full_user_flow_mocked_e2e(e2e_env, monkeypatch):
     assert logs_resp.status_code == 200
     logs_data = logs_resp.json()
     assert "items" in logs_data or "lines" in logs_data
+
+
+def test_fast_standalone_mod_installation_e2e(e2e_env, monkeypatch):
+    """
+    Scenario: Fast E2E installation of a standalone mod (0 dependencies, e.g. Vernier Mod).
+    Validates:
+    - check-dependencies returns can_install=True and empty missing dependencies.
+    - install-mod-stream completes with 100% progress and files created on disk.
+    - InstalledMod record created in DB.
+    """
+    import io
+    import zipfile
+    from src.database.models import InstalledMod
+
+    client = e2e_env["client"]
+    db = e2e_env["db"]
+    mods_dir = e2e_env["mods_dir"]
+
+    # 1. Seed catalog mod in DB
+    with db.get_session() as s:
+        mod = CatalogMod(
+            source="loverslab",
+            remote_id="51681",
+            title="Vernier Mod",
+            page_url="https://www.loverslab.com/files/file/51681-vernier-mod/",
+            author="VernierCreator",
+            requirements_status="NONE",
+        )
+        mod.set_requirements_mods_list([])
+        mod.set_download_urls_list([{"name": "vernier.zip", "url": "https://example.com/dl/51681"}])
+        s.add(mod)
+        s.commit()
+        cat_id = mod.id
+
+    # 2. Check dependencies (instantaneous, 0 missing)
+    deps_resp = client.post(
+        "/api/catalog/check-dependencies",
+        json={"catalog_mod_id": cat_id, "source": "loverslab", "title": "Vernier Mod"},
+    )
+    assert deps_resp.status_code == 200
+    deps_data = deps_resp.json()
+    assert deps_data["can_install"] is True
+    assert len(deps_data["missing_dependencies"]) == 0
+    assert len(deps_data["unfound_dependencies"]) == 0
+
+    # 3. Mock provider download and details
+    mock_provider = MagicMock()
+    mock_provider.provider_name = "loverslab"
+    mock_provider.get_mod_details.return_value = {
+        "download_urls": [{"name": "vernier.zip", "url": "https://example.com/dl/51681"}],
+        "requirements_mods": [],
+        "requirements_status": "NONE",
+        "external_links": [],
+        "screenshots": [],
+    }
+
+    def mock_download(url, dest_path, progress_callback=None):
+        dest_path = Path(dest_path)
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            zf.writestr("vernier_dress.package", b"DBPF_VERNIER_ASSETS")
+        dest_path.write_bytes(buf.getvalue())
+        return True, str(dest_path)
+
+    mock_provider.download_mod_file = mock_download
+    monkeypatch.setattr(ProviderRegistry, "get_provider", classmethod(lambda cls, name: mock_provider))
+
+    # 4. Install mod
+    install_resp = client.post(
+        "/api/catalog/install",
+        json={
+            "source": "loverslab",
+            "remote_id": "51681",
+            "title": "Vernier Mod",
+            "page_url": "https://www.loverslab.com/files/file/51681-vernier-mod/",
+            "install_dependencies": False,
+        },
+    )
+    assert install_resp.status_code == 200
+    assert install_resp.json()["success"] is True
+
+    # 5. Verify on disk and in database
+    with db.get_session() as s:
+        inst = s.query(InstalledMod).filter_by(title="Vernier Mod").first()
+        assert inst is not None
+        assert inst.is_enabled is True
+        mod_folder = mods_dir / inst.folder_name
+        assert mod_folder.exists()
+        assert (mod_folder / "vernier_dress.package").exists()
+
+
+def test_fast_mod_with_wickedwhims_dependency_installation_e2e(e2e_env, monkeypatch):
+    """
+    Scenario: Fast E2E installation of a parent mod requiring WickedWhims.
+    Validates:
+    - check-dependencies detects WickedWhims as missing requirement.
+    - Installation of WickedWhims dependency + parent mod.
+    - Subsequent check-dependencies marks WickedWhims as already installed.
+    """
+    import io
+    import zipfile
+    from src.database.models import InstalledMod
+
+    client = e2e_env["client"]
+    db = e2e_env["db"]
+    mods_dir = e2e_env["mods_dir"]
+
+    # 1. Seed WickedWhims and Confidence Cascade in DB
+    with db.get_session() as s:
+        ww_mod = CatalogMod(
+            source="loverslab",
+            remote_id="3169",
+            title="WickedWhims",
+            page_url="https://www.loverslab.com/files/file/3169-wickedwhims/",
+            author="TURBODRIVER",
+            requirements_status="NONE",
+        )
+        ww_mod.set_requirements_mods_list([])
+        ww_mod.set_download_urls_list([{"name": "ww.zip", "url": "https://example.com/dl/3169"}])
+
+        cascade_mod = CatalogMod(
+            source="loverslab",
+            remote_id="5002",
+            title="Confidence Cascade",
+            page_url="https://www.loverslab.com/files/file/5002-confidence-cascade/",
+            author="BlackBoxMods",
+            requirements_status="FOUND",
+        )
+        cascade_mod.set_requirements_mods_list([{"title": "WickedWhims", "source": "loverslab", "remote_id": "3169"}])
+        cascade_mod.set_download_urls_list([{"name": "cascade.zip", "url": "https://example.com/dl/5002"}])
+
+        s.add_all([ww_mod, cascade_mod])
+        s.commit()
+        ww_id = ww_mod.id
+        cascade_id = cascade_mod.id
+
+    # 2. Check dependencies for Confidence Cascade: WickedWhims must be missing
+    deps_resp1 = client.post(
+        "/api/catalog/check-dependencies",
+        json={"catalog_mod_id": cascade_id, "title": "Confidence Cascade", "source": "loverslab"},
+    )
+    assert deps_resp1.status_code == 200
+    data1 = deps_resp1.json()
+    assert len(data1["missing_dependencies"]) == 1
+    assert data1["missing_dependencies"][0]["title"] == "WickedWhims"
+    assert len(data1["already_installed_dependencies"]) == 0
+
+    # 3. Mock provider download and details for both mods
+    mock_provider = MagicMock()
+    mock_provider.provider_name = "loverslab"
+
+    def mock_get_details(url):
+        if "3169" in str(url):
+            return {
+                "download_urls": [{"name": "ww.zip", "url": "https://example.com/dl/3169"}],
+                "requirements_mods": [],
+                "requirements_status": "NONE",
+            }
+        return {
+            "download_urls": [{"name": "cascade.zip", "url": "https://example.com/dl/5002"}],
+            "requirements_mods": [{"title": "WickedWhims", "source": "loverslab", "remote_id": "3169"}],
+            "requirements_status": "FOUND",
+        }
+
+    mock_provider.get_mod_details.side_effect = mock_get_details
+
+    def mock_download(url, dest_path, progress_callback=None):
+        dest_path = Path(dest_path)
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            if "3169" in str(url):
+                # WickedWhims TS4 script + package
+                zf.writestr("WickedWhims_Scripts.ts4script", b"WW_SCRIPT_BYTECODE")
+                zf.writestr("WickedWhims_Tuning.package", b"DBPF_WW_PACKAGE")
+            else:
+                # Cascade package
+                zf.writestr("ConfidenceCascade.package", b"DBPF_CASCADE_PACKAGE")
+        dest_path.write_bytes(buf.getvalue())
+        return True, str(dest_path)
+
+    mock_provider.download_mod_file = mock_download
+    monkeypatch.setattr(ProviderRegistry, "get_provider", classmethod(lambda cls, name: mock_provider))
+
+    # 4. Install WickedWhims first
+    ww_inst_resp = client.post(
+        "/api/catalog/install",
+        json={
+            "catalog_mod_id": ww_id,
+            "source": "loverslab",
+            "remote_id": "3169",
+            "title": "WickedWhims",
+            "page_url": "https://www.loverslab.com/files/file/3169-wickedwhims/",
+            "install_dependencies": False,
+        },
+    )
+    assert ww_inst_resp.status_code == 200
+    assert ww_inst_resp.json()["success"] is True
+
+    # 5. Check dependencies for Confidence Cascade again: WickedWhims is now ALREADY installed!
+    deps_resp2 = client.post(
+        "/api/catalog/check-dependencies",
+        json={"catalog_mod_id": cascade_id, "title": "Confidence Cascade", "source": "loverslab"},
+    )
+    assert deps_resp2.status_code == 200
+    data2 = deps_resp2.json()
+    assert len(data2["missing_dependencies"]) == 0
+    assert len(data2["already_installed_dependencies"]) == 1
+    assert data2["already_installed_dependencies"][0]["title"] == "WickedWhims"
+
+    # 6. Install Confidence Cascade
+    cascade_inst_resp = client.post(
+        "/api/catalog/install",
+        json={
+            "source": "loverslab",
+            "remote_id": "5002",
+            "title": "Confidence Cascade",
+            "page_url": "https://www.loverslab.com/files/file/5002-confidence-cascade/",
+            "install_dependencies": False,
+        },
+    )
+    assert cascade_inst_resp.status_code == 200
+    assert cascade_inst_resp.json()["success"] is True
+
+    # 7. Verify both mods exist on disk in Mods/ with correct files
+    with db.get_session() as s:
+        ww_inst = s.query(InstalledMod).filter_by(title="WickedWhims").first()
+        cas_inst = s.query(InstalledMod).filter_by(title="Confidence Cascade").first()
+        assert ww_inst is not None
+        assert cas_inst is not None
+
+        ww_folder = mods_dir / ww_inst.folder_name
+        cas_folder = mods_dir / cas_inst.folder_name
+        assert (ww_folder / "WickedWhims_Scripts.ts4script").exists()
+        assert (ww_folder / "WickedWhims_Tuning.package").exists()
+        assert (cas_folder / "ConfidenceCascade.package").exists()

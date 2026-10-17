@@ -266,7 +266,7 @@ class ModCard(BaseModCard):
                     }
                 """)
 
-        self.action_btn.clicked.connect(lambda: self.install_requested.emit(self.mod_data))
+        self.action_btn.clicked.connect(self._on_action_btn_clicked)
         btn_layout.addWidget(self.action_btn, stretch=2)
 
         # External Link Button
@@ -297,6 +297,23 @@ class ModCard(BaseModCard):
 
         # Start async thumbnail loading via BaseModCard
         self._load_thumbnail_async()
+
+    def _on_action_btn_clicked(self):
+        """Immediately disables the button on click and shows installing status."""
+        if not self.is_installed or self.has_update:
+            self.action_btn.setEnabled(False)
+            self.action_btn.setText(tr("mod_detail.installing"))
+            self.action_btn.setStyleSheet("""
+                QPushButton {
+                    background: #1e293b;
+                    color: #94a3b8;
+                    border: 1px solid #334155;
+                    border-radius: 8px;
+                    font-weight: 600;
+                    font-size: 11px;
+                }
+            """)
+        self.install_requested.emit(self.mod_data)
 
     def mousePressEvent(self, event):
         """Exécute l'opération mousepressevent.
