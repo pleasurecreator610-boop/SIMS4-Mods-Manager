@@ -4,8 +4,9 @@ Contains single-responsibility, atomic functions and classes for version compari
 date checks, and catalog entity resolution.
 """
 
+from datetime import datetime
 import re
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 from src.database.models import CatalogMod, InstalledMod
 from src.domain.interfaces.repositories.catalog_repository_interface import ICatalogRepository
@@ -56,6 +57,20 @@ def is_newer_version(candidate_ver: str, current_ver: str) -> Optional[bool]:
     return None
 
 
+def _normalize_date(d: Any) -> Optional[datetime]:
+    """Helper to convert str or datetime into naive UTC-comparable datetime."""
+    if not d:
+        return None
+    if isinstance(d, datetime):
+        return d.replace(tzinfo=None)
+    if isinstance(d, str):
+        try:
+            return datetime.fromisoformat(d.replace("Z", "+00:00")).replace(tzinfo=None)
+        except Exception:
+            return None
+    return None
+
+
 class ModUpdateActions:
     """Atomic actions for comparing versions and resolving catalog references."""
 
@@ -76,8 +91,9 @@ class ModUpdateActions:
         if not catalog_mod:
             return False
 
-        updated_date = getattr(catalog_mod, "updated_date", None)
-        version_date = getattr(installed_mod, "version_date", None)
+        updated_dt = _normalize_date(getattr(catalog_mod, "updated_date", None))
+        version_dt = _normalize_date(getattr(installed_mod, "version_date", None))
+        installed_dt = _normalize_date(getattr(installed_mod, "installed_date", None))
         version_str = getattr(catalog_mod, "version_str", "") or ""
         installed_version_str = getattr(installed_mod, "version_str", "") or ""
 
@@ -87,13 +103,19 @@ class ModUpdateActions:
             if newer is not None:
                 return newer
 
-        # 2. Date comparison
-        if updated_date and version_date:
-            return updated_date > version_date
+        # 2. Explicit version date comparison
+        if updated_dt and version_dt:
+            return updated_dt > version_dt
 
-        # 3. Known catalog date but missing installed version date
-        if not version_date and updated_date:
-            return True
+        # 3. Known catalog date vs installed_date:
+        # If the mod was installed on or after the catalog update was published, it is NOT an update.
+        if updated_dt:
+            if installed_dt and installed_dt >= updated_dt:
+                return False
+            if not version_dt and not installed_dt:
+                return True
+            if installed_dt and updated_dt > installed_dt:
+                return True
 
         return False
 

@@ -219,11 +219,15 @@ class ModInstaller:
 
                 if target_dir.exists():
                     try:
-                        shutil.rmtree(target_dir)
-                        logger.info(f"Removed mod directory: {target_dir}")
+                        if target_dir.is_dir():
+                            shutil.rmtree(target_dir)
+                            logger.info(f"Removed mod directory: {target_dir}")
+                        else:
+                            target_dir.unlink()
+                            logger.info(f"Removed mod file: {target_dir}")
                     except Exception as e:
-                        logger.error(f"Failed to delete mod folder: {e}")
-                        return False, f"Impossible de supprimer le dossier du mod: {e}"
+                        logger.error(f"Failed to delete mod folder or file: {e}")
+                        return False, f"Impossible de supprimer le mod: {e}"
 
             session.delete(mod)
             session.commit()
@@ -247,7 +251,23 @@ class ModInstaller:
             installed = session.query(InstalledMod).all()
             for mod in installed:
                 mod_folder = mods_dir / (mod.folder_name or "")
-                if not mod_folder.exists() or not any(mod_folder.glob("*")):
+                exists = False
+                if mod_folder.is_dir() and any(mod_folder.glob("*")):
+                    exists = True
+                elif mod_folder.is_file():
+                    exists = True
+                else:
+                    # Check if loose mod file was renamed to/from .disabled
+                    if mod.folder_name and mod.folder_name.endswith(".disabled"):
+                        alt = mods_dir / mod.folder_name[:-9]
+                        if alt.is_file():
+                            exists = True
+                    elif mod.folder_name:
+                        alt = mods_dir / f"{mod.folder_name}.disabled"
+                        if alt.is_file():
+                            exists = True
+
+                if not exists:
                     logger.info(
                         f"Mod supprimé du disque détecté, nettoyage de la BDD : '{mod.title}' ({mod.folder_name})"
                     )
@@ -292,49 +312,71 @@ class ModInstaller:
         with db.get_session() as session:
             existing_by_folder = {m.folder_name: m for m in session.query(InstalledMod).all()}
             for item in mods_dir.iterdir():
-                if item.is_dir() and not item.name.startswith("."):
-                    folder_name = item.name
+                is_dir = item.is_dir() and not item.name.startswith(".")
+                is_mod_file = (
+                    item.is_file()
+                    and not item.name.startswith(".")
+                    and item.name.lower() not in {"resource.cfg", "desktop.ini", "thumbs.db", ".ds_store"}
+                    and (
+                        item.suffix.lower() in [".package", ".ts4script"]
+                        or item.name.lower().endswith((".package.disabled", ".ts4script.disabled"))
+                    )
+                )
+
+                if not (is_dir or is_mod_file):
+                    continue
+
+                folder_name = item.name
+                if is_dir:
                     files = [str(p.relative_to(mods_dir)) for p in item.rglob("*") if p.is_file()]
                     if not files:
                         continue
-
-                    existing = existing_by_folder.get(folder_name)
                     is_enabled = not all(f.endswith(".disabled") for f in files)
+                else:
+                    files = [str(item.relative_to(mods_dir))]
+                    is_enabled = not item.name.lower().endswith(".disabled")
 
-                    if not existing:
-                        stripped_name = re.sub(r"_\d{3,4}$", "", folder_name)
-                        for prefix in ["loverslab_", "patreon_", "manual_"]:
-                            if stripped_name.lower().startswith(prefix):
-                                stripped_name = stripped_name[len(prefix) :]
-                                break
+                existing = existing_by_folder.get(folder_name)
 
-                        clean_search = stripped_name.replace("_", " ").strip()
-                        matched_cat = (
-                            session.query(CatalogMod).filter(CatalogMod.title.ilike(f"%{clean_search}%")).first()
-                        )
-                        if not matched_cat and len(clean_search.split()) > 1:
-                            first_word = clean_search.split()[0]
-                            if len(first_word) >= 4:
-                                matched_cat = (
-                                    session.query(CatalogMod).filter(CatalogMod.title.ilike(f"%{first_word}%")).first()
-                                )
+                if not existing:
+                    stripped_name = re.sub(r"_\d{3,4}$", "", folder_name)
+                    if is_mod_file:
+                        for ext in [".disabled", ".package", ".ts4script"]:
+                            if stripped_name.lower().endswith(ext):
+                                stripped_name = stripped_name[: -len(ext)]
 
-                        record = InstalledMod(
-                            catalog_mod_id=matched_cat.id if matched_cat else None,
-                            source=matched_cat.source if matched_cat else "manual",
-                            remote_id=matched_cat.remote_id if matched_cat else "",
-                            title=matched_cat.title if matched_cat else clean_search,
-                            folder_name=folder_name,
-                            installed_date=datetime.fromtimestamp(item.stat().st_mtime),
-                            is_enabled=is_enabled,
-                        )
-                        record.set_installed_files_list(files)
-                        session.add(record)
-                        found_mods.append({"title": record.title, "folder": folder_name, "status": "added"})
-                    else:
-                        existing.set_installed_files_list(files)
-                        existing.is_enabled = is_enabled
-                        found_mods.append({"title": existing.title, "folder": folder_name, "status": "updated"})
+                    for prefix in ["loverslab_", "patreon_", "manual_"]:
+                        if stripped_name.lower().startswith(prefix):
+                            stripped_name = stripped_name[len(prefix) :]
+                            break
+
+                    clean_search = stripped_name.replace("_", " ").strip()
+                    matched_cat = (
+                        session.query(CatalogMod).filter(CatalogMod.title.ilike(f"%{clean_search}%")).first()
+                    )
+                    if not matched_cat and len(clean_search.split()) > 1:
+                        first_word = clean_search.split()[0]
+                        if len(first_word) >= 4:
+                            matched_cat = (
+                                session.query(CatalogMod).filter(CatalogMod.title.ilike(f"%{first_word}%")).first()
+                            )
+
+                    record = InstalledMod(
+                        catalog_mod_id=matched_cat.id if matched_cat else None,
+                        source=matched_cat.source if matched_cat else "manual",
+                        remote_id=matched_cat.remote_id if matched_cat else "",
+                        title=matched_cat.title if matched_cat else clean_search,
+                        folder_name=folder_name,
+                        installed_date=datetime.fromtimestamp(item.stat().st_mtime),
+                        is_enabled=is_enabled,
+                    )
+                    record.set_installed_files_list(files)
+                    session.add(record)
+                    found_mods.append({"title": record.title, "folder": folder_name, "status": "added"})
+                else:
+                    existing.set_installed_files_list(files)
+                    existing.is_enabled = is_enabled
+                    found_mods.append({"title": existing.title, "folder": folder_name, "status": "updated"})
 
             session.commit()
 

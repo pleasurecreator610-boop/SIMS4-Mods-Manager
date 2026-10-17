@@ -133,16 +133,34 @@ class ModInstallActions:
             suffix = p.suffix.lower()
             if suffix == ".package":
                 rel = p.relative_to(extracted_dir)
-                dest = target_mod_dir / rel
+                # Sims 4 Resource.cfg only searches packages up to 5 subdirectories deep from Mods/
+                # target_mod_dir is depth 1 from mods_dir.
+                # Inside target_mod_dir, rel can have at most 4 directory parts (depth 1 + 4 = 5).
+                # If rel.parts has more than 5 parts (4 subdirs + 1 filename), flatten excess depth
+                if len(rel.parts) > 5:
+                    safe_dirs = rel.parts[:4]
+                    dest = target_mod_dir.joinpath(*safe_dirs) / rel.name
+                    if dest.exists() and dest != p:
+                        dest = target_mod_dir.joinpath(*safe_dirs) / f"{rel.parent.name}_{rel.name}"
+                else:
+                    dest = target_mod_dir / rel
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(p, dest)
             elif suffix == ".ts4script":
                 # Flat at target_mod_dir root (Mods/ModFolder/name.ts4script = depth 1 from Mods/)
                 dest = target_mod_dir / p.name
+                if dest.exists() and dest != p:
+                    dest = target_mod_dir / f"{p.parent.name}_{p.name}"
                 shutil.copy2(p, dest)
             elif suffix in companion_extensions:
                 rel = p.relative_to(extracted_dir)
-                dest = target_mod_dir / rel
+                if len(rel.parts) > 5:
+                    safe_dirs = rel.parts[:4]
+                    dest = target_mod_dir.joinpath(*safe_dirs) / rel.name
+                    if dest.exists() and dest != p:
+                        dest = target_mod_dir.joinpath(*safe_dirs) / f"{rel.parent.name}_{rel.name}"
+                else:
+                    dest = target_mod_dir / rel
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(p, dest)
 

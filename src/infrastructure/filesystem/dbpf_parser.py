@@ -106,7 +106,14 @@ class DbpfParser:
                 index_pos_64 = struct.unpack_from("<Q", header, 64)[0]
                 index_offset = index_pos_64 if (index_pos_64 > 0 and index_pos_64 < file_size) else index_pos_low
 
-                if index_record_count == 0 or index_offset >= file_size or index_offset <= 0:
+                if (
+                    index_record_count == 0
+                    or index_record_count > 500_000
+                    or index_size > 50 * 1024 * 1024
+                    or index_offset >= file_size
+                    or index_offset <= 0
+                    or (index_offset + index_size) > file_size + 1024
+                ):
                     return []
 
                 f.seek(index_offset)

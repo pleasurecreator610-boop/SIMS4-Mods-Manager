@@ -29,7 +29,25 @@ def test_check_has_update_version_string_diff():
 
 def test_check_has_update_no_installed_date():
     now = datetime.now()
-    im = InstalledMod(title="TestMod", folder_name="TestMod", version_date=None)
+    im = InstalledMod(title="TestMod", folder_name="TestMod", version_date=None, installed_date=None)
+    cm = CatalogMod(title="TestMod", updated_date=now)
+    assert check_has_update(im, cm) is True
+
+
+def test_check_has_update_recently_installed_no_version_date():
+    now = datetime.now()
+    older = now - timedelta(days=5)
+    # Installed today, catalog update was 5 days ago -> already up to date, NOT an update
+    im = InstalledMod(title="TestMod", folder_name="TestMod", version_date=None, installed_date=now)
+    cm = CatalogMod(title="TestMod", updated_date=older)
+    assert check_has_update(im, cm) is False
+
+
+def test_check_has_update_old_install_new_catalog_date():
+    now = datetime.now()
+    older = now - timedelta(days=5)
+    # Installed 5 days ago, catalog updated today -> genuine update available!
+    im = InstalledMod(title="TestMod", folder_name="TestMod", version_date=None, installed_date=older)
     cm = CatalogMod(title="TestMod", updated_date=now)
     assert check_has_update(im, cm) is True
 

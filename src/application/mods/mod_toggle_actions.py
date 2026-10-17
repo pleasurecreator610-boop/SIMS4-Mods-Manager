@@ -43,3 +43,12 @@ class ModToggleActions:
             _, rel_str = self.toggle_file(file_path, new_state, mods_dir)
             updated_files.append(rel_str)
         return updated_files
+
+    def toggle_target(
+        self, mod_target: Path, new_state: bool, mods_dir: Path
+    ) -> List[str]:
+        """Atomically toggles a mod folder or a single loose mod file."""
+        if mod_target.is_file():
+            _, rel_str = self.toggle_file(mod_target, new_state, mods_dir)
+            return [rel_str]
+        return self.toggle_folder_files(mod_target, new_state, mods_dir)

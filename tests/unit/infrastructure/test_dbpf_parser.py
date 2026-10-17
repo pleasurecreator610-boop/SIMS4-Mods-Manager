@@ -120,3 +120,27 @@ def test_conflict_detector_finds_collisions(tmp_path: Path):
     assert len(shared_conflict.conflicting_packages) == 2
     assert any("ModA" in p for p in shared_conflict.conflicting_packages)
     assert any("ModB" in p for p in shared_conflict.conflicting_packages)
+
+
+def test_dbpf_parser_corrupted_or_overflow_bounds(tmp_path: Path):
+    """Vérifie que les index DBPF anormaux ou surdimensionnés sont rejetés sans crash mémoire."""
+    # 1. En-tête avec index_record_count excessif
+    header = bytearray(96)
+    struct.pack_into("<4sII", header, 0, b"DBPF", 2, 0)
+    struct.pack_into("<I", header, 40, 1_000_000)  # > 500_000
+    struct.pack_into("<I", header, 44, 96)
+    struct.pack_into("<I", header, 48, 100)
+
+    pkg_path = tmp_path / "overflow_records.package"
+    pkg_path.write_bytes(header + b"\x00" * 200)
+
+    assert DbpfParser.parse_index(pkg_path) == []
+
+    # 2. En-tête avec index_size excessif
+    struct.pack_into("<I", header, 40, 10)
+    struct.pack_into("<I", header, 48, 60 * 1024 * 1024)  # 60MB > 50MB limit
+    pkg_path2 = tmp_path / "overflow_size.package"
+    pkg_path2.write_bytes(header + b"\x00" * 200)
+
+    assert DbpfParser.parse_index(pkg_path2) == []
+

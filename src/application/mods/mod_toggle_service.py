@@ -5,6 +5,7 @@ Facade routing requests to ModToggleActions and repositories.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Optional
 
 from src.application.game.game_service import GameDetector
@@ -47,16 +48,31 @@ class ModToggleManager:
         if not mods_dir or not mods_dir.exists():
             return False, "Sims 4 Mods folder could not be found."
 
-        mod_folder = mods_dir / mod.folder_name
-        if not mod_folder.exists():
-            return False, f"Mod folder '{mod.folder_name}' does not exist on disk."
+        mod_target = mods_dir / mod.folder_name
+        if not mod_target.exists():
+            alt_target = None
+            if mod.folder_name.endswith(".disabled"):
+                candidate = mods_dir / mod.folder_name[:-9]
+                if candidate.exists():
+                    alt_target = candidate
+            else:
+                candidate = mods_dir / f"{mod.folder_name}.disabled"
+                if candidate.exists():
+                    alt_target = candidate
 
-        updated_files = self.actions.toggle_folder_files(
-            mod_folder=mod_folder, new_state=new_state, mods_dir=mods_dir
+            if alt_target:
+                mod_target = alt_target
+            else:
+                return False, f"Mod path '{mod.folder_name}' does not exist on disk."
+
+        updated_files = self.actions.toggle_target(
+            mod_target=mod_target, new_state=new_state, mods_dir=mods_dir
         )
 
         mod.is_enabled = new_state
         mod.installed_files = updated_files
+        if mod_target.is_file() and updated_files:
+            mod.folder_name = Path(updated_files[0]).name
         self.repo.save(mod)
 
         status_str = "activé" if new_state else "désactivé"

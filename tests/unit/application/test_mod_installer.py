@@ -1,5 +1,6 @@
 import re
 import zipfile
+from src.application.mods.mod_install_actions import ModInstallActions
 from src.application.mods.mod_installer_service import (
     ModInstaller,
     sanitize_filename,
@@ -166,3 +167,78 @@ def test_toggle_mod_enable_disable(tmp_path, monkeypatch):
     assert (mod_dir / "item.package").exists()
     assert (mod_dir / "logic.ts4script").exists()
     assert not (mod_dir / "item.package.disabled").exists()
+
+
+def test_deploy_package_depth_capping(tmp_path):
+    """Vérifie que les .package imbriqués à plus de 5 sous-dossiers sont aplatis pour Sims 4."""
+    mods_dir = tmp_path / "Mods"
+    target_mod_dir = mods_dir / "DeepMod"
+    extracted_dir = tmp_path / "extracted"
+
+    # Crée un chemin à 6 niveaux de sous-dossiers dans extracted_dir
+    deep_pkg = extracted_dir / "l1" / "l2" / "l3" / "l4" / "l5" / "l6" / "deep.package"
+    deep_pkg.parent.mkdir(parents=True)
+    deep_pkg.write_text("package data")
+
+    actions = ModInstallActions()
+    deployed = actions.deploy_extracted_files(extracted_dir, target_mod_dir, mods_dir)
+
+    assert len(deployed) == 1
+    deployed_path = mods_dir / deployed[0]
+    assert deployed_path.exists()
+    # Le fichier doit être sous target_mod_dir / l1 / l2 / l3 / l4 / deep.package (depth <= 5 from mods_dir)
+    # relative_to(mods_dir).parts: ('DeepMod', 'l1', 'l2', 'l3', 'l4', 'deep.package') -> 5 dirs + 1 file
+    assert len(deployed_path.relative_to(mods_dir).parts) <= 6
+
+
+def test_scan_loose_files_and_toggle_uninstall(tmp_path, monkeypatch):
+    """Vérifie la détection, le basculement et la désinstallation des fichiers packages/scripts isolés."""
+    mods_dir = tmp_path / "The Sims 4" / "Mods"
+    mods_dir.mkdir(parents=True)
+
+    db_file = tmp_path / "test.db"
+    db_mgr = DatabaseManager(str(db_file))
+    monkeypatch.setattr(DatabaseManager, "get_instance", classmethod(lambda cls: db_mgr))
+
+    config = AppConfig(custom_mods_dir=str(mods_dir))
+    monkeypatch.setattr(AppConfig, "load", classmethod(lambda cls: config))
+
+    # Fichier racine lâche .package et .ts4script
+    loose_pkg = mods_dir / "Standalone_Outfit.package"
+    loose_pkg.write_text("loose package content")
+    loose_script = mods_dir / "Standalone_Script.ts4script"
+    loose_script.write_text("loose script content")
+
+    # Scanner
+    found = ModInstaller.scan_existing_mods()
+    assert len(found) == 2
+    folders = [f["folder"] for f in found]
+    assert "Standalone_Outfit.package" in folders
+    assert "Standalone_Script.ts4script" in folders
+
+    with db_mgr.get_session() as session:
+        mods = session.query(InstalledMod).all()
+        assert len(mods) == 2
+        pkg_mod = next(m for m in mods if "Outfit" in m.title)
+        assert any("Script" in m.title for m in mods)
+        pkg_mod_id = pkg_mod.id
+
+    # Toggle disable loose package
+    ok, _ = ModToggleManager.toggle_mod(pkg_mod_id, target_state=False)
+    assert ok is True
+    assert (mods_dir / "Standalone_Outfit.package.disabled").exists()
+    assert not (mods_dir / "Standalone_Outfit.package").exists()
+
+    # Toggle enable loose package
+    ok, _ = ModToggleManager.toggle_mod(pkg_mod_id, target_state=True)
+    assert ok is True
+    assert (mods_dir / "Standalone_Outfit.package").exists()
+    assert not (mods_dir / "Standalone_Outfit.package.disabled").exists()
+
+    # Désinstallation du mod lâche
+    ok, msg = ModInstaller.uninstall_mod(pkg_mod_id)
+    assert ok is True
+    assert not (mods_dir / "Standalone_Outfit.package").exists()
+    with db_mgr.get_session() as session:
+        assert session.query(InstalledMod).filter_by(id=pkg_mod_id).first() is None
+
