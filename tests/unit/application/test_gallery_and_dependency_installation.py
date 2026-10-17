@@ -93,7 +93,7 @@ def test_cascade_dependency_installation_flow(monkeypatch):
 
     installed_calls = []
 
-    from src.providers.loverslab import LoversLabProvider
+    from plugins.loverslab import LoversLabProvider
     from src.application.mods.mod_installer_service import ModInstaller
 
     def mock_get_mod_details(self, url):
@@ -142,7 +142,7 @@ def test_cascade_dependency_installation_flow(monkeypatch):
 
 def test_extract_download_candidates_prioritizes_zip_over_external():
     from bs4 import BeautifulSoup
-    from src.providers.loverslab import LoversLabProvider
+    from plugins.loverslab import LoversLabProvider
 
     provider = LoversLabProvider()
     html = """
@@ -204,7 +204,7 @@ def test_dependency_failure_aborts_main_installation(monkeypatch):
         parent_id = parent_mod.id
 
     client = TestClient(app)
-    from src.providers.loverslab import LoversLabProvider
+    from plugins.loverslab import LoversLabProvider
 
     # Mock details
     def mock_get_details(self, url):

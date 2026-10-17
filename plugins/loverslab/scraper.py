@@ -4,18 +4,18 @@ from typing import List, Dict, Any, Tuple, Optional, Callable
 from bs4 import BeautifulSoup
 
 from src.providers.base import BaseSourceProvider
-from src.providers.patreon import PatreonProvider
-from src.providers.loverslab.downloader import (
+from plugins.patreon import PatreonProvider
+from .downloader import (
     download_loverslab_file,
     extract_download_candidates as _ext_dl_candidates,
 )
-from src.providers.loverslab.parsers import extract_gallery_screenshots, sanitize_description_html
-from src.providers.loverslab.requirements_extractor import (
+from .parsers import extract_gallery_screenshots, sanitize_description_html
+from .requirements_extractor import (
     extract_loverslab_requirements,
     KNOWN_MOD_ALIASES,
 )
-from src.providers.loverslab.forum_service import LoversLabForumService
-from src.providers.loverslab.page_parser import parse_category_page_html
+from .forum_service import LoversLabForumService
+from .page_parser import parse_category_page_html
 from src.core.session_manager import SessionManager
 from src.core.shutdown_manager import ShutdownManager
 from src.providers.registry import ProviderRegistry

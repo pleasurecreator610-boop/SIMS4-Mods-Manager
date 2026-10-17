@@ -6,7 +6,9 @@
     "recently": "Recientemente",
     "none": "Ninguno",
     "direct": "Directo",
-    "error": "Error"
+    "error": "Error",
+    "ready": "Listo",
+    "pending": "Pendiente"
   },
   "app": {
     "title": "SIMS 4",
@@ -195,7 +197,9 @@
     "batch_progress_status": "Actualización secuencial de {count} mod(s)...",
     "select_at_least_one": "Por favor marque al menos un mod para actualizar.",
     "update_success_title": "Actualización",
-    "update_error_title": "Error de actualización"
+    "update_error_title": "Error de actualización",
+    "badge_manual": "ℹ️ Manual / Externo",
+    "btn_update": "Actualizar"
   },
   "accounts": {
     "title": "Cuentas, Sesiones y Anti-Bot",
@@ -265,7 +269,8 @@
     "btn_expand": "▼ Expandir",
     "gallery_title": "📸 Galería y Capturas:",
     "gallery_hint": "(Haga clic en una imagen para ampliarla en alta definición)",
-    "back_to": "← Volver a {origin}"
+    "back_to": "← Volver a {origin}",
+    "installing": "⏳ Instalando..."
   },
   "drawer": {
     "btn_toggle_collapsed": "🛰️ Sitios ◀",
@@ -339,7 +344,13 @@
     "comment_badge": "Comentario ignorado",
     "comment_header": "💬 Comentarios identificados ({count}):",
     "comment_info": "Estos elementos se consideran comentarios/instrucciones y no impiden la instalación completa del mod:",
-    "all_comments_resolved": "✓ Todos los elementos no encontrados se han calificado como comentarios. La instalación completa está permitida."
+    "all_comments_resolved": "✓ Todos los elementos no encontrados se han calificado como comentarios. La instalación completa está permitida.",
+    "badge_to_install": "Se instalará automáticamente",
+    "badge_installed": "Ya instalado",
+    "badge_unfound": "No encontrado en LoversLab",
+    "badge_comment": "Comentario ignorado",
+    "btn_cancel": "Cancelar",
+    "comments_header": "💬 Comentarios identificados ({count}):"
   },
   "report_dialog": {
     "title": "Notificar al autor en el foro",
@@ -404,6 +415,9 @@
     "error_title": "Error",
     "info_title": "Información",
     "warning_title": "Advertencia",
-    "success_title": "Éxito"
+    "success_title": "Éxito",
+    "warning": "Advertencia",
+    "info": "Información",
+    "error": "Error"
   }
 }

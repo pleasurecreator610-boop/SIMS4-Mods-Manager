@@ -1,5 +1,5 @@
 from bs4 import BeautifulSoup
-from src.providers.loverslab.parsers import extract_gallery_screenshots, sanitize_description_html
+from plugins.loverslab.parsers import extract_gallery_screenshots, sanitize_description_html
 
 
 def test_extract_gallery_screenshots_carousel_and_lightbox():
@@ -52,7 +52,7 @@ def test_sanitize_description_html_strips_scripts_and_cleans_styles():
 
 
 def test_requirements_negative_statements_and_settings_skipped():
-    from src.providers.loverslab.scraper import LoversLabProvider
+    from plugins.loverslab.scraper import LoversLabProvider
 
     provider = LoversLabProvider()
     html = """

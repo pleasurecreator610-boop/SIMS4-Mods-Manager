@@ -121,7 +121,7 @@ class DependenciesDialog(QDialog):
                 self.unfound.append(d)
 
         self.is_partial = is_partial and bool(self.unfound)
-        self.resize(560, 520)
+        self.resize(640, 560)
         self.setStyleSheet("""
             QDialog {
                 background-color: #0f111a;
@@ -154,13 +154,14 @@ class DependenciesDialog(QDialog):
         """)
         self.scroll_content = QWidget()
         self.c_layout = QVBoxLayout(self.scroll_content)
-        self.c_layout.setContentsMargins(12, 12, 12, 12)
-        self.c_layout.setSpacing(8)
+        self.c_layout.setContentsMargins(14, 14, 14, 14)
+        self.c_layout.setSpacing(10)
         self.scroll.setWidget(self.scroll_content)
         main_layout.addWidget(self.scroll, stretch=1)
 
-        # Author Interpellate Widget
+        # Author Interpellate Widget (hidden by default to avoid floating at 0, 0)
         self.interpellate_widget = AuthorInterpellateWidget(self)
+        self.interpellate_widget.hide()
         self.interpellate_widget.override_changed.connect(self._on_dialog_override_changed)
 
         btn_layout = QHBoxLayout()
@@ -237,11 +238,21 @@ class DependenciesDialog(QDialog):
                 QPushButton:hover { background-color: #6366f1; }
             """)
 
+    def accept(self):
+        """Disables buttons to avoid duplicate clicks and closes with acceptance."""
+        self.confirm_btn.setEnabled(False)
+        self.cancel_btn.setEnabled(False)
+        self.confirm_btn.setText(tr("mod_detail.installing"))
+        super().accept()
+
     def _clear_layout(self, layout):
         while layout.count():
             item = layout.takeAt(0)
             widget = item.widget()
             if widget:
+                if widget is self.interpellate_widget:
+                    widget.hide()
+                    continue
                 widget.deleteLater()
             elif item.layout():
                 self._clear_layout(item.layout())
@@ -261,7 +272,10 @@ class DependenciesDialog(QDialog):
         # Author Interpellation Button
         if self.unfound or self.comments:
             self.c_layout.addWidget(self.interpellate_widget)
+            self.interpellate_widget.show()
             self._start_live_status_check()
+        else:
+            self.interpellate_widget.hide()
 
         # 3. Already installed section
         build_installed_section(self.c_layout, self.already_installed)

@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock
 from bs4 import BeautifulSoup
 
-from src.providers.loverslab.downloader import (
+from plugins.loverslab.downloader import (
     extract_download_candidates,
     download_loverslab_file,
 )

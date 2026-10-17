@@ -291,7 +291,9 @@ class MainWindow(QMainWindow):
         self.switch_page(self.current_origin_index)
 
     def _on_detail_install_requested(self, mod_data: dict):
-        self.catalog_view.install_mod(mod_data)
+        started = self.catalog_view.install_mod(mod_data)
+        if not started and hasattr(self.mod_detail_view, "header_widget"):
+            self.mod_detail_view.header_widget.set_installing(False)
 
     def _on_mods_state_changed(self, *args):
         self.installed_view.refresh_mods()

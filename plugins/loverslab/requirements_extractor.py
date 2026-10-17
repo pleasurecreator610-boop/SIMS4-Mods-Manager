@@ -9,7 +9,7 @@ import urllib.parse
 from typing import Dict, List, Any, Tuple, Optional
 from bs4 import BeautifulSoup
 
-from src.providers.loverslab.matchers import is_wickedwhims_name, is_nisa_name
+from .matchers import is_wickedwhims_name, is_nisa_name
 from src.utils.game_dlc_matcher import GameDlcMatcher
 from src.utils.mod_matcher import ModMatcher
 

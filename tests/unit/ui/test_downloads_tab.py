@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 
 from src.ui.views.downloads_view import DownloadsView
 from src.ui.views.catalog_view import CatalogView
-from src.providers.loverslab.downloader import extract_download_candidates
+from plugins.loverslab.downloader import extract_download_candidates
 
 
 @pytest.fixture(scope="session")

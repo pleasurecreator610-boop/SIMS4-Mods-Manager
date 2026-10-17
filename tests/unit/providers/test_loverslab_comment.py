@@ -1,5 +1,5 @@
 from unittest.mock import MagicMock, patch
-from src.providers.loverslab.scraper import LoversLabProvider
+from plugins.loverslab.scraper import LoversLabProvider
 
 
 def test_loverslab_check_user_already_commented_found():
@@ -203,7 +203,7 @@ def test_loverslab_post_mod_comment_via_support_topic():
 
 def test_loverslab_extract_creator_info():
     from bs4 import BeautifulSoup
-    from src.providers.loverslab.forum_service import LoversLabForumService
+    from plugins.loverslab.forum_service import LoversLabForumService
 
     html = """
     <html>

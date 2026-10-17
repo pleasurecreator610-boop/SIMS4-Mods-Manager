@@ -130,7 +130,27 @@ class DetailHeaderWidget(QWidget):
         if self.is_installed and not self.has_update:
             self.uninstall_requested.emit()
         else:
+            self.set_installing(True)
             self.install_requested.emit()
+
+    def set_installing(self, is_installing: bool):
+        """Met à jour l'état visuel du bouton d'installation pendant le téléchargement."""
+        if is_installing:
+            self.btn_install.setEnabled(False)
+            self.btn_install.setText(tr("mod_detail.installing"))
+            self.btn_install.setStyleSheet(Theme.action_button_style(variant="subtle", padding="8px 20px"))
+        else:
+            self.btn_install.setEnabled(True)
+            if self.is_installed:
+                if self.has_update:
+                    self.btn_install.setText(tr("mod_detail.btn_update"))
+                    self.btn_install.setStyleSheet(Theme.action_button_style(variant="warning", padding="8px 20px"))
+                else:
+                    self.btn_install.setText(tr("catalog.btn_already_installed"))
+                    self.btn_install.setStyleSheet(Theme.action_button_style(variant="subtle", padding="8px 20px"))
+            else:
+                self.btn_install.setText("📥 " + tr("mod_detail.install_now"))
+                self.btn_install.setStyleSheet(Theme.action_button_style(variant="primary", padding="8px 20px"))
 
     # Compatibility properties
     @property

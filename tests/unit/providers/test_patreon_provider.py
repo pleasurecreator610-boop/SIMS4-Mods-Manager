@@ -1,5 +1,5 @@
 from unittest.mock import MagicMock
-from src.providers.patreon import PatreonProvider
+from plugins.patreon import PatreonProvider
 from src.core.session_manager import SessionManager
 
 

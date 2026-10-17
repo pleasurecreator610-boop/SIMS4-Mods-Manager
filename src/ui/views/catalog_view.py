@@ -428,7 +428,7 @@ class CatalogView(QWidget):
                     parent=self,
                 )
                 if dlg.exec() != QDialog.DialogCode.Accepted:
-                    return
+                    return False
         except Exception as e:
             logger.warning(f"Impossible de vérifier les dépendances avant installation: {e}")
 
@@ -441,6 +441,7 @@ class CatalogView(QWidget):
             self.toast_label.setText(tr("downloads.toast_started", title=title))
             self.toast_banner.setVisible(True)
             QTimer.singleShot(6000, lambda: self.toast_banner.setVisible(False))
+        return True
 
     def _on_install_progress(self, percent: int, status: str, details: str = ""):
         if hasattr(self, "progress_dlg") and self.progress_dlg.isVisible():

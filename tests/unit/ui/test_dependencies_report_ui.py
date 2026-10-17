@@ -417,16 +417,68 @@ def test_report_preview_dialog_disabled_when_already_reported(qapp):
 
 def test_detail_requirements_widget_scroll_and_responsive(qapp):
     """Verifies DetailRequirementsWidget has a scroll area and updates height responsively."""
-    from PySide6.QtWidgets import QScrollArea
+    from PySide6.QtWidgets import QScrollArea, QLabel
     from src.ui.views.mod_detail.detail_requirements import DetailRequirementsWidget
 
     widget = DetailRequirementsWidget()
     assert hasattr(widget, "deps_scroll")
     assert isinstance(widget.deps_scroll, QScrollArea)
 
-    # Initial update responsive height: preserves at least 1/4 of the screen (~250-270px)
+    # Initial update when empty or minimal content
     widget._update_responsive_height()
     min_h = widget.deps_scroll.minimumHeight()
     max_h = widget.deps_scroll.maximumHeight()
-    assert min_h >= 250
     assert max_h >= min_h
+
+    # When multiple dependencies are present, expands up to responsive limit
+    for i in range(12):
+        lbl = QLabel(f"Dep {i}")
+        lbl.setFixedHeight(40)
+        widget.deps_layout.addWidget(lbl)
+
+    widget._update_responsive_height()
+    expanded_h = widget.deps_scroll.height()
+    assert expanded_h >= 250
+
+
+def test_dependencies_dialog_interpellate_hidden_when_no_unfound(qapp):
+    """Verifies AuthorInterpellateWidget is hidden when there are no unfound or comment items."""
+    dlg = DependenciesDialog(
+        mod_title="Mod Without Unfound",
+        already_installed=[],
+        missing=[{"title": "WickedWhims", "remote_id": "1"}],
+        unfound=[],
+        is_partial=False,
+    )
+    assert dlg.interpellate_widget.isVisible() is False
+    assert dlg.cancel_btn.text() != "dependencies.btn_cancel"
+    assert dlg.confirm_btn.isEnabled() is True
+
+
+def test_dependencies_dialog_accept_disables_buttons(qapp):
+    """Verifies that calling accept() disables confirm and cancel buttons."""
+    dlg = DependenciesDialog(
+        mod_title="Mod Test",
+        already_installed=[],
+        missing=[{"title": "Dep A"}],
+        unfound=[],
+    )
+    dlg.accept()
+    assert dlg.confirm_btn.isEnabled() is False
+    assert dlg.cancel_btn.isEnabled() is False
+
+
+def test_downloads_view_deduplication(qapp, monkeypatch):
+    """Verifies DownloadsView deduplicates active download tasks for the same mod."""
+    from src.ui.views.downloads_view import DownloadsView
+
+    view = DownloadsView()
+    # Mock InstallWorker to not start a real thread in test
+    monkeypatch.setattr("src.ui.views.downloads_view.InstallWorker.start", lambda self: None)
+
+    mod_data = {"id": 888, "title": "Duplicated Mod", "remote_id": "888"}
+    task1 = view.start_download(mod_data)
+    task2 = view.start_download(mod_data)
+
+    assert task1 == task2
+    assert len(view.tasks) == 1

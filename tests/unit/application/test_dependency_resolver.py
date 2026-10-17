@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 
 from src.api.app import app
 from src.database import DatabaseManager, CatalogMod, InstalledMod
-from src.providers.loverslab import LoversLabProvider
+from plugins.loverslab import LoversLabProvider
 
 
 def test_extract_requirements_variations():
@@ -220,7 +220,7 @@ def test_install_partial_when_pending_verification(monkeypatch):
 
     assert mod_id is not None
 
-    from src.providers.loverslab import LoversLabProvider
+    from plugins.loverslab import LoversLabProvider
     from src.application.mods.mod_installer_service import ModInstaller
 
     def mock_get_details(self, url):
@@ -304,7 +304,7 @@ def test_wickedwhims_all_naming_variations_recognition():
     across all variations: WW, ww, WickedWhims, wickedwhims, Wicked-Whims,
     wicked-whims, Wicked_Whims, wicked_whims, Wicked Whims, WiCkedWhIms, etc.
     """
-    from src.providers.loverslab import is_wickedwhims_name, LoversLabProvider
+    from plugins.loverslab import is_wickedwhims_name, LoversLabProvider
 
     provider = LoversLabProvider()
 
@@ -391,7 +391,7 @@ def test_shutdown_manager_graceful_handling():
 
 def test_wickedwhims_variations_and_br_preservation():
     """Validates robust detection of wickedwhile/wickedwhims variants, line breaks (<br>), and DLC filtering."""
-    from src.providers.loverslab import LoversLabProvider, is_wickedwhims_name
+    from plugins.loverslab import LoversLabProvider, is_wickedwhims_name
 
     provider = LoversLabProvider()
 

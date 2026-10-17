@@ -1,5 +1,5 @@
 from unittest.mock import patch, MagicMock
-from src.providers.loverslab import LoversLabProvider
+from plugins.loverslab import LoversLabProvider
 
 
 def test_loverslab_provider_init():
@@ -201,7 +201,7 @@ def test_image_format_detection(tmp_path, monkeypatch):
 
 def test_loverslab_download_mod_file_signature(tmp_path):
     provider = LoversLabProvider()
-    with patch("src.providers.loverslab.scraper.download_loverslab_file") as mock_dl:
+    with patch("plugins.loverslab.scraper.download_loverslab_file") as mock_dl:
         mock_dl.return_value = (True, "OK")
 
         # 1. Standard call

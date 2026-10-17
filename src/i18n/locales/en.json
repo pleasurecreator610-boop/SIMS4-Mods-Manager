@@ -6,7 +6,9 @@
     "recently": "Recently",
     "none": "None",
     "direct": "Direct",
-    "error": "Error"
+    "error": "Error",
+    "ready": "Ready",
+    "pending": "Pending"
   },
   "app": {
     "title": "SIMS 4",
@@ -195,7 +197,9 @@
     "batch_progress_status": "Sequential update of {count} mod(s)...",
     "select_at_least_one": "Please check at least one mod to update.",
     "update_success_title": "Update",
-    "update_error_title": "Update Error"
+    "update_error_title": "Update Error",
+    "badge_manual": "ℹ️ Manual / External",
+    "btn_update": "Update"
   },
   "accounts": {
     "title": "Accounts, Sessions & Anti-Bot",
@@ -265,7 +269,8 @@
     "btn_expand": "▼ Expand",
     "gallery_title": "📸 Gallery & Screenshots:",
     "gallery_hint": "(Click an image to enlarge in high definition)",
-    "back_to": "← Back to {origin}"
+    "back_to": "← Back to {origin}",
+    "installing": "⏳ Installing..."
   },
   "drawer": {
     "btn_toggle_collapsed": "🛰️ Sites ◀",
@@ -339,7 +344,13 @@
     "comment_badge": "Comment ignored",
     "comment_header": "💬 Identified comments ({count}):",
     "comment_info": "These items are considered comments/instructions and do not prevent full mod installation:",
-    "all_comments_resolved": "✓ All unfound items have been classified as comments. Full installation is now allowed."
+    "all_comments_resolved": "✓ All unfound items have been classified as comments. Full installation is now allowed.",
+    "badge_to_install": "Will be installed automatically",
+    "badge_installed": "Already installed",
+    "badge_unfound": "Not found on LoversLab",
+    "badge_comment": "Comment ignored",
+    "btn_cancel": "Cancel",
+    "comments_header": "💬 Identified comments ({count}):"
   },
   "report_dialog": {
     "title": "Notify Author on Forum",
@@ -365,7 +376,6 @@
     "error_title": "Posting Error",
     "generic_error": "An error occurred while posting the message."
   },
-
   "image_viewer": {
     "title": "Screenshot Viewer",
     "photo_counter": "Photo {current} / {total}",
@@ -405,6 +415,9 @@
     "error_title": "Error",
     "info_title": "Information",
     "warning_title": "Warning",
-    "success_title": "Success"
+    "success_title": "Success",
+    "warning": "Warning",
+    "info": "Information",
+    "error": "Error"
   }
 }

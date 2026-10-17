@@ -6,7 +6,9 @@
     "recently": "Récemment",
     "none": "Aucun",
     "direct": "Direct",
-    "error": "Erreur"
+    "error": "Erreur",
+    "ready": "Prêt",
+    "pending": "En attente"
   },
   "app": {
     "title": "SIMS 4",
@@ -195,7 +197,9 @@
     "batch_progress_status": "Mise à jour séquentielle de {count} mod(s)...",
     "select_at_least_one": "Veuillez cocher au moins un mod à mettre à jour.",
     "update_success_title": "Mise à jour",
-    "update_error_title": "Erreur de mise à jour"
+    "update_error_title": "Erreur de mise à jour",
+    "badge_manual": "ℹ️ Manuel / Externe",
+    "btn_update": "Mettre à jour"
   },
   "accounts": {
     "title": "Comptes, Sessions & Anti-Bot",
@@ -265,7 +269,8 @@
     "btn_expand": "▼ Développer",
     "gallery_title": "📸 Galerie & Captures d'écran :",
     "gallery_hint": "(Cliquez sur une image pour l'agrandir en haute définition)",
-    "back_to": "← Retour à {origin}"
+    "back_to": "← Retour à {origin}",
+    "installing": "⏳ Installation en cours..."
   },
   "drawer": {
     "btn_toggle_collapsed": "🛰️ Sites ◀",
@@ -339,7 +344,13 @@
     "comment_badge": "Commentaire ignoré",
     "comment_header": "💬 Commentaires identifiés ({count}) :",
     "comment_info": "Ces éléments sont considérés comme de simples commentaires/instructions et n'empêchent pas l'installation complète du mod :",
-    "all_comments_resolved": "✓ Tous les éléments non trouvés ont été qualifiés comme commentaires. L'installation complète est maintenant autorisée."
+    "all_comments_resolved": "✓ Tous les éléments non trouvés ont été qualifiés comme commentaires. L'installation complète est maintenant autorisée.",
+    "badge_to_install": "Sera installé automatiquement",
+    "badge_installed": "Déjà installé",
+    "badge_unfound": "Introuvable sur LoversLab",
+    "badge_comment": "Commentaire ignoré",
+    "btn_cancel": "Annuler",
+    "comments_header": "💬 Commentaires identifiés ({count}) :"
   },
   "report_dialog": {
     "title": "Interpeler l'auteur sur le forum",
@@ -365,7 +376,6 @@
     "error_title": "Erreur de Publication",
     "generic_error": "Une erreur est survenue lors de la publication du message."
   },
-
   "image_viewer": {
     "title": "Visionneuse de Captures d'écran",
     "photo_counter": "Photo {current} / {total}",
@@ -405,6 +415,9 @@
     "error_title": "Erreur",
     "info_title": "Information",
     "warning_title": "Avertissement",
-    "success_title": "Succès"
+    "success_title": "Succès",
+    "warning": "Avertissement",
+    "info": "Information",
+    "error": "Erreur"
   }
 }

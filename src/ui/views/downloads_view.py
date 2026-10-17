@@ -467,7 +467,20 @@ class DownloadsView(QWidget):
         main_layout.addWidget(self.scroll_area)
 
     def start_download(self, mod_data: dict) -> str:
-        """Starts a background download task for the given mod."""
+        """Starts a background download task for the given mod, preventing duplicate concurrent runs."""
+        target_id = str(mod_data.get("id") or mod_data.get("remote_id") or "")
+        target_title = (mod_data.get("title") or "").strip().lower()
+
+        # Check if an active download for this mod is already running
+        for tid, tinfo in self.tasks.items():
+            if tinfo.get("status") == "downloading":
+                t_data = tinfo.get("mod_data", {})
+                t_id = str(t_data.get("id") or t_data.get("remote_id") or "")
+                t_title = (t_data.get("title") or "").strip().lower()
+                if (target_id and t_id and target_id == t_id) or (target_title and t_title and target_title == t_title):
+                    logger.info(f"Téléchargement déjà actif pour '{target_title or target_id}' (task {tid}), doublon ignoré.")
+                    return tid
+
         mod_id = str(mod_data.get("id") or mod_data.get("remote_id") or mod_data.get("title"))
         task_id = f"{mod_id}_{len(self.tasks) + 1}"
 

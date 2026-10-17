@@ -92,8 +92,7 @@ class DetailRequirementsWidget(QWidget):
         self.deps_scroll = QScrollArea()
         self.deps_scroll.setWidgetResizable(True)
         self.deps_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.deps_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        self.deps_scroll.setMaximumHeight(240)
+        self.deps_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.deps_scroll.setStyleSheet("""
             QScrollArea {
                 border: none;
@@ -122,8 +121,8 @@ class DetailRequirementsWidget(QWidget):
         self.deps_inner_container = QWidget()
         self.deps_inner_container.setStyleSheet("background: transparent;")
         self.deps_layout = QVBoxLayout(self.deps_inner_container)
-        self.deps_layout.setContentsMargins(0, 0, 4, 0)
-        self.deps_layout.setSpacing(6)
+        self.deps_layout.setContentsMargins(2, 4, 6, 4)
+        self.deps_layout.setSpacing(8)
         self.deps_scroll.setWidget(self.deps_inner_container)
         self.req_body_layout.addWidget(self.deps_scroll)
 
@@ -142,32 +141,28 @@ class DetailRequirementsWidget(QWidget):
         self._update_responsive_height()
 
     def _update_responsive_height(self):
-        if hasattr(self, "deps_scroll"):
-            screen = self.screen() or QGuiApplication.primaryScreen()
-            screen_h = screen.availableGeometry().height() if screen else 1080
-            win_h = self.window().height() if self.window() else screen_h
+        if not hasattr(self, "deps_scroll") or not hasattr(self, "deps_layout"):
+            return
 
-            # Conserver au moins 1/4 de l'écran (25% de la hauteur disponible de l'écran)
-            quarter_screen = max(260, int(screen_h * 0.25))
+        total_items_h = 16  # Base padding
+        for i in range(self.deps_layout.count()):
+            item = self.deps_layout.itemAt(i)
+            w = item.widget()
+            if w and not w.isHidden():
+                hint = w.sizeHint().height()
+                total_items_h += max(hint, 38) + self.deps_layout.spacing()
 
-            # Plafond responsive confortable (jusqu'à 45% de l'écran ou de la fenêtre)
-            max_responsive = max(quarter_screen + 150, int(screen_h * 0.45), int(win_h * 0.42))
+        screen = self.screen() or QGuiApplication.primaryScreen()
+        screen_h = screen.availableGeometry().height() if screen else 1080
+        win_h = self.window().height() if self.window() else screen_h
+        max_h = max(380, int(min(screen_h * 0.45, win_h * 0.45)))
 
-            if hasattr(self, "deps_layout") and self.deps_layout:
-                self.deps_layout.activate()
-            if hasattr(self, "deps_inner_container") and self.deps_inner_container:
-                self.deps_inner_container.adjustSize()
-                content_h = self.deps_inner_container.sizeHint().height()
-            else:
-                content_h = 0
-
-            if content_h > 0:
-                target_min = min(content_h, quarter_screen)
-                self.deps_scroll.setMinimumHeight(target_min)
-                self.deps_scroll.setMaximumHeight(max(quarter_screen, min(content_h + 10, max_responsive)))
-            else:
-                self.deps_scroll.setMinimumHeight(quarter_screen)
-                self.deps_scroll.setMaximumHeight(max_responsive)
+        if total_items_h <= max_h:
+            self.deps_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            self.deps_scroll.setFixedHeight(max(total_items_h, 48))
+        else:
+            self.deps_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+            self.deps_scroll.setFixedHeight(max_h)
 
     @property
     def btn_report_author(self) -> QPushButton:
