@@ -52,6 +52,8 @@ nav:
   - API REST:
       - Spécification REST: api/REST_API.md
       - Référence des Endpoints: api_reference.md
+  - Évolutions & Performance:
+      - Roadmap & Optimisations: proposals_and_roadmap.md
   - Référence Code Python:
       - Application - Catalog: reference/application_catalog.md
       - Application - Mods: reference/application_mods.md
@@ -59,3 +61,4 @@ nav:
       - Application - Jeu Sims 4: reference/application_game.md
       - Infrastructure: reference/infrastructure.md
       - API REST & Client: reference/api.md
+

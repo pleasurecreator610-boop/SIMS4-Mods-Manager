@@ -1,88 +1,97 @@
 # SIMS 4 Mods Manager 💎
 
-@ TODO : tester interpellation mod sur "confidence cascade"
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/)
+[![Tests](https://img.shields.io/badge/tests-229%20passed%20(100%25)-success.svg)](./tests)
+[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
+[![Architecture: 3--Tier POO](https://img.shields.io/badge/architecture-3--Tier%20POO-purple.svg)](./documentation/architecture.md)
+[![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](./LICENSE)
 
-Gestionnaire de mods moderne, performant et automatisé pour **Les Sims 4**, conçu avec une **architecture 100% API REST (FastAPI)** et une **interface de bureau réactive (PySide6)**.
-
-L'application centralise la recherche, le contournement des protections anti-bot (Cloudflare Turnstile), la résolution automatique des dépendances en cascade, le téléchargement, l'organisation intelligente des fichiers (`.package` et `.ts4script`), l'activation/désactivation en un clic et le suivi des mises à jour.
-
----
-
-## ✨ Fonctionnalités Clés
-
-- **🌐 100% Découplé via API REST** : L'interface graphique communique exclusivement avec une API REST interne documentée (`/docs`).
-- **🌍 Internationalisation Complète (i18n)** : Support dynamique multilingue (Français, Anglais, Espagnol) avec bascule à chaud et parité totale des clés de traduction.
-- **🛡️ Contournement Anti-Bot & Sessions** : Navigateur Playwright intégré pour la validation Cloudflare et la synchronisation des sessions LoversLab / Patreon.
-- **🖼️ Grille Réactive & Cache Haute Performance** : Grille de cartes responsive s'adaptant à la résolution (`ResponsiveCardGrid`), cache mémoire LRU borné à 128 Mo (`ImageCache`) et réutilisation de pool HTTP Keep-Alive.
-- **📦 Installation Intelligente** : Extraction d'archives (`.zip`, `.rar`, `.7z`), validation DBPF et **respect strict de la règle de profondeur du moteur Sims 4** (les `.ts4script` sont automatiquement remontés au niveau 1).
-- **🧩 Résolution de Dépendances** : Détection des prérequis (WickedWhims, Nisa's Wicked Perversions, etc.) catégorisés selon 4 statuts avec installation en cascade et composant partagé réutilisable.
-- **⚡ Mises à Jour en 1 Clic** : Détection différentielle de version et de date avec archivage de sauvegarde (rollback automatique en cas d'erreur).
-- **🎛️ Activation / Désactivation Propre** : Désactivation non-destructive via renommage `.disabled` sans altérer vos fichiers d'origine.
-- **📊 Polling Adaptatif** : Fréquence d'actualisation dynamique (4000ms en veille, 600ms pendant les synchronisations de catalogue actives).
+Gestionnaire de mods automatisé, moderne et ultra-performant pour **Les Sims 4** (Windows).  
+Conçu avec une architecture **100% découplée via API REST (FastAPI)**, un domaine métier en **POO 3-Tiers** (Orchestrators $\to$ Coordinators $\to$ Actions) et une interface de bureau réactive **PySide6**.
 
 ---
 
-## 🚀 Démarrage Rapide
+## ⚡ En Bref : Ce Que Fait le Projet
+
+- **🔍 Recherche & Indexation Automatisée** : Scrape et indexe le contenu (LoversLab, Patreon) avec contournement transparent des protections anti-bot (Cloudflare Turnstile) via Playwright.
+- **🧩 Résolution de Dépendances en Cascade** : Détecte les prérequis obligatoires (WickedWhims, etc.) et les installe automatiquement en chaîne.
+- **📦 Respect Strict de la Règle `.ts4script`** : Remonte automatiquement les scripts au niveau 1 de profondeur (`Mods/<NomDuMod>/script.ts4script`) pour garantir leur chargement par le moteur des Sims 4.
+- **🎛️ Activation / Désactivation Propre** : Désactive instantanément un mod via extension `.disabled` réversible sans supprimer vos fichiers.
+- **⚡ Mises à Jour Sécurisées avec Rollback** : Compare les versions en un clic et crée une sauvegarde d'archive automatique avant tout remplacement.
+
+---
+
+## 🚀 Démarrage Express (3 Commandes)
 
 ### 1. Prérequis
-
-- **Python** 3.11 à 3.13
-- **uv** (Gestionnaire de paquets ultra-rapide) :
-
-  ```powershell
-  scoop install uv
-  ```
+Installez [uv](https://docs.astral.sh/uv/) (gestionnaire de paquets ultra-rapide) :
+```powershell
+scoop install uv
+```
 
 ### 2. Installation
-
 ```powershell
-# Installation des dépendances du projet
+# Cloner et installer l'environnement complet
 uv sync
 
-# Installation du navigateur Chromium pour l'anti-bot
+# Installer Chromium headless pour le contournement anti-bot
 uv run playwright install chromium
 ```
 
-### 3. Lancement
-
+### 3. Lancer l'Application
 ```powershell
-# Mode Interface Graphique (GUI par défaut)
+# Mode Interface Graphique (PySide6)
 uv run python run.py
 
 # Ou Mode Serveur API Autonome (sans GUI)
 uv run python run.py --server --port 8000
 ```
+> 📖 *Documentation interactive Swagger disponible sur : [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)*
 
-- **Interface Swagger** : [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-- **Interface ReDoc** : [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
+---
 
-### 4. Tests & Vérification
+## 🧪 Tests & Vérification Qualité
+
+Le projet dispose d'une suite de **229 tests automatisés** garantissant 100% de stabilité :
 
 ```powershell
-# Exécution de la suite complète par module (151 tests - 100% vert, 0 warning)
-uv run pytest tests/core -v
-uv run pytest tests/utils -v
-uv run pytest tests/database -v
-uv run pytest tests/api -v
-uv run pytest tests/providers -v
-uv run pytest tests/ui -v
-uv run pytest tests/services -v
+# Lancer l'ensemble des tests (tests unitaires & intégration)
+uv run pytest -q
 
-# Vérification du code avec le linter
+# Lancer les tests unitaires seuls
+uv run pytest tests/unit/ -q
+
+# Lancer le flux end-to-end simulé
+uv run pytest tests/e2e/test_mocked_flow_e2e.py -v
+
+# Vérification du code avec Ruff
 uv run ruff check src/ tests/
 ```
 
 ---
 
-## 📚 Documentation Complète
+## 🏛️ Architecture 3-Tiers POO
 
-Pour explorer l'architecture détaillée, les spécifications techniques et les diagrammes du projet, consultez le dossier [`documentation/`](./documentation/) :
+La couche applicative (`src/application/`) est strictement découpée en 3 niveaux :
+1. **Tier 1 - Orchestrateurs (`*_orchestrator.py`)** : Façades de haut niveau appelées par les routes REST.
+2. **Tier 2 - Coordinateurs (`*_coordinator.py`)** : Gestion du séquençage, des boucles, des batchs et du suivi de progression (`SyncTracker`).
+3. **Tier 3 - Actions (`*_actions.py`)** : Opérations atomiques pures (I/O, validation binaire DBPF, renommage, normalisation).
 
-- **[Architecture & Organisation des Fichiers](./documentation/architecture.md)** : Principes Clean Architecture, découpage en couches et arborescence.
-- **[Spécification de l'API REST](./documentation/api_reference.md)** : Endpoints, paramètres, DTOs Pydantic et protocole de streaming NDJSON.
-- **[Schémas de Liaisons & Classes](./documentation/modules_and_classes.md)** : Diagrammes Mermaid du modèle de données, des services, des providers et de la séquence d'installation.
-- **[Services Métier & Fournisseurs](./documentation/services_and_providers.md)** : Détails du scraping multithreadé, de la règle de profondeur `.ts4script`, et des connecteurs LoversLab / Patreon.
-- **[Instructions Techniques & Retours d'Expérience](./INSTRUCTIONS.md)** : Règles métier avancées et bonnes pratiques.
+---
+
+## 📚 Documentation Technique Détaillée
+
+Pour les développeurs et contributeurs, une documentation complète est disponible dans le dossier [`documentation/`](./documentation/) :
+
+| Document | Description |
+| :--- | :--- |
+| 📖 **[Portail d'Accueil](./documentation/index.md)** | Vue synthétique de la documentation |
+| 🏛️ **[Architecture & Découpage](./documentation/architecture.md)** | Clean architecture, découpage 3-tiers et arborescence |
+| 📊 **[Modules & Classes](./documentation/modules_and_classes.md)** | Schémas de données, diagrammes Mermaid de classes et séquences |
+| ⚙️ **[Services Métier & Fournisseurs](./documentation/services_and_providers.md)** | Détails du scraping, règle `.ts4script`, connecteurs LoversLab & Patreon |
+| 🌐 **[Spécification de l'API REST](./documentation/api_reference.md)** | Endpoints, paramètres, DTOs Pydantic et streaming NDJSON |
+| 🚀 **[Optimisations & Roadmap](./documentation/proposals_and_roadmap.md)** | Analyse de performance, pool HTTP, détection conflits DBPF et packaging |
+| 🧩 **[Classification des Dépendances](./documentation/dependency_classification_and_noise.md)** | Algorithme des 4 statuts et règles de filtrage du bruit |
 
 ---
 

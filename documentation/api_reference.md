@@ -61,6 +61,34 @@ Permet la recherche, le filtrage avancé, la synchronisation multithreadée et l
 - `page` (int, défaut: 1) : Numéro de page.
 - `limit` (int, défaut: 50, max: 200) : Nombre d'éléments par page.
 
+### Vérification des Dépendances (`POST /api/catalog/check-dependencies`)
+- **Corps de requête** (`CatalogInstallRequest`) :
+  ```json
+  {
+    "catalog_mod_id": 42,
+    "source": "loverslab",
+    "remote_id": "3169",
+    "page_url": "https://www.loverslab.com/files/file/3169-wickedwhims/",
+    "install_dependencies": true
+  }
+  ```
+- **Réponse** (`DependenciesCheckResponse`) :
+  ```json
+  {
+    "has_missing": false,
+    "total_required": 1,
+    "missing_dependencies": [],
+    "dependencies": [
+      {
+        "mod_name": "WickedWhims",
+        "status": "INSTALLED",
+        "url": "https://www.loverslab.com/files/file/3169-wickedwhims/",
+        "is_required": true
+      }
+    ]
+  }
+  ```
+
 ### Protocole de Streaming d'Installation (`/api/catalog/install-stream`)
 L'endpoint émet un flux `application/x-ndjson` d'objets JSON successifs :
 ```json

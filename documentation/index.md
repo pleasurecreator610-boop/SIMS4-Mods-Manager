@@ -31,5 +31,8 @@ L'application a été entièrement refondue selon les principes de la **Clean Ar
 3. **API REST** :
    - [Spécification & Routes REST API](api/REST_API.md)
    - [Guide de Référence Rapide API](api_reference.md)
-4. **Référence Python** :
+4. **Évolutions & Performance** :
+   - [Propositions d'Optimisations & Roadmap Technique](proposals_and_roadmap.md)
+5. **Référence Python** :
    - Documentation auto-générée des classes et fonctions via `mkdocstrings`.
+

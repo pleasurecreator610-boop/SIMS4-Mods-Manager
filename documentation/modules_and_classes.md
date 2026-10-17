@@ -1,6 +1,6 @@
 # Schémas de Liaisons et Diagrammes de Classes
 
-Ce document détaille les relations, contrats d'interface et flux d'interaction entre les différentes classes et modules de **SIMS 4 Mods Manager**.
+Ce document détaille les relations, contrats d'interface et flux d'interaction entre les différentes classes et modules de **SIMS 4 Mods Manager**, structurés selon l'architecture **POO 3-Tiers**.
 
 ---
 
@@ -68,73 +68,93 @@ classDiagram
 
 ---
 
-## ⚙️ 2. Couche Services & Orchestration
+## ⚙️ 2. Architecture 3-Tiers POO (`src/application/`)
 
 ```mermaid
 classDiagram
-    class DatabaseManager {
-        <<Singleton>>
-        +get_instance() DatabaseManager
-        +get_session() Session
-        +get_catalog_mods_count() int
-        +clean_and_repair_catalog() dict
-        +purge_catalog() int
+    %% Tier 1 : Orchestrators
+    class CatalogOrchestrator {
+        +sync_catalog(max_pages, categories)
+        +get_sync_status() CatalogSyncStatusResponse
+        +check_dependencies(title, page_url, source)
     }
 
-    class CatalogSyncService {
-        +run_catalog_sync(max_pages)
-        +check_catalog_dependencies(mod_title, page_url, source)
-    }
-
-    class SyncTracker {
-        <<ThreadSafe>>
-        +bool is_running
-        +int progress_percent
-        +int total_scraped
-        +dict categories
-        +start(max_pages, categories_list)
-        +record_page(new_count, is_first_page)
-        +update_category(cat_id, pages, total, count, status)
-        +finish(total_new)
-        +set_error(msg)
-        +to_response() CatalogSyncStatusResponse
-    }
-
-    class ModInstaller {
+    class ModOrchestrator {
         +install_mod(payload, progress_cb) CatalogInstallResponse
-        +perform_mod_install(payload, progress_cb) CatalogInstallResponse
-        +sanitize_mod_folder_name(name) str
-        +verify_installed_mods_on_disk()
-    }
-
-    class ModToggleManager {
-        +toggle_mod(installed_mod_id, target_state) Tuple~bool, str~
-    }
-
-    class UpdateChecker {
-        +check_has_update(installed_mod, catalog_mod) bool
         +update_mod(installed_id) Tuple~bool, str~
         +update_all_mods() Tuple~int, int~
+        +toggle_mod(installed_id, state) Tuple~bool, str~
+        +scan_and_sync_installed_mods()
     }
 
-    class DependencyResolver {
-        +resolve_mod_dependencies(reqs, session, remote_dict, title_dict) List~DependencyItem~
-        +extract_requirements(html_text) Tuple~str, str, List~
+    class DependencyOrchestrator {
+        +resolve_dependencies(reqs, session) List~DependencyItem~
+        +generate_report(mod_title, page_url) str
     }
 
-    class GameDetector {
-        +detect_sims4_user_dir() Path
-        +detect_mods_dir() Path
-        +ensure_resource_cfg(mods_dir) Path
+    %% Tier 2 : Coordinators
+    class CatalogSyncCoordinator {
+        +SyncTracker tracker
+        +execute_sync(max_pages, categories)
     }
 
-    CatalogSyncService ..> SyncTracker : pilote
-    CatalogSyncService ..> DatabaseManager : persiste
-    ModInstaller ..> GameDetector : localise Mods/
-    ModInstaller ..> DependencyResolver : cascade
-    ModInstaller ..> DatabaseManager : enregistre
-    ModToggleManager ..> GameDetector : renomme .disabled
-    UpdateChecker ..> ModInstaller : délègue réinstallation
+    class ModInstallCoordinator {
+        +coordinate_install(payload, progress_cb) CatalogInstallResponse
+    }
+
+    class ModUpdateCoordinator {
+        +coordinate_update(installed_id) Tuple~bool, str~
+        +coordinate_batch_update(ids) Tuple~int, int~
+    }
+
+    class ModToggleCoordinator {
+        +coordinate_toggle(installed_id, state) Tuple~bool, str~
+    }
+
+    class DependencyResolutionCoordinator {
+        +coordinate_resolution(requirements) List~DependencyItem~
+    }
+
+    %% Tier 3 : Actions
+    class CatalogSyncActions {
+        +persist_catalog_mod(mod_data, session)
+        +normalize_dates(raw_date) datetime
+    }
+
+    class ModInstallActions {
+        +download_archive(url, dest, progress_cb)
+        +extract_and_enforce_ts4script(archive_path, dest_dir)
+        +validate_dbpf_headers(folder_path) bool
+    }
+
+    class ModUpdateActions {
+        +create_rollback_backup(folder_path) Path
+        +restore_backup_on_failure(backup_zip, target_folder)
+    }
+
+    class ModToggleActions {
+        +apply_disabled_extension(folder_path)
+        +remove_disabled_extension(folder_path)
+    }
+
+    class DependencyResolutionActions {
+        +find_mod_in_catalog_or_disk(name) Optional~CatalogMod~
+        +classify_requirement_status(mod_entity) RequirementStatus
+    }
+
+    %% Liaisons Tier 1 -> Tier 2
+    CatalogOrchestrator --> CatalogSyncCoordinator
+    ModOrchestrator --> ModInstallCoordinator
+    ModOrchestrator --> ModUpdateCoordinator
+    ModOrchestrator --> ModToggleCoordinator
+    DependencyOrchestrator --> DependencyResolutionCoordinator
+
+    %% Liaisons Tier 2 -> Tier 3
+    CatalogSyncCoordinator --> CatalogSyncActions
+    ModInstallCoordinator --> ModInstallActions
+    ModUpdateCoordinator --> ModUpdateActions
+    ModToggleCoordinator --> ModToggleActions
+    DependencyResolutionCoordinator --> DependencyResolutionActions
 ```
 
 ---
@@ -193,7 +213,7 @@ classDiagram
 
 ---
 
-## 🖥️ 4. Couche Interface Graphique & Workers Asynchrones
+## 🖥️ 4. Interface Graphique PySide6 & Workers Asynchrones
 
 ```mermaid
 classDiagram
@@ -205,20 +225,11 @@ classDiagram
         +retranslate_ui()
     }
 
-    class I18nManager {
-        <<Singleton>>
-        +Signal language_changed(lang)
-        +get_language() str
-        +set_language(lang)
-        +translate(key, kwargs) str
-    }
-
     class ResponsiveCardGrid {
         +int card_width
         +int card_height
         +int spacing
         +set_cards(widgets)
-        +clear_cards()
         +recalculate_grid(container_width)
     }
 
@@ -228,44 +239,18 @@ classDiagram
         +ResponsiveCardGrid grid
         +on_search_changed()
         +on_install_clicked()
-        +retranslate_ui()
     }
 
     class InstalledView {
         +ResponsiveCardGrid grid
         +refresh_installed_mods()
         +on_delete_mod()
-        +retranslate_ui()
-    }
-
-    class DependenciesSummaryWidget {
-        +list dependencies
-        +int max_show
-        +init_ui()
-    }
-
-    class DialogHelper {
-        <<Utility>>
-        +confirm(parent, title, text, details) bool
-        +information(parent, title, text)
-        +warning(parent, title, text)
-        +error(parent, title, text)
     }
 
     class ModDetailView {
         +FetchDetailsWorker details_worker
         +GalleryBatchWorker gallery_worker
-        +DescriptionImageLoaderWorker img_worker
         +load_mod(mod_id, page_url)
-    }
-
-    class ImageCache {
-        <<ThreadSafe>>
-        +int max_bytes
-        +get(key) QPixmap
-        +set(key, pixmap)
-        +get_or_scale(key, path, w, h) QPixmap
-        +clear()
     }
 
     class SyncTriggerWorker {
@@ -281,34 +266,18 @@ classDiagram
         +run()
     }
 
-    class FetchDetailsWorker {
-        <<QThread>>
-        +Signal finished(dict)
-        +Signal failed(str)
-        +run()
-    }
-
     MainWindow *-- CatalogView
     MainWindow *-- InstalledView
     MainWindow *-- ModDetailView
-    MainWindow ..> I18nManager : observe
     CatalogView *-- ResponsiveCardGrid
     InstalledView *-- ResponsiveCardGrid
-    CatalogView ..> SyncTriggerWorker : instancie
-    CatalogView ..> InstallWorker : instancie
-    CatalogView ..> DialogHelper : utilise
-    InstalledView ..> DialogHelper : utilise
-    ModCard *-- DependenciesSummaryWidget
-    InstalledCard *-- DependenciesSummaryWidget
-    ModDetailView ..> FetchDetailsWorker : instancie
-    ModDetailView ..> ImageCache : consulte
-    ModCard ..> ImageCache : consulte/alimente
-    InstalledCard ..> ImageCache : consulte/alimente
+    CatalogView ..> SyncTriggerWorker : démarre
+    CatalogView ..> InstallWorker : démarre
 ```
 
 ---
 
-## 🔄 5. Séquence d'Installation d'un Mod avec Dépendances
+## 🔄 5. Séquence d'Installation 3-Tiers avec Dépendances
 
 ```mermaid
 sequenceDiagram
@@ -316,36 +285,39 @@ sequenceDiagram
     actor User as Utilisateur (PySide6)
     participant DetailView as ModDetailView
     participant ApiClient as ApiClient
-    participant Router as CatalogRouter (/install-stream)
-    participant Installer as ModInstallerService
-    participant Resolver as DependencyResolver
-    participant LL as LoversLabDownloader
+    participant Router as CatalogInstallRouter (/install-stream)
+    participant Orch as ModOrchestrator (Tier 1)
+    participant Coord as ModInstallCoordinator (Tier 2)
+    participant DepOrch as DependencyOrchestrator (Tier 1)
+    participant Actions as ModInstallActions (Tier 3)
     participant DB as DatabaseManager
 
     User->>DetailView: Clic sur "Installer"
     DetailView->>ApiClient: install_mod_stream(payload)
     ApiClient->>Router: POST /api/catalog/install-stream
-    Router->>Installer: perform_mod_install(payload, progress_cb)
+    Router->>Orch: install_mod(payload, progress_cb)
+    Orch->>Coord: coordinate_install(payload, progress_cb)
     
-    Installer->>Resolver: resolve_mod_dependencies(cat_mod)
-    Resolver-->>Installer: Liste des dépendances manquantes
+    Coord->>DepOrch: resolve_dependencies(requirements)
+    DepOrch-->>Coord: Liste des dépendances manquantes
     
-    loop Pour chaque dépendance manquante
-        Installer->>LL: download_loverslab_file(dep_url)
-        LL-->>Installer: archive_dep.zip
-        Installer->>Installer: Extraction & validation DBPF
-        Installer->>DB: create_installed_mod(dep)
-        Installer-->>Router: Event progress: "Dépendance installée"
+    loop Pour chaque dépendance requise
+        Coord->>Actions: download_archive(dep_url)
+        Actions-->>Coord: dep_archive.zip
+        Coord->>Actions: extract_and_enforce_ts4script(dep_archive)
+        Actions->>DB: create_installed_mod(dep)
+        Coord-->>Router: Event progress: "Dépendance installée"
         Router-->>ApiClient: NDJSON chunk
         ApiClient-->>DetailView: Signal progress.emit()
     end
 
-    Installer->>LL: download_loverslab_file(mod_url)
-    LL-->>Installer: mod_main.zip
-    Installer->>Installer: Règle ts4script (profondeur max 1)
-    Installer->>DB: create_installed_mod(main_mod)
+    Coord->>Actions: download_archive(main_mod_url)
+    Actions-->>Coord: main_mod.zip
+    Coord->>Actions: extract_and_enforce_ts4script(main_mod)
+    Actions->>DB: create_installed_mod(main_mod)
     
-    Installer-->>Router: Result: success=true
+    Coord-->>Orch: CatalogInstallResponse(success=True)
+    Orch-->>Router: Success
     Router-->>ApiClient: Event finished: success=true
     ApiClient-->>DetailView: Signal finished.emit()
     DetailView->>User: Affichage du badge "INSTALLÉ"
