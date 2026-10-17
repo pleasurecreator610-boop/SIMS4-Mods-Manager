@@ -98,3 +98,21 @@ class ModDependentsResponse(BaseModel):
     has_dependents: bool
     count: int
     dependents: List[ModDependentItem]
+
+
+class DbpfConflictItem(BaseModel):
+    """Représente une ressource en collision entre plusieurs fichiers .package."""
+
+    tgi: str
+    resource_type_name: str
+    conflicting_packages: List[str]
+
+
+class DbpfConflictReportResponse(BaseModel):
+    """Rapport d'analyse des conflits DBPF pour l'API REST."""
+
+    total_packages_scanned: int
+    total_resources_indexed: int
+    conflict_count: int
+    conflicts: List[DbpfConflictItem]
+

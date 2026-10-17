@@ -79,23 +79,23 @@ Ce document formalise les axes stratégiques d'optimisation de performance, d'é
 
 ---
 
-## 🗺️ 4. Feuille de Route Prévisionnelle (Roadmap)
+## 🗺️ 4. Feuille de Route & Statut d'Implémentation (Roadmap)
 
 ```mermaid
 gantt
     title Feuille de Route SIMS 4 Mods Manager
     dateFormat  YYYY-MM
-    section Phase 1 (Actuelle)
+    section Phase 1 (Architecture & Migration)
     Architecture 3-Tiers POO & Tests Unit/E2E :done, p1, 2026-09, 2026-10
     Migration dépôt & Nettoyage OLAHOUZE      :done, p2, 2026-10, 2026-10
-    Refonte de la Documentation Technique     :active, p3, 2026-10, 2026-10
-    section Phase 2 (Optimisations)
-    Pool HTTP Asynchrone & Index SQLite WAL   :crit, p4, 2026-11, 2026-12
-    Workers d'extraction sans GIL (ProcessPool): p5, 2026-12, 2027-01
-    section Phase 3 (Fonctionnalités Métier)
-    Analyseur de Conflits DBPF (TGI Collisions): p6, 2027-01, 2027-02
-    Nouveaux Providers (CurseForge / Nexus)   : p7, 2027-02, 2027-03
-    section Phase 4 (Distribution)
-    Packaging Windows Standalone (InnoSetup)  : p8, 2027-03, 2027-04
-    Mode Web App Headless / Docker            : p9, 2027-04, 2027-05
+    Refonte de la Documentation Technique     :done, p3, 2026-10, 2026-10
+    section Phase 2 (Optimisations & Métier)
+    Pool HTTP Asynchrone & Index SQLite WAL   :done, p4, 2026-10, 2026-10
+    Extraction d'archives avec progression    :done, p5, 2026-10, 2026-10
+    Analyseur de Conflits DBPF (TGI Collisions):done, p6, 2026-10, 2026-10
+    Système de Plugins Modulaire (plugins/)   :done, p7, 2026-10, 2026-10
+    Conteneur d'Injection de Dépendances (DI) :done, p8, 2026-10, 2026-10
+    section Phase 3 (Distribution)
+    Packaging Windows Standalone (PyInstaller):done, p9, 2026-10, 2026-10
+    Mode Serveur Headless Dockerisé           :done, p10, 2026-10, 2026-10
 ```

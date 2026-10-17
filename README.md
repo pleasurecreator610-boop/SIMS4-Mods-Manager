@@ -1,23 +1,27 @@
 # SIMS 4 Mods Manager 💎
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-229%20passed%20(100%25)-success.svg)](./tests)
+[![Tests](https://img.shields.io/badge/tests-239%20passed%20(100%25)-success.svg)](./tests)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![Architecture: 3--Tier POO](https://img.shields.io/badge/architecture-3--Tier%20POO-purple.svg)](./documentation/architecture.md)
+[![Plugins: Modulaires](https://img.shields.io/badge/plugins-extensibles-orange.svg)](./plugins)
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](./LICENSE)
 
-Gestionnaire de mods automatisé, moderne et ultra-performant pour **Les Sims 4** (Windows).  
-Conçu avec une architecture **100% découplée via API REST (FastAPI)**, un domaine métier en **POO 3-Tiers** (Orchestrators $\to$ Coordinators $\to$ Actions) et une interface de bureau réactive **PySide6**.
+Gestionnaire de mods automatisé, moderne et ultra-performant pour **Les Sims 4** (Windows & Serveurs).  
+Conçu avec une architecture **100% découplée via API REST (FastAPI)**, un domaine métier en **POO 3-Tiers** (Orchestrators $\to$ Coordinators $\to$ Actions), un système de plugins extensible et une interface de bureau réactive **PySide6**.
 
 ---
 
 ## ⚡ En Bref : Ce Que Fait le Projet
 
 - **🔍 Recherche & Indexation Automatisée** : Scrape et indexe le contenu (LoversLab, Patreon) avec contournement transparent des protections anti-bot (Cloudflare Turnstile) via Playwright.
+- **🔌 Architecture de Plugins Modulaire** : Ajout de nouvelles sources de téléchargement par simple dépôt de fichier Python dans `plugins/` via `@register_provider`.
+- **⚔️ Détecteur de Conflits DBPF** : Analyse binaire des conteneurs `.package` pour détecter à l'avance les collisions de tuning (TGI) entre mods installés.
 - **🧩 Résolution de Dépendances en Cascade** : Détecte les prérequis obligatoires (WickedWhims, etc.) et les installe automatiquement en chaîne.
 - **📦 Respect Strict de la Règle `.ts4script`** : Remonte automatiquement les scripts au niveau 1 de profondeur (`Mods/<NomDuMod>/script.ts4script`) pour garantir leur chargement par le moteur des Sims 4.
 - **🎛️ Activation / Désactivation Propre** : Désactive instantanément un mod via extension `.disabled` réversible sans supprimer vos fichiers.
 - **⚡ Mises à Jour Sécurisées avec Rollback** : Compare les versions en un clic et crée une sauvegarde d'archive automatique avant tout remplacement.
+
 
 ---
 

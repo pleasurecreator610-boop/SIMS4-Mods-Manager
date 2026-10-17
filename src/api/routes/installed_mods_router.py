@@ -18,11 +18,17 @@ from src.api.schemas.installed import (
     InstalledToggleResponse,
     InstalledUninstallResponse,
     ModDependentsResponse,
+    DbpfConflictItem,
+    DbpfConflictReportResponse,
 )
 from src.application.mods.installed_mods_service import InstalledModsService
+from src.application.mods.conflict_detector_service import ConflictDetectorService
+from src.application.game.game_detector import GameDetector
 
 router = APIRouter(prefix="/installed", tags=["Installed Mods"])
 _installed_service = InstalledModsService()
+_conflict_detector = ConflictDetectorService()
+
 
 
 @router.get("", response_model=InstalledListResponse)
@@ -72,3 +78,24 @@ def open_folder(payload: InstalledOpenFolderRequest = InstalledOpenFolderRequest
         status = 404 if "introuvable" in res.message or "n'existe pas" in res.message else 500
         raise HTTPException(status_code=status, detail=res.message)
     return res
+
+
+@router.get("/conflicts", response_model=DbpfConflictReportResponse)
+def get_mod_conflicts() -> DbpfConflictReportResponse:
+    """Analyse les fichiers .package installés pour détecter les collisions de ressources TGI."""
+    mods_dir = GameDetector.detect_mods_dir()
+    report = _conflict_detector.detect_conflicts(mods_dir)
+    return DbpfConflictReportResponse(
+        total_packages_scanned=report.total_packages_scanned,
+        total_resources_indexed=report.total_resources_indexed,
+        conflict_count=report.conflict_count,
+        conflicts=[
+            DbpfConflictItem(
+                tgi=c.tgi,
+                resource_type_name=c.resource_type_name,
+                conflicting_packages=c.conflicting_packages,
+            )
+            for c in report.conflicts
+        ],
+    )
+

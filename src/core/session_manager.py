@@ -21,22 +21,30 @@ class SessionManager:
     )
 
     _http_sessions: Dict[str, cffi_requests.Session] = {}
+    _async_http_sessions: Dict[str, cffi_requests.AsyncSession] = {}
     _http_sessions_lock: threading.Lock = threading.Lock()
 
     @classmethod
     def invalidate_http_session(cls, provider_name: str) -> None:
-        """Closes and removes the pooled HTTP session for a provider."""
+        """Closes and removes the pooled HTTP sessions (sync and async) for a provider."""
         with cls._http_sessions_lock:
-            old_sess = cls._http_sessions.pop(provider_name.lower(), None)
+            key = provider_name.lower()
+            old_sess = cls._http_sessions.pop(key, None)
             if old_sess:
                 try:
                     old_sess.close()
                 except Exception:
                     pass
+            old_async_sess = cls._async_http_sessions.pop(key, None)
+            if old_async_sess:
+                try:
+                    old_async_sess.close()
+                except Exception:
+                    pass
 
     @classmethod
     def close_all_http_sessions(cls) -> None:
-        """Closes all pooled curl_cffi sessions."""
+        """Closes all pooled curl_cffi sync and async sessions."""
         with cls._http_sessions_lock:
             for s in cls._http_sessions.values():
                 try:
@@ -44,6 +52,14 @@ class SessionManager:
                 except Exception:
                     pass
             cls._http_sessions.clear()
+
+            for async_s in cls._async_http_sessions.values():
+                try:
+                    async_s.close()
+                except Exception:
+                    pass
+            cls._async_http_sessions.clear()
+
 
     @classmethod
     def get_saved_session(cls, provider_name: str) -> Optional[AccountSession]:
@@ -257,6 +273,46 @@ class SessionManager:
                 cls._http_sessions[key] = http_session
 
         return http_session
+
+    @classmethod
+    def get_async_http_session(cls, provider_name: str, force_new: bool = False) -> cffi_requests.AsyncSession:
+        """
+        Returns a configured curl_cffi AsyncSession loaded with provider cookies and browser impersonation.
+        Reuses pooled async session per provider for high-performance concurrent I/O.
+        """
+        key = provider_name.lower()
+        if not force_new:
+            with cls._http_sessions_lock:
+                if key in cls._async_http_sessions:
+                    return cls._async_http_sessions[key]
+
+        async_session: cffi_requests.AsyncSession = cffi_requests.AsyncSession(impersonate="chrome120")
+        async_session.headers.update(
+            {
+                "User-Agent": cls.DEFAULT_USER_AGENT,
+                "Accept-Language": "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7",
+            }
+        )
+
+        db = DatabaseManager.get_instance()
+        with db.get_session() as session:
+            acc = session.query(AccountSession).filter_by(provider_name=provider_name).first()
+            if acc:
+                cookies = acc.get_cookies_dict()
+                for name, value in cookies.items():
+                    async_session.cookies.set(name, value)
+                if acc.user_agent:
+                    async_session.headers["User-Agent"] = acc.user_agent
+
+        if key == "loverslab":
+            async_session.cookies.set("ips4_hasAcceptedAge", "1", domain=".loverslab.com")
+            async_session.cookies.set("ips4_IPSSessionFront", "1", domain=".loverslab.com")
+
+        if not force_new:
+            with cls._http_sessions_lock:
+                cls._async_http_sessions[key] = async_session
+
+        return async_session
 
     @classmethod
     def is_browser_available(cls) -> bool:

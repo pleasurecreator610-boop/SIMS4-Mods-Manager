@@ -4,12 +4,15 @@ from typing import List, Dict, Any, Optional, Tuple, Callable
 from bs4 import BeautifulSoup
 
 from src.providers.base import BaseSourceProvider
+from src.providers.registry import ProviderRegistry
 from src.core.session_manager import SessionManager
 from src.utils.logger import logger
 from src.utils.network import stream_download
 
 
+@ProviderRegistry.register_provider("patreon")
 class PatreonProvider(BaseSourceProvider):
+
     """Provider for checking Patreon posts, pledge access status, and extracting download links."""
 
     provider_name = "patreon"

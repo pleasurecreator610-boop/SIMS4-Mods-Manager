@@ -1,0 +1,22 @@
+services:
+  sims4-mods-manager:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: sims4-mods-manager:latest
+    container_name: sims4_mods_manager_server
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persistance de la base de données et configuration locale
+      - ./data:/root/.sims4_mod_manager
+      # Montage du dossier Mods des Sims 4
+      - ./mods:/sims4_mods
+    environment:
+      - SIMS4_MODS_DIR=/sims4_mods
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/system/ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

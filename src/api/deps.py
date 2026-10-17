@@ -45,3 +45,11 @@ def get_db() -> Generator[Session, None, None]:
     db = DatabaseManager.get_instance()
     with db.get_session() as session:
         yield session
+
+
+def get_app_container():
+    """Fournit le conteneur d'injection de dépendances central."""
+    from src.core.container import get_container
+
+    return get_container()
+

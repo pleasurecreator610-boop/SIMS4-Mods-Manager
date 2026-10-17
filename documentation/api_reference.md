@@ -107,10 +107,12 @@ Gère les mods actuellement présents dans le dossier `Mods` des Sims 4.
 | :--- | :--- | :--- | :--- |
 | `GET` | `/api/installed` | Liste tous les mods installés avec statut et chemins | `200 OK` |
 | `GET` | `/api/installed/{id}/dependents` | Liste les autres mods installés qui dépendent de ce mod | `200 OK` |
+| `GET` | `/api/installed/conflicts` | Analyse les fichiers .package pour détecter les collisions de tuning TGI | `200 OK` |
 | `POST` | `/api/installed/scan` | Scanne et indexe automatiquement le dossier Mods | `200 OK` |
 | `POST` | `/api/installed/{id}/toggle` | Active ou désactive un mod (`.disabled`) | `200 OK` |
 | `DELETE` | `/api/installed/{id}` | Supprime physiquement un mod du disque et de la BDD | `200 OK` |
 | `POST` | `/api/installed/open-folder` | Ouvre le dossier Mods ou d'un mod dans l'Explorateur Windows | `200 OK` |
+
 
 ### Schéma `InstalledModItem`
 ```json

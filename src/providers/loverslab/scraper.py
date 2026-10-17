@@ -18,10 +18,14 @@ from src.providers.loverslab.forum_service import LoversLabForumService
 from src.providers.loverslab.page_parser import parse_category_page_html
 from src.core.session_manager import SessionManager
 from src.core.shutdown_manager import ShutdownManager
+from src.providers.registry import ProviderRegistry
 from src.utils.logger import logger
 
 
+
+@ProviderRegistry.register_provider("loverslab")
 class LoversLabProvider(BaseSourceProvider):
+
     """
     Provider for scraping LoversLab The Sims 4 files category (161),
     extracting attachments, adult content handling, and identifying external/Patreon links.

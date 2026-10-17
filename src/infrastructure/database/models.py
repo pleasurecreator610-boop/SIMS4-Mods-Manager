@@ -64,6 +64,7 @@ class CatalogMod(Base):
         Index("idx_source_remote", "source", "remote_id", unique=True),
         Index("idx_source_updated", "source", "updated_date"),
         Index("idx_source_title", "source", "title"),
+        Index("idx_catalog_category_updated", "category", "updated_date"),
     )
 
     def get_tags_list(self) -> List[str]:
@@ -131,6 +132,7 @@ class InstalledMod(Base):
         Index("idx_installed_source_remote", "source", "remote_id"),
         Index("idx_installed_catalog_id", "catalog_mod_id"),
         Index("idx_installed_folder", "folder_name"),
+        Index("idx_installed_enabled_folder", "is_enabled", "folder_name"),
     )
 
     def get_installed_files_list(self) -> List[str]:
