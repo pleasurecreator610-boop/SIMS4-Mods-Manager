@@ -203,8 +203,20 @@ class ModInstaller:
             if not mod:
                 return False, "Mod introuvable dans la base de données."
 
+            folder_name = (mod.folder_name or "").strip()
+            if not folder_name or folder_name in [".", "..", "/", "\\"]:
+                logger.error(f"Nom de dossier de mod invalide pour la désinstallation: '{folder_name}'")
+                return False, "Nom de dossier de mod invalide."
+
             if mods_dir:
-                target_dir = mods_dir / (mod.folder_name or "")
+                mods_dir_resolved = mods_dir.resolve()
+                target_dir = (mods_dir / folder_name).resolve()
+
+                # Safety check: target_dir must be a strict subfolder of mods_dir, never mods_dir itself
+                if target_dir == mods_dir_resolved or mods_dir_resolved not in target_dir.parents:
+                    logger.error(f"Tentative de suppression non autorisée hors de Mods/ : {target_dir}")
+                    return False, "Opération annulée : le chemin cible est invalide ou pointe hors du dossier Mods."
+
                 if target_dir.exists():
                     try:
                         shutil.rmtree(target_dir)

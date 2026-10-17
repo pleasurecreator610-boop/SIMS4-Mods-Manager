@@ -214,7 +214,13 @@ class InstalledModsService:
 
         target_path = mods_dir
         if folder_name:
-            target_path = mods_dir / folder_name
+            folder_clean = folder_name.strip()
+            if folder_clean in [".", "..", "/", "\\"]:
+                return InstalledOpenFolderResponse(success=False, message="Nom de dossier invalide.")
+            resolved = (mods_dir / folder_clean).resolve()
+            if resolved != mods_dir.resolve() and mods_dir.resolve() not in resolved.parents:
+                return InstalledOpenFolderResponse(success=False, message="Accès refusé hors du dossier Mods.")
+            target_path = resolved
             if not target_path.exists():
                 return InstalledOpenFolderResponse(success=False, message=f"Sous-dossier '{folder_name}' introuvable.")
 

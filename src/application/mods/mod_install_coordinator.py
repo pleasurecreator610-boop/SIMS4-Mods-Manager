@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 import shutil
 import tempfile
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Set, Tuple
 
 from src.api.schemas.catalog import CatalogInstallRequest, CatalogInstallResponse, DependencyItem
 from src.application.mods.mod_install_actions import ModInstallActions
@@ -88,6 +88,22 @@ class ModInstallCoordinator:
                     mod_name=safe_folder_name,
                 )
 
+            # Preserve existing user configs (e.g. MCCC, WickedWhims, Tool configs)
+            preserved_configs: Dict[str, bytes] = {}
+            if target_mod_dir.exists():
+                cfg_exts = {".cfg", ".ini", ".settings"}
+                for cfg_file in target_mod_dir.rglob("*"):
+                    if cfg_file.is_file() and (
+                        cfg_file.suffix.lower() in cfg_exts
+                        or "settings" in cfg_file.name.lower()
+                        or "config" in cfg_file.name.lower()
+                    ):
+                        try:
+                            rel_k = str(cfg_file.relative_to(target_mod_dir))
+                            preserved_configs[rel_k] = cfg_file.read_bytes()
+                        except Exception as ce:
+                            logger.debug(f"Lecture config existant ignorée: {ce}")
+
             temp_extract_dir = None
             try:
                 if progress_callback:
@@ -111,6 +127,20 @@ class ModInstallCoordinator:
                     installed_files = self.actions.deploy_direct_file(
                         file_path=file_path, target_mod_dir=target_mod_dir, mods_dir=mods_dir
                     )
+
+                # Restore any preserved user configs that were not present in the new version archive
+                for rel_k, cfg_bytes in preserved_configs.items():
+                    restored_dest = target_mod_dir / rel_k
+                    if not restored_dest.exists():
+                        try:
+                            restored_dest.parent.mkdir(parents=True, exist_ok=True)
+                            restored_dest.write_bytes(cfg_bytes)
+                            rel_from_mods = str(restored_dest.relative_to(mods_dir))
+                            if rel_from_mods not in installed_files:
+                                installed_files.append(rel_from_mods)
+                            logger.info(f"Configuration utilisateur préservée et restaurée : {rel_k}")
+                        except Exception as re:
+                            logger.debug(f"Restauration config ignorée pour {rel_k}: {re}")
 
                 if not installed_files:
                     raise ValueError("Aucun fichier de mod valide (.package ou .ts4script) trouvé dans l'archive.")
@@ -147,20 +177,30 @@ class ModInstallCoordinator:
         allow_partial: bool,
         mod_title: str,
         progress_callback: Optional[Callable[[int, str, str], None]] = None,
+        visited_remotes: Optional[Set[Tuple[str, str]]] = None,
     ) -> Tuple[bool, List[str], List[DependencyItem], Optional[str]]:
         """
         Coordinates iteration over dependencies to install them sequentially.
+        Supports transitive dependencies while preventing infinite circular loops.
         Returns (success, installed_names, not_detected_items, error_message).
         """
         installed_deps: List[str] = []
         not_detected_deps: List[DependencyItem] = []
         total_missing = len(missing_dependencies)
+        visited = visited_remotes if visited_remotes is not None else set()
 
         for idx, dep in enumerate(missing_dependencies, start=1):
             dep_source = dep.source or "loverslab"
             dep_remote_id = dep.remote_id or ""
             dep_title = dep.title or f"Mod #{dep_remote_id}"
             dep_url = dep.url
+
+            dep_key = (dep_source, dep_remote_id)
+            if dep_remote_id and dep_key in visited:
+                logger.info(f"[INSTALL-DEP] Dépendance déjà en cours ou cycle détecté pour '{dep_title}' (#{dep_remote_id})")
+                continue
+            if dep_remote_id:
+                visited.add(dep_key)
 
             if not dep_url and dep_remote_id:
                 with self.db.get_session() as s:
@@ -187,7 +227,7 @@ class ModInstallCoordinator:
                 remote_id=dep_remote_id,
                 page_url=dep_url,
                 title=dep_title,
-                install_dependencies=False,
+                install_dependencies=True,
             )
             dep_res = install_func(dep_payload, progress_callback)
             if dep_res.success:

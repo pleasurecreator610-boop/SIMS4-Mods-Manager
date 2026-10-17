@@ -4,6 +4,7 @@ Implémente le pattern Strategy pour chaque format avec détection automatique
 des signatures de fichiers, extraction sécurisée et création de sauvegardes.
 """
 
+import os
 from typing import Callable, Optional
 import zipfile
 from abc import ABC, abstractmethod
@@ -127,6 +128,36 @@ class SevenZipArchiveHandler(BaseArchiveHandler):
 class RarArchiveHandler(BaseArchiveHandler):
     """Gestionnaire des archives RAR via rarfile."""
 
+    _tool_configured: bool = False
+
+    @classmethod
+    def _ensure_tool_configured(cls) -> None:
+        """Tente de localiser un exécutable UnRAR ou 7-Zip sur Windows."""
+        if cls._tool_configured:
+            return
+        cls._tool_configured = True
+        try:
+            import rarfile
+            import shutil
+
+            if shutil.which("unrar") or shutil.which("UnRAR.exe") or shutil.which("7z") or shutil.which("7z.exe"):
+                return
+
+            candidates = [
+                Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "WinRAR" / "UnRAR.exe",
+                Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "WinRAR" / "WinRAR.exe",
+                Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")) / "WinRAR" / "UnRAR.exe",
+                Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "7-Zip" / "7z.exe",
+                Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")) / "7-Zip" / "7z.exe",
+            ]
+            for cand in candidates:
+                if cand.exists():
+                    rarfile.UNRAR_TOOL = str(cand)
+                    logger.info(f"Outil d'extraction RAR auto-configuré: {cand}")
+                    return
+        except Exception as e:
+            logger.debug(f"Configuration automatique de l'outil RAR ignorée: {e}")
+
     def can_handle(self, path: Path) -> bool:
         """Exécute l'opération can handle."""
         if not path.is_file():
@@ -142,6 +173,7 @@ class RarArchiveHandler(BaseArchiveHandler):
             try:
                 import rarfile
 
+                self._ensure_tool_configured()
                 return rarfile.is_rarfile(path)
             except Exception:
                 return False
@@ -156,8 +188,16 @@ class RarArchiveHandler(BaseArchiveHandler):
         """Extrait l'archive RAR."""
         import rarfile
 
-        with rarfile.RarFile(path) as rf:
-            rf.extractall(dest_dir)
+        self._ensure_tool_configured()
+        try:
+            with rarfile.RarFile(path) as rf:
+                rf.extractall(dest_dir)
+        except rarfile.RarCannotExec as e:
+            logger.error(f"Outil UnRAR manquant pour extraire {path.name}: {e}")
+            raise RuntimeError(
+                f"Impossible d'extraire l'archive RAR '{path.name}' : aucun utilitaire UnRAR ou 7-Zip n'a été détecté. "
+                "Veuillez installer WinRAR ou 7-Zip."
+            ) from e
         if progress_cb:
             progress_cb(100, path.name)
         return [p for p in dest_dir.rglob("*") if p.is_file()]

@@ -120,3 +120,25 @@ class GameLauncher:
             return True
         except Exception:
             return False
+
+    @classmethod
+    def is_game_running(cls) -> bool:
+        """Vérifie si un processus The Sims 4 est actuellement en cours d'exécution."""
+        target_exes = {"ts4_x64.exe", "ts4_dx9_x64.exe", "ts4.exe", "ts4_launcher_x64.exe"}
+        try:
+            if os.name == "nt":
+                flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+                out = subprocess.check_output(
+                    ["tasklist", "/NH", "/FO", "CSV"],
+                    creationflags=flags,
+                    text=True,
+                    encoding="utf-8",
+                    errors="ignore",
+                ).lower()
+                return any(exe in out for exe in target_exes)
+            else:
+                out = subprocess.check_output(["ps", "-A"], text=True, errors="ignore").lower()
+                return any(exe in out for exe in target_exes)
+        except Exception as e:
+            logger.debug(f"Vérification du processus Sims 4 échouée: {e}")
+            return False

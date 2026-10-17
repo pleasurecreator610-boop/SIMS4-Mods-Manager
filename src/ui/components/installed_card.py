@@ -20,6 +20,7 @@ class InstalledCard(BaseModCard):
 
     delete_requested = Signal(dict)
     open_folder_requested = Signal(str)
+    toggle_requested = Signal(dict)
 
     def __init__(self, mod_data: dict, parent=None):
         super().__init__(mod_data, parent)
@@ -112,9 +113,50 @@ class InstalledCard(BaseModCard):
 
         layout.addStretch()
 
-        # 6. Action Buttons Bar
+        # 7. Action Buttons Bar
         actions_layout = QHBoxLayout()
-        actions_layout.setSpacing(8)
+        actions_layout.setSpacing(6)
+
+        # Toggle Enable/Disable button
+        is_enabled = self.mod_data.get("is_enabled", True)
+        self.btn_toggle = QPushButton("🟢 Actif" if is_enabled else "⏸️ Inactif")
+        self.btn_toggle.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_toggle.setFixedHeight(30)
+        self.btn_toggle.setToolTip("Cliquer pour activer ou désactiver ce mod sans le supprimer")
+        if is_enabled:
+            self.btn_toggle.setStyleSheet("""
+                QPushButton {
+                    background-color: #064e3b;
+                    color: #6ee7b7;
+                    border: 1px solid #059669;
+                    border-radius: 6px;
+                    font-weight: 700;
+                    font-size: 11px;
+                    padding: 4px 6px;
+                }
+                QPushButton:hover {
+                    background-color: #047857;
+                    color: #ffffff;
+                }
+            """)
+        else:
+            self.btn_toggle.setStyleSheet("""
+                QPushButton {
+                    background-color: #1f2937;
+                    color: #9ca3af;
+                    border: 1px solid #374151;
+                    border-radius: 6px;
+                    font-weight: 700;
+                    font-size: 11px;
+                    padding: 4px 6px;
+                }
+                QPushButton:hover {
+                    background-color: #374151;
+                    color: #ffffff;
+                }
+            """)
+        self.btn_toggle.clicked.connect(lambda: self.toggle_requested.emit(self.mod_data))
+        actions_layout.addWidget(self.btn_toggle, stretch=1)
 
         # Open Folder button
         self.btn_folder = QPushButton(tr("installed.btn_folder"))
@@ -128,7 +170,7 @@ class InstalledCard(BaseModCard):
                 border-radius: 6px;
                 font-weight: 600;
                 font-size: 11px;
-                padding: 4px 10px;
+                padding: 4px 6px;
             }
             QPushButton:hover {
                 background-color: #28314d;
@@ -150,7 +192,7 @@ class InstalledCard(BaseModCard):
                 border-radius: 6px;
                 font-weight: 700;
                 font-size: 11px;
-                padding: 4px 10px;
+                padding: 4px 6px;
             }
             QPushButton:hover {
                 background-color: #991b1b;
@@ -174,8 +216,10 @@ class InstalledCard(BaseModCard):
         """
         if event.button() == Qt.MouseButton.LeftButton:
             child = self.childAt(event.pos())
-            if (hasattr(self, "btn_folder") and (child == self.btn_folder or self.btn_folder.isAncestorOf(child))) or (
-                hasattr(self, "btn_delete") and (child == self.btn_delete or self.btn_delete.isAncestorOf(child))
+            if (
+                (hasattr(self, "btn_folder") and (child == self.btn_folder or self.btn_folder.isAncestorOf(child)))
+                or (hasattr(self, "btn_delete") and (child == self.btn_delete or self.btn_delete.isAncestorOf(child)))
+                or (hasattr(self, "btn_toggle") and (child == self.btn_toggle or self.btn_toggle.isAncestorOf(child)))
             ):
                 super().mousePressEvent(event)
                 return

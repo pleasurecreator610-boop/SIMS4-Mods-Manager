@@ -114,6 +114,12 @@ def launch_game():
     return LaunchGameResponse(success=True, message="Les Sims 4 a été lancé avec succès.")
 
 
+@router.get("/game/status")
+def get_game_status():
+    """Vérifie si Les Sims 4 est actuellement en cours d'exécution."""
+    return {"is_running": GameDetector.is_game_running()}
+
+
 @router.get("/settings/database/stats", response_model=DatabaseStatsResponse)
 def get_database_stats(
     catalog_repo: ICatalogRepository = Depends(get_catalog_repo),

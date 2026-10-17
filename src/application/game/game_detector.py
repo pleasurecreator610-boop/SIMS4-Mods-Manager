@@ -214,6 +214,11 @@ class GameDetector:
         return GameLauncher.launch_game(exe_path)
 
     @classmethod
+    def is_game_running(cls) -> bool:
+        """Vérifie si le jeu Sims 4 est en cours d'exécution."""
+        return GameLauncher.is_game_running()
+
+    @classmethod
     def start_background_detection_refresh(cls) -> None:
         """Launches an asynchronous daemon thread to verify paths in the background."""
 

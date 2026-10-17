@@ -4,6 +4,7 @@ Contains single-responsibility, atomic functions and classes for version compari
 date checks, and catalog entity resolution.
 """
 
+import re
 from typing import Optional, Union
 
 from src.database.models import CatalogMod, InstalledMod
@@ -16,6 +17,43 @@ from src.infrastructure.database.repositories.sqlalchemy_catalog_repository impo
 from src.infrastructure.database.repositories.sqlalchemy_installed_mod_repository import (
     SqlAlchemyInstalledModRepository,
 )
+
+
+def is_newer_version(candidate_ver: str, current_ver: str) -> Optional[bool]:
+    """
+    Compares two version strings. Returns True if candidate_ver > current_ver,
+    False if candidate_ver <= current_ver, or None if they cannot be parsed.
+    """
+    c_clean = re.sub(r"^[vV\s]+", "", candidate_ver.strip())
+    cur_clean = re.sub(r"^[vV\s]+", "", current_ver.strip())
+    if not c_clean or not cur_clean:
+        return None
+    if c_clean == cur_clean:
+        return False
+
+    # Try packaging.version
+    try:
+        from packaging.version import parse as parse_version
+
+        v_cand = parse_version(c_clean)
+        v_cur = parse_version(cur_clean)
+        return v_cand > v_cur
+    except Exception:
+        pass
+
+    # Fallback to numeric segment comparison: e.g. "1.2.3" vs "1.2"
+    try:
+        parts_c = [int(p) for p in re.findall(r"\d+", c_clean)]
+        parts_cur = [int(p) for p in re.findall(r"\d+", cur_clean)]
+        if parts_c and parts_cur:
+            max_len = max(len(parts_c), len(parts_cur))
+            parts_c += [0] * (max_len - len(parts_c))
+            parts_cur += [0] * (max_len - len(parts_cur))
+            return parts_c > parts_cur
+    except Exception:
+        pass
+
+    return None
 
 
 class ModUpdateActions:
@@ -43,15 +81,15 @@ class ModUpdateActions:
         version_str = getattr(catalog_mod, "version_str", "") or ""
         installed_version_str = getattr(installed_mod, "version_str", "") or ""
 
-        # 1. Date comparison
-        if updated_date and version_date:
-            if updated_date > version_date:
-                return True
-
-        # 2. Version string comparison
+        # 1. Semantic version string comparison
         if version_str and installed_version_str:
-            if version_str.strip() != installed_version_str.strip():
-                return True
+            newer = is_newer_version(version_str, installed_version_str)
+            if newer is not None:
+                return newer
+
+        # 2. Date comparison
+        if updated_date and version_date:
+            return updated_date > version_date
 
         # 3. Known catalog date but missing installed version date
         if not version_date and updated_date:

@@ -510,6 +510,26 @@ class ApiClient:
         resp.raise_for_status()
         return resp.json()
 
+    def get_game_status(self) -> Dict[str, Any]:
+        """Vérifie si Les Sims 4 est actuellement en cours d'exécution.
+
+        Returns:
+            Dictionnaire avec clé 'is_running'.
+        """
+        resp = self._client.get("/api/game/status")
+        resp.raise_for_status()
+        return resp.json()
+
+    def get_mod_conflicts(self) -> Dict[str, Any]:
+        """Récupère le diagnostic complet des conflits DBPF TGI entre mods installés.
+
+        Returns:
+            Rapport de conflits incluant le nombre et la liste des collisions.
+        """
+        resp = self._client.get("/api/installed/conflicts")
+        resp.raise_for_status()
+        return resp.json()
+
     def get_database_stats(self) -> Dict[str, Any]:
         """Exécute l'opération get database stats.
 
