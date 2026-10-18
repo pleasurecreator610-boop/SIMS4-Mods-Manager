@@ -201,8 +201,13 @@ class ActiveInstallationRegistry:
                         logger.debug(f"[ActiveRegistry] Libération partielle réentrante pour {key} (depth={entry.depth})")
                         return
 
+                if entry.key[1]:
+                    self._active_by_key.pop(entry.key, None)
                 if key[1]:
                     self._active_by_key.pop(key, None)
+                entry_norm_title = self._normalize_title(entry.title)
+                if entry_norm_title:
+                    self._active_by_title.pop(entry_norm_title, None)
                 if norm_title:
                     self._active_by_title.pop(norm_title, None)
 

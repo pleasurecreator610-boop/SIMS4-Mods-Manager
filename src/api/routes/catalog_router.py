@@ -80,8 +80,12 @@ def get_catalog(
         conditions.append(InstalledMod.title.in_(page_titles))
 
     relevant_installed = session.query(InstalledMod).filter(or_(*conditions)).all() if conditions else []
-    installed_by_remote = {(im.source or "unknown", im.remote_id): im for im in relevant_installed if im.remote_id}
-    installed_by_title = {im.title.lower(): im for im in relevant_installed if im.title}
+    installed_by_remote = {
+        ((im.source or "unknown").lower(), str(im.remote_id)): im
+        for im in relevant_installed
+        if im.remote_id
+    }
+    installed_by_title = {im.title.strip().lower(): im for im in relevant_installed if im.title}
     installed_by_id = {im.catalog_mod_id: im for im in relevant_installed if im.catalog_mod_id and not im.remote_id}
 
     # Pre-collect all requirement remote_ids for batch lookup (eliminates N+1 queries)
@@ -103,7 +107,15 @@ def get_catalog(
 
     paginated_items = []
     for m in paginated_mods:
-        inst = installed_by_remote.get((m.source, m.remote_id)) or installed_by_id.get(m.id)
+        m_source = (m.source or "unknown").lower()
+        m_rid = str(m.remote_id or "")
+        m_title = (m.title or "").strip().lower()
+
+        inst = (
+            installed_by_remote.get((m_source, m_rid))
+            or installed_by_id.get(m.id)
+            or (installed_by_title.get(m_title) if m_title else None)
+        )
         is_installed = inst is not None
         has_update = check_has_update(inst, m) if inst is not None else False
 

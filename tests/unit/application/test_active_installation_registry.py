@@ -128,3 +128,18 @@ def test_completed_cache():
     ok, msg = reg.wait_for_active_install("loverslab", "88888", "Cached Mod")
     assert ok is True
     assert msg == "Done"
+
+
+def test_complete_install_cleans_title_even_when_omitted():
+    reg = ActiveInstallationRegistry.get_instance()
+    reg.register_install("loverslab", "99999", "My Mod With Title")
+    assert reg.is_active("loverslab", "99999") is True
+    assert reg.is_active("loverslab", "", "My Mod With Title") is True
+
+    # Complete without passing title
+    reg.complete_install("loverslab", "99999", title="", success=True, message="Finished")
+
+    # Both key and title should be purged completely
+    assert reg.is_active("loverslab", "99999") is False
+    assert reg.is_active("loverslab", "", "My Mod With Title") is False
+

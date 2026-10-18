@@ -36,3 +36,33 @@ def test_stream_download():
         assert ok is True
         assert Path(result_path).exists()
         assert dest.read_bytes() == b"A" * 50 + b"B" * 50
+
+
+def test_stream_download_incomplete_cleanup(tmp_path):
+    mock_resp = MagicMock()
+    mock_resp.headers = {"Content-Length": "100"}
+    mock_resp.iter_content.return_value = [b"A" * 30]  # Incomplete: 30 vs 100
+
+    dest = tmp_path / "truncated.bin"
+    ok, err = stream_download(mock_resp, dest)
+    assert ok is False
+    assert "incomplet" in err
+    assert not dest.exists()
+
+
+def test_stream_download_network_exception_cleanup(tmp_path):
+    mock_resp = MagicMock()
+    mock_resp.headers = {"Content-Length": "100"}
+
+    def _failing_iter(**kwargs):
+        yield b"PartialData"
+        raise ConnectionResetError("Connection lost mid-stream")
+
+    mock_resp.iter_content.side_effect = _failing_iter
+
+    dest = tmp_path / "failed.bin"
+    ok, err = stream_download(mock_resp, dest)
+    assert ok is False
+    assert "Erreur réseau" in err
+    assert not dest.exists()
+

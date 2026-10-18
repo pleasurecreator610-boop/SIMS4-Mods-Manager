@@ -99,3 +99,31 @@ def test_mod_toggle_errors(tmp_path, monkeypatch):
     ok, msg = ModToggleManager.toggle_mod(ghost_id, target_state=False)
     assert ok is False
     assert "does not exist on disk" in msg
+
+
+def test_mod_toggle_replaces_existing_target_without_error(tmp_path):
+    from src.application.mods.mod_toggle_actions import ModToggleActions
+
+    mods_dir = tmp_path / "Mods"
+    mods_dir.mkdir()
+    mod_file = mods_dir / "item.package"
+    mod_file.write_text("ACTIVE")
+
+    # Simulate existing stale disabled file
+    disabled_file = mods_dir / "item.package.disabled"
+    disabled_file.write_text("STALE_DISABLED")
+
+    actions = ModToggleActions()
+    # Should replace disabled_file without FileExistsError
+    new_path, rel_str = actions.toggle_file(mod_file, new_state=False, mods_dir=mods_dir)
+    assert new_path == disabled_file
+    assert disabled_file.read_text() == "ACTIVE"
+    assert not mod_file.exists()
+
+    # Now re-enable with existing active file
+    mod_file.write_text("STALE_ACTIVE")
+    new_path2, rel_str2 = actions.toggle_file(disabled_file, new_state=True, mods_dir=mods_dir)
+    assert new_path2 == mod_file
+    assert mod_file.read_text() == "ACTIVE"
+    assert not disabled_file.exists()
+

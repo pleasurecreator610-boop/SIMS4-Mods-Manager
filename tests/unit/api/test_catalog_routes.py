@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 from src.api.app import app
 from src.api.schemas.catalog import CatalogInstallResponse
-from src.database import DatabaseManager, CatalogMod
+from src.database import DatabaseManager, CatalogMod, InstalledMod
 
 
 @pytest.fixture
@@ -171,3 +171,40 @@ def test_install_stream_endpoint(monkeypatch):
     assert len(lines) >= 2
     assert any(line.get("type") == "progress" and line.get("percent") == 50 for line in lines)
     assert any(line.get("type") == "finished" and line.get("success") is True for line in lines)
+
+
+def test_catalog_matches_manual_mod_by_title(client):
+    db = DatabaseManager.get_instance()
+    uid = uuid.uuid4().hex[:8]
+    manual_title = f"Manual Mod Unique {uid}"
+
+    with db.get_session() as session:
+        # Create catalog mod
+        cmod = CatalogMod(
+            source="loverslab",
+            remote_id=f"rem_{uid}",
+            title=manual_title,
+            page_url="https://loverslab.com/files/file/manual",
+        )
+        session.add(cmod)
+
+        # Create installed mod with source="manual" and no remote_id, but matching title
+        imod = InstalledMod(
+            source="manual",
+            remote_id="",
+            catalog_mod_id=None,
+            title=manual_title,
+            folder_name=f"manual_folder_{uid}",
+            is_enabled=True,
+        )
+        session.add(imod)
+        session.commit()
+
+    resp = client.get(f"/api/catalog?search={uid}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total"] >= 1
+    matched = next((m for m in data["items"] if m["title"] == manual_title), None)
+    assert matched is not None
+    assert matched["is_installed"] is True
+

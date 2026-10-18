@@ -6,7 +6,6 @@ file installations, and result payload formatting.
 
 from datetime import datetime
 from pathlib import Path
-import tempfile
 from typing import Any, Callable, List, Optional, Tuple
 
 from src.api.schemas.catalog import CatalogInstallRequest, CatalogInstallResponse, DependencyItem
@@ -186,10 +185,10 @@ class ModInstallOrchestrator:
             dl_info = download_urls[0]
             dl_url = dl_info["url"] if isinstance(dl_info, dict) else dl_info
 
-            temp_dir = Path(tempfile.gettempdir()) / "sims4_mod_manager_downloads"
-            temp_dir.mkdir(parents=True, exist_ok=True)
+            downloads_dir = AppConfig.get_app_dir() / "downloads"
+            downloads_dir.mkdir(parents=True, exist_ok=True)
             filename = f"mod_{remote_id}.zip"
-            dest_file = temp_dir / filename
+            dest_file = downloads_dir / filename
 
             if progress_callback:
                 progress_callback(5, "Démarrage du téléchargement...", f"{filename}")

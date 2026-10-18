@@ -92,10 +92,30 @@ def stream_download(
             detail = f"{down_mb:.1f} Mo • {speed_str}"
         return pct, detail
 
-    with open(dest_path, "wb") as f:
-        try:
-            for chunk in response.iter_content(chunk_size=65536):
-                if chunk:
+    try:
+        dest_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(dest_path, "wb") as f:
+            try:
+                for chunk in response.iter_content(chunk_size=65536):
+                    if chunk:
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        now = time.time()
+                        pct, detail = _calc_progress()
+
+                        if progress_callback and (now - last_ui_time >= 0.2):
+                            progress_callback(pct, f"{phase_label} en cours...", detail)
+                            last_ui_time = now
+
+                        if now - last_log_time >= 3.0:
+                            logger.info(f"[{phase_label}] {dest_path.name} : {detail}")
+                            last_log_time = now
+            except (AssertionError, AttributeError):
+                # curl_cffi raises AssertionError if stream=True was not specified on initial request
+                raw = getattr(response, "content", b"") or b""
+                chunk_size = 65536
+                for i in range(0, len(raw), chunk_size):
+                    chunk = raw[i : i + chunk_size]
                     f.write(chunk)
                     downloaded += len(chunk)
                     now = time.time()
@@ -105,24 +125,25 @@ def stream_download(
                         progress_callback(pct, f"{phase_label} en cours...", detail)
                         last_ui_time = now
 
-                    if now - last_log_time >= 3.0:
-                        logger.info(f"[{phase_label}] {dest_path.name} : {detail}")
-                        last_log_time = now
-        except (AssertionError, AttributeError):
-            # curl_cffi raises AssertionError if stream=True was not specified on initial request
-            raw = getattr(response, "content", b"") or b""
-            chunk_size = 65536
-            for i in range(0, len(raw), chunk_size):
-                chunk = raw[i : i + chunk_size]
-                f.write(chunk)
-                downloaded += len(chunk)
-                now = time.time()
-                pct, detail = _calc_progress()
+        if total_size > 0 and downloaded < total_size:
+            err = f"Téléchargement incomplet ({downloaded}/{total_size} octets)."
+            logger.error(err)
+            if dest_path.exists():
+                try:
+                    dest_path.unlink()
+                except Exception:
+                    pass
+            return False, err
 
-                if progress_callback and (now - last_ui_time >= 0.2):
-                    progress_callback(pct, f"{phase_label} en cours...", detail)
-                    last_ui_time = now
+        size_mb = dest_path.stat().st_size / (1024 * 1024)
+        logger.info(f"Fichier téléchargé avec succès : {dest_path.name} ({size_mb:.2f} Mo).")
+        return True, str(dest_path)
 
-    size_mb = dest_path.stat().st_size / (1024 * 1024)
-    logger.info(f"Fichier téléchargé avec succès : {dest_path.name} ({size_mb:.2f} Mo).")
-    return True, str(dest_path)
+    except Exception as e:
+        logger.error(f"Erreur d'écriture ou de flux durant le téléchargement de {dest_path.name} : {e}")
+        if dest_path.exists():
+            try:
+                dest_path.unlink()
+            except Exception:
+                pass
+        return False, f"Erreur réseau : {e}"

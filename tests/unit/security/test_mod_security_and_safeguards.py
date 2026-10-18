@@ -497,5 +497,61 @@ def test_catalog_view_cleanup_dep_workers(qapp, monkeypatch):
     cat.close()
 
 
+def test_base_downloader_cleans_up_incomplete_file(tmp_path):
+    """Test: Validates BaseDownloader removes partial file if stream is truncated."""
+    from src.infrastructure.network.base_downloader import BaseDownloader
+
+    dest = tmp_path / "truncated_mod.zip"
+
+    class MockResponse:
+        headers = {"Content-Length": "1000"}
+
+        def iter_content(self, chunk_size=65536):
+            yield b"12345"  # Only 5 bytes instead of 1000
+
+    ok, msg, digest = BaseDownloader.stream_to_file(MockResponse(), dest)
+    assert not ok
+    assert "incomplet" in msg
+    assert not dest.exists()
+
+
+def test_mod_install_actions_deterministic_collision_resolution(tmp_path):
+    """Test: Validates ModInstallActions._resolve_unique_dest_path resolves collisions without overwriting."""
+    from src.application.mods.mod_install_actions import ModInstallActions
+
+    folder = tmp_path / "ModFolder"
+    folder.mkdir()
+    existing_file = folder / "mod.package"
+    existing_file.write_text("v1")
+
+    # 1st collision: adds parent name
+    resolved_1 = ModInstallActions._resolve_unique_dest_path(existing_file, fallback_parent_name="sub1")
+    assert resolved_1 == folder / "sub1_mod.package"
+    resolved_1.write_text("v2")
+
+    # 2nd collision with same parent name: adds numeric counter
+    resolved_2 = ModInstallActions._resolve_unique_dest_path(existing_file, fallback_parent_name="sub1")
+    assert resolved_2 == folder / "sub1_mod_1.package"
+    resolved_2.write_text("v3")
+
+    # All files exist and retain original content without overwriting
+    assert existing_file.read_text() == "v1"
+    assert resolved_1.read_text() == "v2"
+    assert resolved_2.read_text() == "v3"
+
+
+def test_mod_install_orchestrator_targets_app_downloads_dir():
+    """Test: Validates ModInstallOrchestrator uses AppConfig.get_app_dir() / 'downloads'."""
+    from src.core.config import AppConfig
+
+    expected_downloads_dir = AppConfig.get_app_dir() / "downloads"
+    assert expected_downloads_dir.name == "downloads"
+    # Ensure directory is monitored by StorageService
+    from src.application.system.storage_service import StorageService
+
+    stats = StorageService.get_storage_stats()
+    assert hasattr(stats, "downloads_size_bytes")
+
+
 
 

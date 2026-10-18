@@ -28,7 +28,7 @@ class DownloadCardWidget(QFrame):
     """Card widget representing an individual background download and installation task."""
 
     cancelled = Signal(str)  # task_id
-    retry_requested = Signal(dict)  # mod_data
+    retry_requested = Signal(str)  # task_id
     details_requested = Signal(dict)  # mod_data
     open_folder_requested = Signal(str)  # folder_name or path
 
@@ -136,7 +136,7 @@ class DownloadCardWidget(QFrame):
             QPushButton:hover { background-color: #991b1b; color: #ffffff; }
         """)
         self.btn_retry.setVisible(False)
-        self.btn_retry.clicked.connect(lambda: self.retry_requested.emit(self.mod_data))
+        self.btn_retry.clicked.connect(lambda: self.retry_requested.emit(self.task_id))
         top_row.addWidget(self.btn_retry)
 
         self.btn_cancel = QPushButton(tr("downloads.btn_cancel"))
@@ -321,6 +321,31 @@ class DownloadCardWidget(QFrame):
         self.btn_retry.setVisible(True)
         self.btn_open_folder.setVisible(False)
 
+    def reset_for_retry(self):
+        """Réinitialise la carte pour relancer un téléchargement sans créer de doublon visuel."""
+        self.status = "waiting"
+        self.progress_val = 0
+        self.error_msg = ""
+        self.progress_bar.setValue(0)
+        self.progress_bar.setStyleSheet("""
+            QProgressBar {
+                background-color: #0b0f19;
+                border: 1px solid #1e293b;
+                border-radius: 4px;
+            }
+            QProgressBar::chunk {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #0284c7, stop:1 #38bdf8);
+                border-radius: 3px;
+            }
+        """)
+        self.percent_label.setText("0%")
+        self.details_label.setText(tr("downloads.status_waiting"))
+        self.details_label.setStyleSheet("font-size: 12px; color: #94a3b8;")
+        self._update_status_badge_style("waiting")
+        self.btn_cancel.setVisible(True)
+        self.btn_retry.setVisible(False)
+        self.btn_open_folder.setVisible(False)
+
     def _on_open_folder(self):
         folder_name = self.mod_data.get("folder_name") or self.mod_data.get("title") or ""
         self.open_folder_requested.emit(folder_name)
@@ -487,7 +512,7 @@ class DownloadsView(QWidget):
 
         card = DownloadCardWidget(task_id, mod_data, parent=self.scroll_content)
         card.cancelled.connect(self._on_cancel_task)
-        card.retry_requested.connect(self.start_download)
+        card.retry_requested.connect(self.retry_download)
         card.details_requested.connect(self.details_requested.emit)
         card.open_folder_requested.connect(self.open_mod_folder)
 
@@ -508,6 +533,31 @@ class DownloadsView(QWidget):
         worker.start()
         self._update_counters()
         return task_id
+
+    def retry_download(self, task_id: str) -> None:
+        """Relance un téléchargement échoué ou annulé en réutilisant la même carte visuelle."""
+        task_info = self.tasks.get(task_id)
+        if not task_info:
+            return
+
+        if task_info.get("status") == "downloading":
+            logger.info(f"Tâche {task_id} déjà active.")
+            return
+
+        mod_data = task_info.get("mod_data", {})
+        card = self.card_widgets.get(task_id)
+        if card:
+            card.reset_for_retry()
+
+        worker = InstallWorker(mod_data)
+        worker.progress.connect(lambda p, s, d, tid=task_id: self._on_worker_progress(tid, p, s, d))
+        worker.finished.connect(lambda ok, msg, tid=task_id: self._on_worker_finished(tid, ok, msg))
+
+        task_info["worker"] = worker
+        task_info["status"] = "downloading"
+
+        worker.start()
+        self._update_counters()
 
     def _on_worker_progress(self, task_id: str, percent: int, status: str, details: str):
         card = self.card_widgets.get(task_id)

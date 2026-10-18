@@ -88,6 +88,39 @@ def test_downloads_card_cancellation(qapp, monkeypatch):
     view.deleteLater()
 
 
+def test_downloads_card_retry_reuses_existing_card(qapp, monkeypatch):
+    view = DownloadsView()
+    view.show()
+    mock_worker = MagicMock()
+    monkeypatch.setattr("src.ui.views.downloads_view.InstallWorker", lambda mod_data: mock_worker)
+
+    mod_data = {"id": 777, "title": "Retry Mod", "source": "loverslab"}
+    task_id = view.start_download(mod_data)
+    assert len(view.tasks) == 1
+    assert len(view.card_widgets) == 1
+    card = view.card_widgets[task_id]
+
+    # Simulate failure
+    view._on_worker_finished(task_id, False, "Erreur réseau simulée")
+    assert card.status == "failed"
+    assert not card.btn_retry.isHidden()
+    assert card.btn_cancel.isHidden()
+
+    # Trigger retry
+    card.btn_retry.click()
+
+    # Ensure no new card was added and existing card reset
+    assert len(view.tasks) == 1
+    assert len(view.card_widgets) == 1
+    assert card.status == "waiting"
+    assert card.progress_bar.value() == 0
+    assert card.btn_retry.isHidden()
+    assert not card.btn_cancel.isHidden()
+
+    view.close()
+    view.deleteLater()
+
+
 def test_catalog_view_non_blocking_download(qapp):
     cat_view = CatalogView()
     cat_view.show()

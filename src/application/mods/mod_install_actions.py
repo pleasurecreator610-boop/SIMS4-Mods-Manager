@@ -93,6 +93,26 @@ class ModInstallActions:
         except Exception as re:
             logger.error(f"Échec du rollback: {re}")
 
+    @staticmethod
+    def _resolve_unique_dest_path(dest: Path, fallback_parent_name: str = "") -> Path:
+        """Résout de manière déterministe les collisions de nom de fichier pour éviter tout écrasement."""
+        if not dest.exists():
+            return dest
+
+        if fallback_parent_name and not dest.name.startswith(f"{fallback_parent_name}_"):
+            candidate = dest.parent / f"{fallback_parent_name}_{dest.name}"
+            if not candidate.exists():
+                return candidate
+            dest = candidate
+
+        stem = dest.stem
+        suffix = dest.suffix
+        counter = 1
+        while dest.exists():
+            dest = dest.parent / f"{stem}_{counter}{suffix}"
+            counter += 1
+        return dest
+
     def deploy_extracted_files(
         self, extracted_dir: Path, target_mod_dir: Path, mods_dir: Path
     ) -> List[str]:
@@ -143,16 +163,18 @@ class ModInstallActions:
                     safe_dirs = rel.parts[:4]
                     dest = target_mod_dir.joinpath(*safe_dirs) / rel.name
                     if dest.exists() and dest != p:
-                        dest = target_mod_dir.joinpath(*safe_dirs) / f"{rel.parent.name}_{rel.name}"
+                        dest = self._resolve_unique_dest_path(dest, rel.parent.name)
                 else:
                     dest = target_mod_dir / rel
+                    if dest.exists() and dest != p:
+                        dest = self._resolve_unique_dest_path(dest, rel.parent.name)
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(p, dest)
             elif suffix == ".ts4script":
                 # Flat at target_mod_dir root (Mods/ModFolder/name.ts4script = depth 1 from Mods/)
                 dest = target_mod_dir / p.name
                 if dest.exists() and dest != p:
-                    dest = target_mod_dir / f"{p.parent.name}_{p.name}"
+                    dest = self._resolve_unique_dest_path(dest, p.parent.name)
                 shutil.copy2(p, dest)
             elif suffix in companion_extensions:
                 rel = p.relative_to(extracted_dir)
@@ -160,9 +182,11 @@ class ModInstallActions:
                     safe_dirs = rel.parts[:4]
                     dest = target_mod_dir.joinpath(*safe_dirs) / rel.name
                     if dest.exists() and dest != p:
-                        dest = target_mod_dir.joinpath(*safe_dirs) / f"{rel.parent.name}_{rel.name}"
+                        dest = self._resolve_unique_dest_path(dest, rel.parent.name)
                 else:
                     dest = target_mod_dir / rel
+                    if dest.exists() and dest != p:
+                        dest = self._resolve_unique_dest_path(dest, rel.parent.name)
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(p, dest)
 
@@ -174,6 +198,8 @@ class ModInstallActions:
         """Deploys a single uncompressed package or script file."""
         target_mod_dir.mkdir(parents=True, exist_ok=True)
         dest = target_mod_dir / file_path.name
+        if dest.exists() and dest != file_path:
+            dest = self._resolve_unique_dest_path(dest, file_path.parent.name)
         shutil.copy2(file_path, dest)
         return [str(p.relative_to(mods_dir)) for p in target_mod_dir.rglob("*") if p.is_file()]
 

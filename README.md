@@ -1,7 +1,7 @@
 # SIMS 4 Mods Manager 💎
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-286%20passed%20(100%25)-success.svg)](./tests)
+[![Tests](https://img.shields.io/badge/tests-295%20passed%20(100%25)-success.svg)](./tests)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![Architecture: 3--Tier POO](https://img.shields.io/badge/architecture-3--Tier%20POO-purple.svg)](./documentation/architecture.md)
 [![Plugins: Modulaires](https://img.shields.io/badge/plugins-extensibles-orange.svg)](./plugins)

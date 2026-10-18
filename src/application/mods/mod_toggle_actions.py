@@ -21,14 +21,14 @@ class ModToggleActions:
             # Disable: append .disabled
             if file_path.suffix.lower() in [".package", ".ts4script"]:
                 new_file_path = file_path.with_name(file_path.name + ".disabled")
-                file_path.rename(new_file_path)
+                file_path.replace(new_file_path)
                 return new_file_path, str(new_file_path.relative_to(mods_dir))
             return file_path, str(rel_path)
         else:
             # Enable: remove .disabled
             if file_path.name.lower().endswith(".package.disabled") or file_path.name.lower().endswith(".ts4script.disabled"):
                 new_file_path = file_path.with_name(file_path.name[:-9])
-                file_path.rename(new_file_path)
+                file_path.replace(new_file_path)
                 return new_file_path, str(new_file_path.relative_to(mods_dir))
             return file_path, str(rel_path)
 

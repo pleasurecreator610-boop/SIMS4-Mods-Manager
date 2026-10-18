@@ -110,6 +110,11 @@ class BaseDownloader(ABC):
             if total_size > 0 and downloaded < total_size:
                 err = f"Téléchargement incomplet ({downloaded}/{total_size} octets)."
                 logger.error(err)
+                if dest_path.exists():
+                    try:
+                        dest_path.unlink()
+                    except Exception:
+                        pass
                 return False, err, None
 
             digest = sha256_hasher.hexdigest() if sha256_hasher else None
