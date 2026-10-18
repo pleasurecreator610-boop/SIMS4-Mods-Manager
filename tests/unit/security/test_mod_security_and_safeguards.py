@@ -375,6 +375,9 @@ def test_installed_mods_service_restore_backup(tmp_path, monkeypatch):
         def get_by_id(self, mid):
             return installed_mod if mid == 77 else None
 
+        def save(self, entity):
+            return entity
+
         def update(self, entity):
             return entity
 
