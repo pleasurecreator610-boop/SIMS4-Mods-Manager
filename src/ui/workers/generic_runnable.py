@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import os
 import traceback
 from typing import Any, Callable, Optional
+
 
 from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal, Slot
 
@@ -36,7 +38,7 @@ class GenericRunnable(QRunnable):
         self.signals.started.emit()
         try:
             # Vérifie si la fonction accepte un progress_callback
-            if "progress_callback" in self.fn.__code__.co_varnames:
+            if hasattr(self.fn, "__code__") and "progress_callback" in self.fn.__code__.co_varnames:
 
                 def _prog(pct: int, msg: str = ""):
                     self.signals.progress.emit(pct, msg)
@@ -55,11 +57,38 @@ def run_async_ui_task(
     on_finished: Optional[Callable[[Any], None]] = None,
     on_error: Optional[Callable[[str], None]] = None,
     on_progress: Optional[Callable[[int, str], None]] = None,
+    disable_widgets: Optional[list[Any]] = None,
+    sync: Optional[bool] = None,
     *args: Any,
     **kwargs: Any,
 ) -> GenericRunnable:
-    """Helper pratique pour exécuter une tâche d'arrière-plan sur le QThreadPool global."""
+    """Helper pratique pour exécuter une tâche d'arrière-plan sur le QThreadPool global sans jamais geler l'interface graphique."""
+    if sync is None:
+        sync = "PYTEST_CURRENT_TEST" in os.environ
+
+    if disable_widgets:
+        for w in disable_widgets:
+            if w is not None and hasattr(w, "setEnabled"):
+                try:
+                    w.setEnabled(False)
+                except Exception:
+                    pass
+
+    def _cleanup_widgets(*_):
+        if disable_widgets:
+            for w in disable_widgets:
+                if w is not None and hasattr(w, "setEnabled"):
+                    try:
+                        w.setEnabled(True)
+                    except Exception:
+                        pass
+
     worker = GenericRunnable(fn, *args, **kwargs)
+
+    if disable_widgets:
+        worker.signals.finished.connect(_cleanup_widgets)
+        worker.signals.error.connect(_cleanup_widgets)
+
     if on_finished:
         worker.signals.finished.connect(on_finished)
     if on_error:
@@ -67,5 +96,11 @@ def run_async_ui_task(
     if on_progress:
         worker.signals.progress.connect(on_progress)
 
-    QThreadPool.globalInstance().start(worker)
+    if sync:
+        worker.run()
+    else:
+        QThreadPool.globalInstance().start(worker)
+
     return worker
+
+

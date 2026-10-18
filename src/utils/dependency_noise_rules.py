@@ -51,6 +51,21 @@ KNOWN_COMMENT_KEYWORDS: List[str] = [
     "they use separate scripts",
     "separate folders",
     "legacy edition",
+    "& dependencies",
+    "to ensure the mod works",
+    "to ensure",
+    "make sure you have",
+    "make sure to have",
+    "please make sure",
+    "undressing system",
+    "nudity support",
+    "for npc reactions",
+    "for exhibitionism skill",
+    "how to install",
+    "installation instructions",
+    "penis",
+    "erection",
+    "naked body",
 ]
 
 # Patterns or prefixes indicating descriptive prose or installation guidance
@@ -69,6 +84,13 @@ KNOWN_COMMENT_PREFIXES: List[str] = [
     "required for",
     "tested on",
     "compatible with",
+    "to ensure",
+    "please make sure",
+    "make sure you have",
+    "make sure to",
+    "assurez-vous",
+    "pour vous assurer",
+    "& dependencies",
 ]
 
 # Regex patterns matching full sentences or conversational dialogue
@@ -120,6 +142,12 @@ def is_likely_comment_or_noise(text: str) -> bool:
 
     # 5. Instructional game navigation (e.g. "Game Options -> Other -> Script Mods Allowed")
     if "→" in cleaned or "->" in cleaned:
+        return True
+
+    # 6. Unmatched parenthesis fragments or leading ampersands
+    if cleaned.startswith("&") and len(cleaned.split()) <= 3:
+        return True
+    if (cleaned.startswith("(") and ")" not in cleaned) or (cleaned.endswith(")") and "(" not in cleaned):
         return True
 
     return False

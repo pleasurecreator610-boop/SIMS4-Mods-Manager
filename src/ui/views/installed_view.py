@@ -15,9 +15,11 @@ from src.ui.components.installed_card import InstalledCard
 from src.ui.components.responsive_card_grid import ResponsiveCardGrid
 from src.ui.utils.dialog_helper import DialogHelper
 from src.ui.workers.installed_workers import ConflictsWorker, InstalledFetchWorker, InstalledScanWorker
+from src.ui.workers.generic_runnable import run_async_ui_task
 from src.utils.thread_utils import safe_stop_thread
 from src.i18n import tr
 from src.utils.logger import logger
+
 
 
 class InstalledView(QWidget):
@@ -87,9 +89,9 @@ class InstalledView(QWidget):
         header_layout.addWidget(self.search_input)
 
         # Conflicts Diagnostic Button
-        self.conflicts_btn = QPushButton("⚠️ Conflits DBPF")
+        self.conflicts_btn = QPushButton(tr("installed.conflicts_btn"))
         self.conflicts_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.conflicts_btn.setToolTip("Détecte les collisions de ressources binaire TGI entre fichiers .package")
+        self.conflicts_btn.setToolTip(tr("installed.conflicts_btn_tooltip"))
         self.conflicts_btn.setStyleSheet("""
             QPushButton {
                 background-color: #2e1a47;
@@ -198,6 +200,7 @@ class InstalledView(QWidget):
             card = InstalledCard(m, parent=self)
             card.delete_requested.connect(self._on_delete_mod)
             card.toggle_requested.connect(self._on_toggle_mod)
+            card.restore_requested.connect(self._on_restore_mod)
             card.open_folder_requested.connect(self.open_mod_folder)
             card.details_requested.connect(self.details_requested.emit)
             new_cards.append(card)
@@ -205,59 +208,121 @@ class InstalledView(QWidget):
         self.card_grid.set_cards(new_cards)
 
     def _on_toggle_mod(self, mod_data: dict):
-        """Active ou désactive un mod via l'API sans supprimer ses fichiers."""
+        """Active ou désactive un mod via l'API en arrière-plan sans bloquer la GUI."""
         mod_id = mod_data.get("id")
         if not mod_id:
             return
         title = mod_data.get("title", "Mod")
         is_enabled = mod_data.get("is_enabled", True)
         target_state = not is_enabled
-        try:
-            res = self.api_client.toggle_mod(mod_id, enabled=target_state)
+
+        def _do_execute_toggle():
+            def _do_toggle():
+                return self.api_client.toggle_mod(mod_id, enabled=target_state)
+
+            def _on_toggle_finished(res):
+                if res.get("success", False):
+                    action_str = "activé" if target_state else "désactivé"
+                    logger.info(f"Mod '{title}' {action_str} avec succès.")
+                    self.refresh_mods()
+                    self.mods_changed.emit()
+                else:
+                    DialogHelper.error(self, tr("dialogs.error_title"), res.get("message", "Échec du changement d'état."))
+
+            def _on_toggle_error(err):
+                logger.error(f"Erreur lors du basculement d'état du mod {mod_id}: {err}")
+                DialogHelper.error(self, tr("dialogs.error_title"), f"{err}")
+
+            run_async_ui_task(_do_toggle, on_finished=_on_toggle_finished, on_error=_on_toggle_error)
+
+        if not target_state:
+            def _fetch_deps():
+                try:
+                    dep_res = self.api_client.get_mod_dependents(mod_id)
+                    return dep_res.get("dependents", [])
+                except Exception as e:
+                    logger.debug(f"Could not check dependents for mod {mod_id}: {e}")
+                    return []
+
+            def _on_deps_fetched(dependents):
+                if dependents:
+                    dep_lines = "\n".join(f"  • {d.get('title', 'Mod')} ({d.get('folder_name', '')})" for d in dependents)
+                    confirmed = DialogHelper.confirm(
+                        self,
+                        title=tr("installed.dep_warning_title"),
+                        message=f"Attention : Désactiver '{title}' risque d'affecter le fonctionnement des {len(dependents)} mod(s) qui en dépendent :\n\n{dep_lines}\n\nSouhaitez-vous quand même désactiver ce mod ?",
+                        confirm_text=tr("installed.btn_disable_anyway", default="Désactiver quand même"),
+                        cancel_text=tr("installed.btn_cancel"),
+                        is_destructive=True,
+                    )
+                    if not confirmed:
+                        return
+                _do_execute_toggle()
+
+            run_async_ui_task(_fetch_deps, on_finished=_on_deps_fetched)
+        else:
+            _do_execute_toggle()
+
+    def _on_restore_mod(self, mod_data: dict):
+        """Confirme et restaure la version précédente d'un mod via sa sauvegarde."""
+        mod_id = mod_data.get("id")
+        title = mod_data.get("title", "Mod")
+        if not mod_id:
+            return
+
+        confirmed = DialogHelper.confirm(
+            self,
+            title="Restaurer la Sauvegarde",
+            message=f"Voulez-vous restaurer la version précédente sauvegardée pour '{title}' ?\n\nLes fichiers actuels seront remplacés par l'archive de sauvegarde.",
+            confirm_text="Restaurer",
+            cancel_text=tr("installed.btn_cancel"),
+            is_destructive=False,
+        )
+        if not confirmed:
+            return
+
+        def _do_restore():
+            return self.api_client.restore_mod_backup(mod_id)
+
+        def _on_restored(res):
             if res.get("success", False):
-                action_str = "activé" if target_state else "désactivé"
-                logger.info(f"Mod '{title}' {action_str} avec succès.")
+                QMessageBox.information(
+                    self,
+                    "Restauration Réussie",
+                    res.get("message", f"La version précédente de '{title}' a été restaurée."),
+                )
                 self.refresh_mods()
                 self.mods_changed.emit()
             else:
-                DialogHelper.error(self, tr("dialogs.error_title"), res.get("message", "Échec du changement d'état."))
-        except Exception as e:
-            logger.error(f"Erreur lors du basculement d'état du mod {mod_id}: {e}")
-            DialogHelper.error(self, tr("dialogs.error_title"), f"{e}")
+                DialogHelper.error(self, tr("dialogs.error_title"), res.get("message", "Échec de la restauration."))
+
+        def _on_error(err):
+            logger.error(f"Erreur restauration mod {mod_id}: {err}")
+            DialogHelper.error(self, tr("dialogs.error_title"), f"{err}")
+
+        run_async_ui_task(_do_restore, on_finished=_on_restored, on_error=_on_error)
 
     def check_conflicts(self):
         """Lance l'analyse DBPF des conflits de ressources de manière asynchrone."""
         self.conflicts_btn.setEnabled(False)
-        self.conflicts_btn.setText("⏳ Analyse...")
+        self.conflicts_btn.setText(tr("installed.conflicts_btn_analyzing"))
 
         safe_stop_thread(self._conflicts_worker)
         self._conflicts_worker = ConflictsWorker(self.api_client)
 
         def _on_conflicts_ready(report: dict):
             self.conflicts_btn.setEnabled(True)
-            self.conflicts_btn.setText("⚠️ Conflits DBPF")
-            count = report.get("conflict_count", 0)
-            scanned = report.get("total_packages_scanned", 0)
-            conflicts = report.get("conflicts", [])
+            self.conflicts_btn.setText(tr("installed.conflicts_btn"))
+            from src.ui.components.conflicts_dialog import ConflictsDialog
 
-            if count == 0:
-                QMessageBox.information(
-                    self,
-                    "Diagnostic Conflits DBPF",
-                    f"✅ Aucun conflit détecté !\n\n{scanned} fichiers .package analysés.\nToutes les ressources TGI sont uniques et compatibles.",
-                )
-            else:
-                details = []
-                for c in conflicts[:8]:
-                    pkgs = "\n    • ".join(c.get("conflicting_packages", []))
-                    details.append(f"Collision sur {c.get('resource_type_name', 'Resource')} ({c.get('tgi', '')}) :\n    • {pkgs}")
-                more = f"\n... et {count - 8} autre(s) conflit(s)." if count > 8 else ""
-                msg = f"⚠️ {count} conflit(s) détecté(s) parmi {scanned} packages !\n\n" + "\n\n".join(details) + more
-                QMessageBox.warning(self, "Diagnostic Conflits DBPF", msg)
+            dialog = ConflictsDialog(report, self.api_client, parent=self)
+            dialog.exec()
+            self.refresh_mods()
+            self.mods_changed.emit()
 
         def _on_conflicts_error(err: str):
             self.conflicts_btn.setEnabled(True)
-            self.conflicts_btn.setText("⚠️ Conflits DBPF")
+            self.conflicts_btn.setText(tr("installed.conflicts_btn"))
             QMessageBox.critical(self, "Erreur Diagnostic Conflits", f"L'analyse a échoué : {err}")
 
         self._conflicts_worker.finished_signal.connect(_on_conflicts_ready)
@@ -265,58 +330,66 @@ class InstalledView(QWidget):
         self._conflicts_worker.start()
 
     def _on_delete_mod(self, mod_data: dict):
-        """Confirms with user and uninstalls mod via API, with dependency warning if other mods need it."""
+        """Confirme et désinstalle le mod via l'API sans bloquer la GUI."""
         title = mod_data.get("title", tr("common.untitled"))
         mod_id = mod_data.get("id")
         folder_name = mod_data.get("folder_name", "")
+        if not mod_id:
+            return
 
-        # 1. Check if other installed mods depend on this mod
-        dependents = []
-        try:
-            dep_res = self.api_client.get_mod_dependents(mod_id)
-            dependents = dep_res.get("dependents", [])
-        except Exception as e:
-            logger.debug(f"Could not check dependents for mod {mod_id}: {e}")
+        def _fetch_deps():
+            try:
+                dep_res = self.api_client.get_mod_dependents(mod_id)
+                return dep_res.get("dependents", [])
+            except Exception as e:
+                logger.debug(f"Could not check dependents for mod {mod_id}: {e}")
+                return []
 
-        # 2. Display warning if dependent mods are found
-        if dependents:
-            dep_lines = "\n".join(f"  • {d.get('title', 'Mod')} ({d.get('folder_name', '')})" for d in dependents)
-            confirmed = DialogHelper.confirm(
-                self,
-                title=tr("installed.dep_warning_title"),
-                message=tr("installed.dep_warning_msg", title=title, count=len(dependents), deps=dep_lines),
-                confirm_text=tr("installed.btn_delete_anyway"),
-                cancel_text=tr("installed.btn_cancel"),
-                is_destructive=True,
-            )
-            if not confirmed:
-                return
-        else:
-            # Standard confirmation
-            confirmed = DialogHelper.confirm(
-                self,
-                title=tr("installed.delete_confirm_title"),
-                message=tr("installed.delete_confirm_msg", title=title, folder=folder_name),
-                is_destructive=True,
-            )
-            if not confirmed:
-                return
-
-        try:
-            res = self.api_client.uninstall_mod(mod_id)
-            if res.get("success", False):
-                logger.info(f"Mod '{title}' désinstallé avec succès.")
-                DialogHelper.success(
-                    self, tr("installed.delete_success_title"), tr("installed.delete_success_msg", title=title)
+        def _on_deps_fetched(dependents):
+            if dependents:
+                dep_lines = "\n".join(f"  • {d.get('title', 'Mod')} ({d.get('folder_name', '')})" for d in dependents)
+                confirmed = DialogHelper.confirm(
+                    self,
+                    title=tr("installed.dep_warning_title"),
+                    message=tr("installed.dep_warning_msg", title=title, count=len(dependents), deps=dep_lines),
+                    confirm_text=tr("installed.btn_delete_anyway"),
+                    cancel_text=tr("installed.btn_cancel"),
+                    is_destructive=True,
                 )
-                self.mods_changed.emit()
+                if not confirmed:
+                    return
             else:
-                logger.error(f"Échec de la suppression de '{title}': {res.get('message')}")
-                DialogHelper.error(self, tr("dialogs.error_title"), res.get("message", tr("dialogs.error_title")))
-            self.refresh_mods()
-        except Exception as e:
-            logger.error(f"Erreur lors de la désinstallation du mod {mod_id}: {e}")
-            DialogHelper.error(self, tr("dialogs.error_title"), f"{e}")
+                confirmed = DialogHelper.confirm(
+                    self,
+                    title=tr("installed.delete_confirm_title"),
+                    message=tr("installed.delete_confirm_msg", title=title, folder=folder_name),
+                    is_destructive=True,
+                )
+                if not confirmed:
+                    return
+
+            def _do_uninstall():
+                return self.api_client.uninstall_mod(mod_id)
+
+            def _on_uninstall_finished(res):
+                if res.get("success", False):
+                    logger.info(f"Mod '{title}' désinstallé avec succès.")
+                    DialogHelper.success(
+                        self, tr("installed.delete_success_title"), tr("installed.delete_success_msg", title=title)
+                    )
+                    self.mods_changed.emit()
+                else:
+                    logger.error(f"Échec de la suppression de '{title}': {res.get('message')}")
+                    DialogHelper.error(self, tr("dialogs.error_title"), res.get("message", tr("dialogs.error_title")))
+                self.refresh_mods()
+
+            def _on_uninstall_error(err):
+                logger.error(f"Erreur lors de la désinstallation du mod {mod_id}: {err}")
+                DialogHelper.error(self, tr("dialogs.error_title"), f"{err}")
+
+            run_async_ui_task(_do_uninstall, on_finished=_on_uninstall_finished, on_error=_on_uninstall_error)
+
+        run_async_ui_task(_fetch_deps, on_finished=_on_deps_fetched)
 
     def scan_mods_folder(self):
         """Exécute le scan des mods de façon asynchrone pour ne jamais figer l'interface."""
@@ -346,27 +419,32 @@ class InstalledView(QWidget):
         self._scan_worker.start()
 
     def open_mods_folder(self):
-        """Exécute l'opération open mods folder."""
-        try:
-            self.api_client.open_folder()
-        except Exception as e:
-            QMessageBox.warning(self, tr("dialogs.error_title"), f"{e}")
+        """Exécute l'ouverture du dossier mods de façon asynchrone."""
+        def _on_err(err: str) -> None:
+            QMessageBox.warning(self, tr("dialogs.error_title"), f"{err}")
+
+        run_async_ui_task(
+            self.api_client.open_folder,
+            on_error=_on_err,
+        )
 
     def open_mod_folder(self, folder_name: str):
-        """Exécute l'opération open mod folder.
+        """Exécute l'ouverture du sous-dossier mod de façon asynchrone."""
+        def _on_err(err: str) -> None:
+            QMessageBox.warning(self, tr("dialogs.error_title"), f"{err}")
 
-        Args:
-            folder_name: Paramètre folder_name.
-        """
-        try:
-            self.api_client.open_folder(folder_name=folder_name)
-        except Exception as e:
-            QMessageBox.warning(self, tr("dialogs.error_title"), f"{e}")
+        run_async_ui_task(
+            lambda: self.api_client.open_folder(folder_name=folder_name),
+            on_error=_on_err,
+        )
+
 
     def retranslate_ui(self):
         """Retranslates all text elements in InstalledView."""
         self.counter_label.setText(tr("installed.title"))
         self.search_input.setPlaceholderText(tr("installed.search_placeholder"))
+        self.conflicts_btn.setText(tr("installed.conflicts_btn"))
+        self.conflicts_btn.setToolTip(tr("installed.conflicts_btn_tooltip"))
         self.scan_btn.setText(tr("installed.scan_btn"))
         self.open_folder_btn.setText(tr("installed.open_folder_btn"))
         count = len(self.all_mods)

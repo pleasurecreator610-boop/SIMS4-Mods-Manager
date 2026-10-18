@@ -11,17 +11,22 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QMessageBox,
     QCheckBox,
+    QLabel,
+    QPushButton,
+    QLineEdit,
 )
 from PySide6.QtCore import Signal
 
 from src.api.client import get_api_client
 from src.ui.theme import Theme
 from src.ui.workers.update_workers import UpdateWorker
+from src.ui.workers.generic_runnable import run_async_ui_task
 from src.ui.views.updates.updates_row_builder import UpdatesRowBuilder
 from src.ui.views.updates.updates_controller import UpdatesActionController
 from src.ui.views.updates.updates_toolbar import build_updates_header, build_updates_toolbar
 from src.i18n import tr
 from src.utils.logger import logger
+
 
 __all__ = ["UpdatesView", "UpdateWorker"]
 
@@ -42,6 +47,15 @@ class UpdatesView(QWidget):
         self.checkbox_items: List[tuple[int, str, QCheckBox, bool]] = []
         self._updatable_count: int = 0
         self._total_installed: int = 0
+        self.main_title: QLabel = None  # type: ignore[assignment]
+        self.counter_label: QLabel = None  # type: ignore[assignment]
+        self.refresh_btn: QPushButton = None  # type: ignore[assignment]
+        self.update_selected_btn: QPushButton = None  # type: ignore[assignment]
+        self.update_all_btn: QPushButton = None  # type: ignore[assignment]
+        self.select_updates_btn: QPushButton = None  # type: ignore[assignment]
+        self.select_all_btn: QPushButton = None  # type: ignore[assignment]
+        self.deselect_all_btn: QPushButton = None  # type: ignore[assignment]
+        self.search_input: QLineEdit = None  # type: ignore[assignment]
         self.controller = UpdatesActionController(self)
         self.init_ui()
 
@@ -114,18 +128,29 @@ class UpdatesView(QWidget):
             self.counter_label.setText(tr("updates.up_to_date_title"))
 
     def refresh_updates(self):
-        """Exécute l'opération refresh updates."""
-        try:
-            res = self.api_client.get_updates()
+        """Exécute l'opération refresh updates en arrière-plan sans bloquer la GUI."""
+        self.refresh_btn.setEnabled(False)
+        self.counter_label.setText("⏳ Recherche des mises à jour...")
+
+        def _fetch():
+            return self.api_client.get_updates()
+
+        def _on_fetched(res):
+            self.refresh_btn.setEnabled(True)
             self.all_mods = res.get("items", [])
             self._updatable_count = res.get("count", 0)
             self._total_installed = res.get("total_installed", len(self.all_mods))
             self._update_counter_label()
             self.update_all_btn.setEnabled(self._updatable_count > 0)
             self._render_table()
-        except Exception as e:
-            logger.error(f"Erreur API lors de la vérification des mises à jour: {e}")
+
+        def _on_error(err):
+            self.refresh_btn.setEnabled(True)
+            logger.error(f"Erreur API lors de la vérification des mises à jour: {err}")
             self.counter_label.setText(tr("updates.check_error"))
+
+        run_async_ui_task(_fetch, on_finished=_on_fetched, on_error=_on_error)
+
 
     def _render_table(self):
         query = self.search_input.text().lower().strip()
@@ -162,12 +187,15 @@ class UpdatesView(QWidget):
             has_link = bool(item.get("catalog_mod_id") or item.get("remote_id"))
             self.table.setCellWidget(row, 4, UpdatesRowBuilder.create_status_cell(has_update, has_link))
 
+            def _make_handler(i: int, t: str):
+                return lambda: self.update_single_mod(i, t)
+
             self.table.setCellWidget(
                 row,
                 5,
                 UpdatesRowBuilder.create_action_cell(
                     has_update,
-                    lambda i=inst_id, t=title: self.update_single_mod(i, t),
+                    _make_handler(inst_id, title),
                 ),
             )
 

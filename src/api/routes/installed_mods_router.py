@@ -13,6 +13,7 @@ from src.api.schemas.installed import (
     InstalledListResponse,
     InstalledOpenFolderRequest,
     InstalledOpenFolderResponse,
+    InstalledRestoreResponse,
     InstalledScanResponse,
     InstalledToggleRequest,
     InstalledToggleResponse,
@@ -20,6 +21,8 @@ from src.api.schemas.installed import (
     ModDependentsResponse,
     DbpfConflictItem,
     DbpfConflictReportResponse,
+    ResolveConflictRequest,
+    ResolveConflictResponse,
 )
 from src.application.mods.installed_mods_service import InstalledModsService
 from src.application.mods.conflict_detector_service import ConflictDetectorService
@@ -84,18 +87,55 @@ def open_folder(payload: InstalledOpenFolderRequest = InstalledOpenFolderRequest
 def get_mod_conflicts() -> DbpfConflictReportResponse:
     """Analyse les fichiers .package installés pour détecter les collisions de ressources TGI."""
     mods_dir = GameDetector.detect_mods_dir()
+    if not mods_dir or not mods_dir.exists():
+        return DbpfConflictReportResponse(
+            total_packages_scanned=0,
+            total_resources_indexed=0,
+            conflict_count=0,
+            translation_override_count=0,
+            conflicts=[],
+        )
     report = _conflict_detector.detect_conflicts(mods_dir)
+
     return DbpfConflictReportResponse(
         total_packages_scanned=report.total_packages_scanned,
         total_resources_indexed=report.total_resources_indexed,
         conflict_count=report.conflict_count,
+        translation_override_count=report.translation_override_count,
         conflicts=[
             DbpfConflictItem(
                 tgi=c.tgi,
                 resource_type_name=c.resource_type_name,
                 conflicting_packages=c.conflicting_packages,
+                is_translation_override=c.is_translation_override,
             )
             for c in report.conflicts
         ],
     )
+
+
+@router.post("/{mod_id}/restore-backup", response_model=InstalledRestoreResponse)
+def restore_mod_backup(mod_id: int) -> InstalledRestoreResponse:
+    """Restaure la sauvegarde ZIP précédente d'un mod."""
+    res = _installed_service.restore_backup(mod_id)
+    if not res.success:
+        raise HTTPException(status_code=400, detail=res.message)
+    return res
+
+
+@router.post("/conflicts/resolve", response_model=ResolveConflictResponse)
+def resolve_conflict(payload: ResolveConflictRequest) -> ResolveConflictResponse:
+    """Active ou désactive un fichier .package pour résoudre un conflit DBPF."""
+    mods_dir = GameDetector.detect_mods_dir()
+    if not mods_dir or not mods_dir.exists():
+        raise HTTPException(status_code=400, detail="Dossier Mods introuvable.")
+    ok, msg, new_path = _conflict_detector.resolve_conflict(
+        mods_dir=mods_dir,
+        package_rel_path=payload.package_path,
+        action=payload.action,
+    )
+    if not ok:
+        raise HTTPException(status_code=400, detail=msg)
+    return ResolveConflictResponse(success=True, message=msg, new_path=new_path)
+
 

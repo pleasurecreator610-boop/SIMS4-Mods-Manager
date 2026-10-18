@@ -67,22 +67,26 @@ class ZipArchiveHandler(BaseArchiveHandler):
         dest_dir: Path,
         progress_cb: Optional[Callable[[int, str], None]] = None,
     ) -> list[Path]:
-        """Extrait les fichiers de l'archive ZIP avec notification de progression."""
+        """Extrait les fichiers de l'archive ZIP de façon sécurisée (anti-Zip Slip) avec notification de progression."""
+        resolved_dest = dest_dir.resolve()
         with zipfile.ZipFile(path, "r") as z:
             members = z.infolist()
-            total = len(members)
-            if progress_cb and total > 0:
-                for idx, member in enumerate(members):
-                    try:
-                        z.extract(member, dest_dir, filter="data")  # type: ignore[call-arg]
-                    except TypeError:
-                        z.extract(member, dest_dir)
-                    progress_cb(int(((idx + 1) / total) * 100), member.filename)
-            else:
+            safe_members = []
+            for m in members:
+                target_path = (dest_dir / m.filename).resolve()
+                if target_path == resolved_dest or resolved_dest in target_path.parents:
+                    safe_members.append(m)
+                else:
+                    logger.warning(f"Zip Slip bloqué pour le fichier : {m.filename}")
+
+            total = len(safe_members)
+            for idx, member in enumerate(safe_members):
                 try:
-                    z.extractall(dest_dir, filter="data")  # type: ignore[call-arg]
+                    z.extract(member, dest_dir, filter="data")  # type: ignore[call-arg]
                 except TypeError:
-                    z.extractall(dest_dir)
+                    z.extract(member, dest_dir)
+                if progress_cb and total > 0:
+                    progress_cb(int(((idx + 1) / total) * 100), member.filename)
         return [p for p in dest_dir.rglob("*") if p.is_file()]
 
 
@@ -115,10 +119,16 @@ class SevenZipArchiveHandler(BaseArchiveHandler):
         dest_dir: Path,
         progress_cb: Optional[Callable[[int, str], None]] = None,
     ) -> list[Path]:
-        """Extrait l'archive 7Z."""
+        """Extrait l'archive 7Z de façon sécurisée (anti-Path Traversal)."""
         import py7zr
 
+        resolved_dest = dest_dir.resolve()
         with py7zr.SevenZipFile(path, mode="r") as z:
+            for name in z.getnames():
+                target_path = (dest_dir / name).resolve()
+                if target_path != resolved_dest and resolved_dest not in target_path.parents:
+                    logger.warning(f"7Z path traversal bloqué pour le fichier : {name}")
+                    raise ValueError(f"Évasion de chemin interdite dans l'archive 7Z : {name}")
             z.extractall(path=dest_dir)
         if progress_cb:
             progress_cb(100, path.name)
@@ -185,12 +195,18 @@ class RarArchiveHandler(BaseArchiveHandler):
         dest_dir: Path,
         progress_cb: Optional[Callable[[int, str], None]] = None,
     ) -> list[Path]:
-        """Extrait l'archive RAR."""
+        """Extrait l'archive RAR de façon sécurisée (anti-Path Traversal)."""
         import rarfile
 
         self._ensure_tool_configured()
         try:
+            resolved_dest = dest_dir.resolve()
             with rarfile.RarFile(path) as rf:
+                for m in rf.infolist():
+                    target_path = (dest_dir / m.filename).resolve()
+                    if target_path != resolved_dest and resolved_dest not in target_path.parents:
+                        logger.warning(f"RAR path traversal bloqué pour le fichier : {m.filename}")
+                        raise ValueError(f"Évasion de chemin interdite dans l'archive RAR : {m.filename}")
                 rf.extractall(dest_dir)
         except rarfile.RarCannotExec as e:
             logger.error(f"Outil UnRAR manquant pour extraire {path.name}: {e}")

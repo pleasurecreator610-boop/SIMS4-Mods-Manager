@@ -109,10 +109,17 @@ def main():
     window = MainWindow()
     window.show()
 
-    # Diagnostic Playwright et scan initial exécutés en tâche différée sans bloquer l'affichage
-    def _async_startup_tasks():
+    # Diagnostic Playwright et scan initial exécutés en arrière-plan sans bloquer l'affichage
+    from src.ui.workers.generic_runnable import run_async_ui_task
+
+    def _run_startup_worker():
+        health = client.get_health()
+        scan_res = client.scan_installed_mods()
+        return health, scan_res
+
+    def _on_startup_finished(result):
         try:
-            health = client.get_health()
+            health, scan_res = result
             if not health.get("browser_engine_ready", False):
                 logger.warning("Aucun moteur de navigateur détecté pour Playwright via l'API.")
                 QMessageBox.warning(
@@ -123,17 +130,19 @@ def main():
             else:
                 logger.info("Vérification Playwright réussie via l'API.")
 
-            # Scan initial des mods sans geler l'interface graphique
-            scan_res = client.scan_installed_mods()
             logger.info(f"Scan initial terminé via l'API : {scan_res.get('message', '')}")
             if hasattr(window, "installed_view"):
                 window.installed_view.refresh_mods()
             if hasattr(window, "update_nav_badge"):
                 window.update_nav_badge()
         except Exception as e:
-            logger.error(f"Avertissement lors des vérifications initiales API: {e}")
+            logger.error(f"Erreur traitement résultat startup: {e}")
 
-    QTimer.singleShot(50, _async_startup_tasks)
+    def _on_startup_error(err):
+        logger.warning(f"Avertissement lors des vérifications initiales API: {err}")
+
+    QTimer.singleShot(50, lambda: run_async_ui_task(_run_startup_worker, on_finished=_on_startup_finished, on_error=_on_startup_error))
+
 
     # Démarrage de la vérification des dossiers du jeu et des mods installés en tâche de fond
     from src.application.game.game_service import GameDetector

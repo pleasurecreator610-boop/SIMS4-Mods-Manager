@@ -1,6 +1,7 @@
+from datetime import datetime
+from pathlib import Path
 import tempfile
 from typing import Any
-from pathlib import Path
 from fastapi import APIRouter, HTTPException
 
 from src.api.schemas.updates import (
@@ -21,6 +22,11 @@ router = APIRouter(prefix="/updates", tags=["Updates"])
 
 
 def _update_one_mod(installed_id: int) -> tuple[bool, str]:
+    from src.application.game.game_service import GameDetector
+
+    if GameDetector.is_game_running():
+        return False, "Le jeu Les Sims 4 est actuellement en cours d'exécution. Veuillez fermer le jeu avant de mettre à jour des mods."
+
     db = DatabaseManager.get_instance()
     with db.get_session() as session:
         im = session.query(InstalledMod).filter_by(id=installed_id).first()
@@ -65,45 +71,91 @@ def _update_one_mod(installed_id: int) -> tuple[bool, str]:
         title = str(cat_mod.title or "Mod")
         remote_id = str(cat_mod.remote_id or "")
         version_date = cat_mod.updated_date
+        cat_mod_id = cat_mod.id
 
-    provider = ProviderRegistry.get_provider(source)
-    if not provider:
-        return False, f"Fournisseur '{source}' introuvable."
+    from src.application.mods.active_installation_registry import ActiveInstallationRegistry
 
-    details = provider.get_mod_details(page_url)
-    det_dict = (
-        details.model_dump() if hasattr(details, "model_dump") else (details if isinstance(details, dict) else {})
-    )
-    download_urls = det_dict.get("download_urls", [])
-    if not download_urls:
-        return False, f"Aucun lien de téléchargement disponible pour '{title}'."
+    registry = ActiveInstallationRegistry.get_instance()
+    acquired, _ = registry.register_install(source, remote_id, title)
+    if not acquired:
+        return False, f"Installation ou mise à jour de '{title}' déjà en cours."
 
-    dl_info = download_urls[0]
-    dl_url = dl_info["url"] if isinstance(dl_info, dict) else dl_info
-
-    temp_dir = Path(tempfile.gettempdir()) / "sims4_mod_manager_downloads"
-    temp_dir.mkdir(parents=True, exist_ok=True)
-    dest_file = temp_dir / f"mod_{remote_id}.zip"
-
-    ok, msg = provider.download_mod_file(dl_url, dest_file)
-    if not ok:
-        return False, f"Échec du téléchargement: {msg}"
-
-    install_ok, install_msg = ModInstaller.install_mod_from_file(
-        file_path=dest_file,
-        catalog_mod=cat_mod,
-        source=source,
-        custom_title=title,
-        version_date=version_date,
-        version_str=str(det_dict.get("version_str", "") or ""),
-    )
-
+    install_ok = False
+    install_msg = ""
     try:
-        dest_file.unlink(missing_ok=True)
-    except Exception:
-        pass
+        provider = ProviderRegistry.get_provider(source)
+        if not provider:
+            install_msg = f"Fournisseur '{source}' introuvable."
+            return False, install_msg
 
-    return install_ok, install_msg
+        details = provider.get_mod_details(page_url)
+        det_dict = (
+            details.model_dump() if hasattr(details, "model_dump") else (details if isinstance(details, dict) else {})
+        )
+        download_urls = det_dict.get("download_urls", [])
+        if not download_urls:
+            install_msg = f"Aucun lien de téléchargement disponible pour '{title}'."
+            return False, install_msg
+
+        raw_date = det_dict.get("updated_date")
+        new_version_date = version_date
+        if raw_date:
+            if isinstance(raw_date, datetime):
+                new_version_date = raw_date
+            elif isinstance(raw_date, str):
+                try:
+                    new_version_date = datetime.fromisoformat(raw_date.replace("Z", "+00:00")).replace(tzinfo=None)
+                except Exception:
+                    pass
+
+        new_version_str = str(det_dict.get("version_str", "") or "")
+
+        # Persist the newly scraped version and date in the catalog
+        if cat_mod_id:
+            try:
+                with db.get_session() as s:
+                    cm = s.query(CatalogMod).filter_by(id=cat_mod_id).first()
+                    if cm:
+                        if new_version_date:
+                            cm.updated_date = new_version_date
+                        if new_version_str:
+                            cm.version_str = new_version_str
+                        s.commit()
+                        if cat_mod:
+                            cat_mod.updated_date = cm.updated_date
+                            cat_mod.version_str = cm.version_str
+            except Exception as e:
+                logger.debug(f"Impossible de mettre à jour la date/version du catalogue: {e}")
+
+        dl_info = download_urls[0]
+        dl_url = dl_info["url"] if isinstance(dl_info, dict) else dl_info
+
+        temp_dir = Path(tempfile.gettempdir()) / "sims4_mod_manager_downloads"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        dest_file = temp_dir / f"mod_{remote_id}.zip"
+
+        ok, msg = provider.download_mod_file(dl_url, dest_file)
+        if not ok:
+            install_msg = f"Échec du téléchargement: {msg}"
+            return False, install_msg
+
+        install_ok, install_msg = ModInstaller.install_mod_from_file(
+            file_path=dest_file,
+            catalog_mod=cat_mod,
+            source=source,
+            custom_title=title,
+            version_date=new_version_date,
+            version_str=new_version_str or str(getattr(cat_mod, "version_str", "") or ""),
+        )
+
+        try:
+            dest_file.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+        return install_ok, install_msg
+    finally:
+        registry.complete_install(source, remote_id, title, success=install_ok, message=install_msg)
 
 
 @router.get("", response_model=UpdatesListResponse)

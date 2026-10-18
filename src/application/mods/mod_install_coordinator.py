@@ -17,6 +17,8 @@ from src.database.manager import DatabaseManager
 from src.database.models import CatalogMod, InstalledMod
 from src.utils.archive import extract_archive, is_archive
 from src.utils.file_utils import generate_unique_mod_folder_name
+from src.utils.dependency_noise_rules import is_likely_comment_or_noise
+from src.application.mods.mod_toggle_actions import ModToggleActions
 from src.utils.logger import logger
 
 
@@ -52,12 +54,17 @@ class ModInstallCoordinator:
         6. Persists InstalledMod record.
         7. Performs rollback if any step fails.
         """
+        from src.application.game.game_service import GameDetector
+
+        if GameDetector.is_game_running():
+            return False, "Le jeu Les Sims 4 est actuellement en cours d'exécution. Veuillez fermer le jeu avant d'installer des mods."
+
         config = AppConfig.load()
         file_path = self.actions.detect_and_normalize_extension(file_path)
 
-        title = custom_title or (catalog_mod.title if catalog_mod else file_path.stem)
-        source_name = source or (catalog_mod.source if catalog_mod else "manual")
-        remote_id = catalog_mod.remote_id if catalog_mod else ""
+        title: str = custom_title or ((catalog_mod.title if catalog_mod and catalog_mod.title else None) or file_path.stem)
+        source_name: str = source or ((catalog_mod.source if catalog_mod and catalog_mod.source else None) or "manual")
+        remote_id: str = (catalog_mod.remote_id if catalog_mod and catalog_mod.remote_id else "")
         catalog_id = catalog_mod.id if catalog_mod else None
 
         with self.db.get_session() as session:
@@ -71,6 +78,14 @@ class ModInstallCoordinator:
             if not existing_installed:
                 existing_installed = session.query(InstalledMod).filter_by(title=title, source=source_name).first()
 
+            # Detect if previously installed mod was in disabled state
+            is_mod_previously_disabled = False
+            if existing_installed:
+                if not existing_installed.is_enabled:
+                    is_mod_previously_disabled = True
+                elif existing_installed.folder_name and existing_installed.folder_name.endswith(".disabled"):
+                    is_mod_previously_disabled = True
+
             if existing_installed and existing_installed.folder_name:
                 safe_folder_name = existing_installed.folder_name
             else:
@@ -78,31 +93,56 @@ class ModInstallCoordinator:
                     source_name or "manual", title or file_path.stem, mods_dir
                 )
 
+            # Reconcile folder name with disabled state
+            if is_mod_previously_disabled:
+                if not safe_folder_name.endswith(".disabled"):
+                    safe_folder_name = f"{safe_folder_name}.disabled"
+            else:
+                if safe_folder_name.endswith(".disabled"):
+                    safe_folder_name = safe_folder_name[:-9]
+
             target_mod_dir = mods_dir / (safe_folder_name or "unknown_mod")
 
+            # Resolve physical folder on disk (could currently exist with or without .disabled)
+            existing_disk_dir: Optional[Path] = None
+            cand1 = target_mod_dir
+            clean_base = safe_folder_name[:-9] if safe_folder_name.endswith(".disabled") else safe_folder_name
+            cand2 = mods_dir / (clean_base if safe_folder_name.endswith(".disabled") else f"{clean_base}.disabled")
+
+            if cand1.exists():
+                existing_disk_dir = cand1
+            elif cand2.exists():
+                existing_disk_dir = cand2
+
             backup_file_path = None
-            if existing_installed and target_mod_dir.exists() and config.auto_backup:
+            if existing_installed and existing_disk_dir and existing_disk_dir.exists() and config.auto_backup:
                 backup_file_path = self.actions.create_directory_backup(
-                    target_dir=target_mod_dir,
+                    target_dir=existing_disk_dir,
                     backup_parent_dir=AppConfig.get_backups_dir(),
                     mod_name=safe_folder_name,
                 )
 
             # Preserve existing user configs (e.g. MCCC, WickedWhims, Tool configs)
             preserved_configs: Dict[str, bytes] = {}
-            if target_mod_dir.exists():
+            if existing_disk_dir and existing_disk_dir.exists():
                 cfg_exts = {".cfg", ".ini", ".settings"}
-                for cfg_file in target_mod_dir.rglob("*"):
+                for cfg_file in existing_disk_dir.rglob("*"):
                     if cfg_file.is_file() and (
                         cfg_file.suffix.lower() in cfg_exts
                         or "settings" in cfg_file.name.lower()
                         or "config" in cfg_file.name.lower()
                     ):
                         try:
-                            rel_k = str(cfg_file.relative_to(target_mod_dir))
+                            rel_k = str(cfg_file.relative_to(existing_disk_dir))
+                            if rel_k.endswith(".disabled"):
+                                rel_k = rel_k[:-9]
                             preserved_configs[rel_k] = cfg_file.read_bytes()
                         except Exception as ce:
                             logger.debug(f"Lecture config existant ignorée: {ce}")
+
+            # Clean up prior disk directory if it had a different name from target_mod_dir
+            if existing_disk_dir and existing_disk_dir.exists() and existing_disk_dir != target_mod_dir:
+                shutil.rmtree(existing_disk_dir, ignore_errors=True)
 
             temp_extract_dir = None
             try:
@@ -142,6 +182,12 @@ class ModInstallCoordinator:
                         except Exception as re:
                             logger.debug(f"Restauration config ignorée pour {rel_k}: {re}")
 
+                # If mod was previously disabled, maintain its disabled state
+                if is_mod_previously_disabled:
+                    toggle_actions = ModToggleActions()
+                    toggle_actions.toggle_folder_files(target_mod_dir, new_state=False, mods_dir=mods_dir)
+                    installed_files = [str(p.relative_to(mods_dir)) for p in target_mod_dir.rglob("*") if p.is_file()]
+
                 if not installed_files:
                     raise ValueError("Aucun fichier de mod valide (.package ou .ts4script) trouvé dans l'archive.")
 
@@ -156,6 +202,7 @@ class ModInstallCoordinator:
                     version_date=version_date,
                     version_str=version_str,
                     backup_path=str(backup_file_path) if backup_file_path else None,
+                    is_enabled=not is_mod_previously_disabled,
                 )
 
                 if progress_callback:
@@ -190,6 +237,13 @@ class ModInstallCoordinator:
         visited = visited_remotes if visited_remotes is not None else set()
 
         for idx, dep in enumerate(missing_dependencies, start=1):
+            if dep.is_game_dlc or dep.status == "GAME_DLC":
+                logger.info(f"[INSTALL-DEP] Ignoré (DLC officiel non téléchargeable) : '{dep.title}'")
+                continue
+            if dep.is_comment or dep.status in ["COMMENT_NOISE", "COMMENT"] or is_likely_comment_or_noise(dep.title):
+                logger.info(f"[INSTALL-DEP] Ignoré (commentaire ou note) : '{dep.title}'")
+                continue
+
             dep_source = dep.source or "loverslab"
             dep_remote_id = dep.remote_id or ""
             dep_title = dep.title or f"Mod #{dep_remote_id}"
@@ -299,6 +353,18 @@ class ModInstallCoordinator:
                         return False, installed_deps, not_detected_deps, err_msg
             except Exception as e:
                 registry.complete_install(dep_source, dep_remote_id, dep_title, success=False, message=str(e))
-                raise
+                if allow_partial:
+                    logger.error(f"[INSTALL-DEP] ❌ Exception lors de l'installation de la dépendance '{dep_title}': {e}")
+                    not_detected_deps.append(
+                        DependencyItem(
+                            source=dep_source,
+                            remote_id=dep_remote_id,
+                            title=dep_title,
+                            url=dep_url or "",
+                            status="NOT_DETECTED_FINISHED",
+                        )
+                    )
+                else:
+                    return False, installed_deps, not_detected_deps, f"Échec de l'installation de la dépendance requise '{dep_title}': {e}"
 
         return True, installed_deps, not_detected_deps, None

@@ -62,3 +62,55 @@ def test_non_breaking_space_sims4_detection(tmp_path, monkeypatch):
     mods = GameDetector.detect_mods_dir()
     assert mods == sims_french_dir / "Mods"
     assert (mods / "Resource.cfg").exists()
+
+
+def test_game_launcher_ea_app_and_steam_fallbacks(monkeypatch):
+    from src.application.game.game_launcher import GameLauncher
+
+    called_uris = []
+    monkeypatch.setattr(GameLauncher, "detect_game_executable", classmethod(lambda cls, custom_exe=None: None))
+    monkeypatch.setattr(GameLauncher, "open_system_uri", classmethod(lambda cls, uri: (called_uris.append(uri) or True)))
+
+    ok = GameLauncher.launch_game()
+    assert ok is True
+    # Premier repli : EA App / Origin
+    assert len(called_uris) >= 1
+    assert "origin2://game/launch" in called_uris[0]
+
+
+def test_game_launcher_steam_fallback_when_ea_fails(monkeypatch):
+    from src.application.game.game_launcher import GameLauncher
+
+    called_uris = []
+
+    def mock_open_uri(uri):
+        called_uris.append(uri)
+        if "origin2://" in uri:
+            return False
+        return True
+
+    monkeypatch.setattr(GameLauncher, "detect_game_executable", classmethod(lambda cls, custom_exe=None: None))
+    monkeypatch.setattr(GameLauncher, "open_system_uri", classmethod(lambda cls, uri: mock_open_uri(uri)))
+
+    ok = GameLauncher.launch_game()
+    assert ok is True
+    assert len(called_uris) == 2
+    assert "origin2://" in called_uris[0]
+    assert "steam://rungameid/1222670" in called_uris[1]
+
+
+def test_detect_mods_dir_honors_app_config_custom_mods_dir(tmp_path, monkeypatch):
+    GameDetector.clear_cache()
+    from src.core.config import AppConfig
+
+    custom_mods = tmp_path / "MySpecialModsFolder"
+    custom_mods.mkdir()
+
+    cfg = AppConfig(custom_mods_dir=str(custom_mods))
+    monkeypatch.setattr(AppConfig, "load", classmethod(lambda cls: cfg))
+
+    # Calling detect_mods_dir() with no arguments must pick up custom_mods_dir
+    res = GameDetector.detect_mods_dir()
+    assert res == custom_mods
+    assert (custom_mods / "Resource.cfg").exists()
+

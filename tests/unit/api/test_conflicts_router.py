@@ -42,3 +42,5 @@ def test_get_installed_conflicts_endpoint(monkeypatch):
     assert item["tgi"] == "0x03B33DDF-0x80000000-0x1234567890ABCDEF"
     assert item["resource_type_name"] == "Tuning / XML"
     assert len(item["conflicting_packages"]) == 2
+    assert item["is_translation_override"] is False
+    assert data["translation_override_count"] == 0

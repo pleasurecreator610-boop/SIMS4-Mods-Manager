@@ -69,7 +69,7 @@ class DependencyActions:
         match_res = ModMatcher.find_best_catalog_match(title, session, min_threshold=0.70)
         if match_res:
             cat_match, _ = match_res
-            return cat_match.remote_id, cat_match.page_url, cat_match.title, cat_match.source
+            return cat_match.remote_id, cat_match.page_url, cat_match.title or title, cat_match.source or source
 
         cat_match = (
             session.query(CatalogMod)
@@ -77,7 +77,7 @@ class DependencyActions:
             .first()
         )
         if cat_match:
-            return cat_match.remote_id, cat_match.page_url, cat_match.title, cat_match.source
+            return cat_match.remote_id, cat_match.page_url, cat_match.title or title, cat_match.source or source
 
         return None, None, title, source
 
@@ -105,7 +105,7 @@ class DependencyActions:
         return bool(im_match)
 
     def catalog_contains_remote_id(
-        self, source: str, remote_id: str, session: Session, catalog_remote_ids: Optional[Set[str]]
+        self, source: str, remote_id: str, session: Session, catalog_remote_ids: Optional[Set[Tuple[str, str]]]
     ) -> bool:
         """Verifies if remote_id exists in catalog or in special cases."""
         if remote_id in SPECIAL_DEPENDENCY_REMOTE_IDS:

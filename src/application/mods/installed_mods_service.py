@@ -7,10 +7,12 @@ import subprocess
 import sys
 from typing import Optional
 
+from src.api.schemas.catalog import DependencyItem
 from src.api.schemas.installed import (
     InstalledListResponse,
     InstalledModItem,
     InstalledOpenFolderResponse,
+    InstalledRestoreResponse,
     InstalledScanResponse,
     InstalledToggleResponse,
     InstalledUninstallResponse,
@@ -116,6 +118,28 @@ class InstalledModsService:
 
             has_update = self.update_service.check_update_available(m, cat_mod)
 
+            deps_items: list[DependencyItem] = []
+            screenshots_items: list[str] = []
+            if cat_mod:
+                deps_items = [
+                    DependencyItem(
+                        source=d.get("source", "loverslab"),
+                        remote_id=str(d.get("remote_id", "")),
+                        title=d.get("title", ""),
+                        url=d.get("url", ""),
+                        is_game_dlc=bool(d.get("is_game_dlc", False)),
+                        is_comment=bool(d.get("is_comment", False)),
+                    )
+                    for d in cat_mod.get_requirements_mods_list()
+                    if isinstance(d, dict)
+                ]
+                screenshots_items = [
+                    str(img)
+                    for img in (cat_mod.external_links or [])
+                    if isinstance(img, str)
+                    and any(img.lower().endswith(ext) or ext in img.lower() for ext in [".png", ".jpg", ".jpeg", ".webp", ".gif"])
+                ]
+
             items.append(
                 InstalledModItem(
                     id=m.id or 0,
@@ -129,8 +153,8 @@ class InstalledModsService:
                     page_url=cat_mod.page_url if cat_mod else "",
                     requirements_text=cat_mod.requirements_text if cat_mod else None,
                     requirements_status=cat_mod.requirements_status if cat_mod else "NONE",
-                    dependencies=[],
-                    screenshots=[],
+                    dependencies=deps_items,
+                    screenshots=screenshots_items,
                     is_enabled=m.is_enabled,
                     installed_date=m.installed_date,
                     version_date=m.version_date,
@@ -222,7 +246,12 @@ class InstalledModsService:
                 return InstalledOpenFolderResponse(success=False, message="Accès refusé hors du dossier Mods.")
             target_path = resolved
             if not target_path.exists():
-                return InstalledOpenFolderResponse(success=False, message=f"Sous-dossier '{folder_name}' introuvable.")
+                alt_clean = folder_clean[:-9] if folder_clean.endswith(".disabled") else f"{folder_clean}.disabled"
+                alt_resolved = (mods_dir / alt_clean).resolve()
+                if (alt_resolved == mods_dir.resolve() or mods_dir.resolve() in alt_resolved.parents) and alt_resolved.exists():
+                    target_path = alt_resolved
+                else:
+                    return InstalledOpenFolderResponse(success=False, message=f"Sous-dossier '{folder_name}' introuvable.")
 
         try:
             if os.name == "nt":
@@ -234,3 +263,69 @@ class InstalledModsService:
             return InstalledOpenFolderResponse(success=True, message=f"Dossier ouvert: {target_path}")
         except Exception as e:
             return InstalledOpenFolderResponse(success=False, message=f"Impossible d'ouvrir le dossier: {e}")
+
+    def restore_backup(self, mod_id: int) -> InstalledRestoreResponse:
+        """Restaure la sauvegarde ZIP précédente d'un mod installé."""
+        from pathlib import Path
+        import shutil
+        from src.utils.archive import extract_archive
+
+        if GameDetector.is_game_running():
+            return InstalledRestoreResponse(
+                success=False,
+                message="Le jeu Les Sims 4 est actuellement en cours d'exécution. Veuillez fermer le jeu avant de restaurer une sauvegarde.",
+            )
+
+        mod = self.installed_repo.get_by_id(mod_id)
+        if not mod:
+            return InstalledRestoreResponse(success=False, message="Mod introuvable en base de données.")
+
+        if not mod.backup_path:
+            return InstalledRestoreResponse(success=False, message="Aucune sauvegarde disponible pour ce mod.")
+
+        backup_file = Path(mod.backup_path)
+        if not backup_file.exists() or not backup_file.is_file():
+            return InstalledRestoreResponse(success=False, message=f"Fichier de sauvegarde introuvable : {backup_file}")
+
+        mods_dir = GameDetector.detect_mods_dir(AppConfig.load().custom_mods_dir)
+        if not mods_dir or not mods_dir.exists():
+            return InstalledRestoreResponse(success=False, message="Dossier Mods de Sims 4 introuvable.")
+
+        # Résolution du dossier cible sur le disque
+        folder_clean = mod.folder_name
+        target_dir = mods_dir / folder_clean
+        if not target_dir.exists():
+            alt_clean = folder_clean[:-9] if folder_clean.endswith(".disabled") else f"{folder_clean}.disabled"
+            alt_dir = mods_dir / alt_clean
+            if alt_dir.exists():
+                target_dir = alt_dir
+
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+        try:
+            # Nettoyage des fichiers existants du dossier mod avant extraction de la sauvegarde
+            for child in target_dir.iterdir():
+                if child.is_dir():
+                    shutil.rmtree(child, ignore_errors=True)
+                else:
+                    child.unlink(missing_ok=True)
+
+            extract_archive(backup_file, target_dir)
+            installed_rel_files = [str(p.relative_to(mods_dir)) for p in target_dir.rglob("*") if p.is_file()]
+
+            # Mettre à jour l'enregistrement InstalledMod
+            mod.installed_files = installed_rel_files
+            mod.is_enabled = not (
+                target_dir.name.endswith(".disabled")
+                or any(f.endswith(".disabled") for f in installed_rel_files)
+            )
+            self.installed_repo.save(mod)
+
+            return InstalledRestoreResponse(
+                success=True,
+                message=f"Sauvegarde restaurée avec succès ({len(installed_rel_files)} fichiers).",
+                restored_files_count=len(installed_rel_files),
+            )
+        except Exception as e:
+            return InstalledRestoreResponse(success=False, message=f"Erreur lors de la restauration: {e}")
+

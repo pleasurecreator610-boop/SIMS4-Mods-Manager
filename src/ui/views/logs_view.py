@@ -14,8 +14,10 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QTextCursor, QFont
 
 from src.api.client import get_api_client
+from src.ui.workers.generic_runnable import run_async_ui_task
 from src.i18n import tr
 from src.utils.logger import get_qt_log_handler, logger
+
 
 
 class LogsView(QWidget):
@@ -131,13 +133,18 @@ class LogsView(QWidget):
         layout.addWidget(self.info_label)
 
     def load_initial_history(self):
-        """Loads logs through API /api/logs."""
-        try:
-            res = self.api_client.get_logs(limit=500)
+        """Loads logs through API /api/logs asynchronously."""
+        def _fetch():
+            return self.api_client.get_logs(limit=500)
+
+        def _on_fetched(res):
             self.all_logs = res.get("items", [])
             self._apply_filter()
-        except Exception as e:
-            logger.error(f"Erreur API lors du chargement des logs: {e}")
+
+        def _on_error(err):
+            logger.error(f"Erreur API lors du chargement des logs: {err}")
+
+        run_async_ui_task(_fetch, on_finished=_on_fetched, on_error=_on_error)
 
     def _on_log_received(self, msg: str, level: str):
         self.all_logs.append(msg)
@@ -196,21 +203,30 @@ class LogsView(QWidget):
         self.info_label.setText(tr("logs.copy_success_msg"))
 
     def clear_logs(self):
-        """Exécute l'opération clear logs."""
-        try:
+        """Exécute l'opération clear logs sans bloquer la GUI."""
+        def _do_clear():
             self.api_client.clear_logs()
+
+        def _on_cleared(_):
             self.all_logs.clear()
             self.log_text.clear()
             self.info_label.setText(tr("common.ready"))
-        except Exception as e:
-            QMessageBox.warning(self, tr("common.error"), f"{e}")
+
+        def _on_error(err):
+            QMessageBox.warning(self, tr("common.error"), f"{err}")
+
+        run_async_ui_task(_do_clear, on_finished=_on_cleared, on_error=_on_error)
 
     def open_logs_folder(self):
-        """Exécute l'opération open logs folder."""
-        try:
-            self.api_client.open_logs_folder()
-        except Exception as e:
-            QMessageBox.warning(self, tr("common.error"), f"{e}")
+        """Exécute l'opération open logs folder sans bloquer la GUI."""
+        def _on_err(err: str) -> None:
+            QMessageBox.warning(self, tr("common.error"), f"{err}")
+
+        run_async_ui_task(
+            self.api_client.open_logs_folder,
+            on_error=_on_err,
+        )
+
 
     def _populate_level_combo(self):
         current_data = self.level_combo.currentData()

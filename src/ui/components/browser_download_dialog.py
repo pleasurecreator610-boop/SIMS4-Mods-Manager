@@ -61,7 +61,7 @@ class BrowserDownloadDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(tr("browser.dialog_title"))
         self.setMinimumWidth(480)
-        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint)
         self.setModal(True)
 
         self.success = False
@@ -211,4 +211,4 @@ class BrowserDownloadDialog(QDialog):
         dialog = cls(parent=parent)
         dialog.start_install()
         result = dialog.exec()
-        return result == QDialog.Accepted and dialog.success
+        return bool(result == QDialog.DialogCode.Accepted or result == 1) and dialog.success

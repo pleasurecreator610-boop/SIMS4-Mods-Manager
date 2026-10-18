@@ -58,7 +58,7 @@ class FetchDetailsWorker(BaseWorker):
                 found_id = None
                 try:
                     if self.remote_id:
-                        cat = api_client.get_catalog(search=self.remote_id, page_size=10)
+                        cat = api_client.get_catalog(search=self.remote_id, limit=10)
                         for item in cat.get("items", []):
                             if str(item.get("remote_id")) == str(self.remote_id) and item.get("source") == self.source:
                                 found_id = item.get("id")

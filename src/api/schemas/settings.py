@@ -63,3 +63,46 @@ class DatabasePurgeResponse(BaseModel):
     success: bool
     deleted_count: int
     message: str
+
+
+class StorageStatsResponse(BaseModel):
+    """Statistiques d'occupation de l'espace disque de l'application."""
+
+    backups_size_bytes: int
+    backups_count: int
+    cache_size_bytes: int
+    cache_count: int
+    downloads_size_bytes: int
+    downloads_count: int
+    total_size_bytes: int
+
+    @property
+    def total_size_mb(self) -> float:
+        return self.total_size_bytes / (1024 * 1024)
+
+    @property
+    def backups_size_mb(self) -> float:
+        return self.backups_size_bytes / (1024 * 1024)
+
+    @property
+    def cache_size_mb(self) -> float:
+        return self.cache_size_bytes / (1024 * 1024)
+
+    @property
+    def downloads_size_mb(self) -> float:
+        return self.downloads_size_bytes / (1024 * 1024)
+
+
+class StorageCleanupResponse(BaseModel):
+    """Résultat du nettoyage de l'espace disque."""
+
+    success: bool
+    message: str
+    deleted_files_count: int
+    freed_bytes: int
+
+    @property
+    def freed_size_mb(self) -> float:
+        return self.freed_bytes / (1024 * 1024)
+
+

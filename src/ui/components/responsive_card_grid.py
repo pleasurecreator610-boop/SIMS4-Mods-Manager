@@ -1,5 +1,5 @@
-from typing import List, Optional
-from PySide6.QtWidgets import QWidget, QGridLayout, QLabel, QLayoutItem
+from typing import List, Optional, Sequence
+from PySide6.QtWidgets import QWidget, QGridLayout, QLabel
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QResizeEvent
 
@@ -55,7 +55,7 @@ class ResponsiveCardGrid(QWidget):
         self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._grid_layout.addWidget(self._empty_label, 0, 0)
 
-    def set_cards(self, cards: List[QWidget]) -> None:
+    def set_cards(self, cards: Sequence[QWidget]) -> None:
         """Replaces current cards with a new collection and re-lays them out."""
         self.clear()
         self._cards = list(cards)
@@ -80,10 +80,11 @@ class ResponsiveCardGrid(QWidget):
     def clear(self) -> None:
         """Removes and schedules deletion for all card widgets and empty labels."""
         while self._grid_layout.count():
-            item: QLayoutItem = self._grid_layout.takeAt(0)
-            w = item.widget()
-            if w:
-                w.deleteLater()
+            item = self._grid_layout.takeAt(0)
+            if item and item.widget():
+                w = item.widget()
+                if w:
+                    w.deleteLater()
         self._cards.clear()
         self._empty_label = None
 

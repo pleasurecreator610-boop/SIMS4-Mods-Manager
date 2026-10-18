@@ -305,35 +305,43 @@ class MainWindow(QMainWindow):
             self._refresh_current_mod_detail()
 
     def _refresh_current_mod_detail(self):
-        try:
-            curr_mod = getattr(self.mod_detail_view, "mod_data", None)
-            if not curr_mod:
-                return
-            installed_res = self.api_client.get_installed_mods()
-            installed_list = installed_res.get("items", []) if isinstance(installed_res, dict) else []
-            r_id = str(curr_mod.get("remote_id", ""))
-            m_title = curr_mod.get("title", "")
-            match = next(
-                (
-                    im
-                    for im in installed_list
-                    if (r_id and str(im.get("remote_id", "")) == r_id) or (m_title and im.get("title") == m_title)
-                ),
-                None,
-            )
-            updated_data = dict(curr_mod)
-            updated_data["is_installed"] = bool(match)
-            if match:
-                updated_data["folder_name"] = match.get("folder_name")
-            else:
-                updated_data.pop("folder_name", None)
-            self.mod_detail_view.load_mod(
-                updated_data,
-                origin_name=self.mod_detail_view.origin_name,
-                origin_index=self.mod_detail_view.origin_index,
-            )
-        except Exception as e:
-            logger.debug(f"Erreur actualisation mod_detail_view: {e}")
+        from src.ui.workers.generic_runnable import run_async_ui_task
+
+        curr_mod = getattr(self.mod_detail_view, "mod_data", None)
+        if not curr_mod:
+            return
+
+        def _fetch():
+            return self.api_client.get_installed_mods()
+
+        def _on_fetched(installed_res):
+            try:
+                installed_list = installed_res.get("items", []) if isinstance(installed_res, dict) else []
+                r_id = str(curr_mod.get("remote_id", ""))
+                m_title = curr_mod.get("title", "")
+                match = next(
+                    (
+                        im
+                        for im in installed_list
+                        if (r_id and str(im.get("remote_id", "")) == r_id) or (m_title and im.get("title") == m_title)
+                    ),
+                    None,
+                )
+                updated_data = dict(curr_mod)
+                updated_data["is_installed"] = bool(match)
+                if match:
+                    updated_data["folder_name"] = match.get("folder_name")
+                else:
+                    updated_data.pop("folder_name", None)
+                self.mod_detail_view.load_mod(
+                    updated_data,
+                    origin_name=self.mod_detail_view.origin_name,
+                    origin_index=self.mod_detail_view.origin_index,
+                )
+            except Exception as e:
+                logger.debug(f"Erreur actualisation mod_detail_view: {e}")
+
+        run_async_ui_task(_fetch, on_finished=_on_fetched)
 
     def _on_login_success(self, provider_name: str):
         self.switch_page(1)
@@ -387,50 +395,66 @@ class MainWindow(QMainWindow):
         self.sidebar.update_badge_count(count)
 
     def _launch_game(self):
-        try:
-            res = self.api_client.launch_game()
+        from src.ui.workers.generic_runnable import run_async_ui_task
+
+        def _call_launch():
+            return self.api_client.launch_game()
+
+        def _on_launched(res):
             QMessageBox.information(
                 self, tr("nav.launch_game_title"), res.get("message", tr("nav.launch_game_success"))
             )
-        except Exception as e:
-            QMessageBox.warning(self, tr("dialogs.error_title"), tr("nav.launch_game_error", error=str(e)))
+
+        def _on_error(err):
+            QMessageBox.warning(self, tr("dialogs.error_title"), tr("nav.launch_game_error", error=str(err)))
+
+        run_async_ui_task(_call_launch, on_finished=_on_launched, on_error=_on_error, disable_widgets=[self.play_btn])
 
     def auto_start_background_sync(self):
-        """Exécute l'opération auto start background sync."""
-        try:
-            status = self.api_client.get_catalog_sync_status()
-            if status.get("is_running", False):
-                if hasattr(self.catalog_view, "start_sync_monitoring"):
-                    self.catalog_view.start_sync_monitoring()
-                return
+        """Exécute la vérification et le démarrage de synchro auto en tâche de fond pour ne jamais figer la GUI."""
+        from src.ui.workers.generic_runnable import run_async_ui_task
 
-            acc_data = self.api_client.get_accounts()
-            accounts = acc_data if isinstance(acc_data, list) else acc_data.get("accounts", [])
-            is_connection_ok = False
-            for acc in accounts:
-                if acc.get("is_ready", False) or acc.get("is_member", False):
-                    is_connection_ok = True
-                    break
+        def _check_and_start_sync():
+            try:
+                status = self.api_client.get_catalog_sync_status()
+                if status.get("is_running", False):
+                    return True, False
 
-            if not is_connection_ok:
-                try:
-                    test_res = self.api_client.test_account("loverslab")
-                    if test_res.get("success", False):
+                acc_data = self.api_client.get_accounts()
+                accounts = acc_data if isinstance(acc_data, list) else acc_data.get("accounts", [])
+                is_connection_ok = False
+                for acc in accounts:
+                    if acc.get("is_ready", False) or acc.get("is_member", False):
                         is_connection_ok = True
-                except Exception:
-                    pass
+                        break
 
-            if is_connection_ok:
-                self.api_client.start_catalog_sync(max_pages=0)
-                if hasattr(self.catalog_view, "start_sync_monitoring"):
-                    self.catalog_view.start_sync_monitoring()
+                if not is_connection_ok:
+                    try:
+                        test_res = self.api_client.test_account("loverslab")
+                        if test_res.get("success", False):
+                            is_connection_ok = True
+                    except Exception:
+                        pass
+
+                if is_connection_ok:
+                    self.api_client.start_catalog_sync(max_pages=0)
+                    return True, True
+                return False, False
+            except Exception as e:
+                logger.debug(f"Vérification automatique de synchronisation au démarrage: {e}")
+                return False, False
+
+        def _on_sync_checked(result):
+            is_running_or_started, newly_started = result
+            if is_running_or_started and hasattr(self.catalog_view, "start_sync_monitoring"):
+                self.catalog_view.start_sync_monitoring()
+            if newly_started:
                 logger.info(
                     "Synchronisation automatique intégrale en tâche de fond démarrée au lancement (connexion OK)."
                 )
-            else:
-                logger.info("Synchronisation automatique en attente : session ou connexion non validée.")
-        except Exception as e:
-            logger.debug(f"Vérification automatique de synchronisation au démarrage: {e}")
+
+        run_async_ui_task(_check_and_start_sync, on_finished=_on_sync_checked)
+
 
     def closeEvent(self, event):
         """Exécute l'opération closeevent.

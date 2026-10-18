@@ -4,9 +4,6 @@ Allows concurrent or queued mod installations while users freely navigate the ca
 """
 
 from typing import Dict, Any
-import os
-import subprocess
-import sys
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QWidget,
@@ -22,8 +19,9 @@ from PySide6.QtWidgets import (
 
 from src.i18n import tr
 from src.ui.workers.catalog_workers import InstallWorker
+from src.ui.workers.generic_runnable import run_async_ui_task
+from src.api.client import get_api_client
 from src.utils.logger import logger
-from src.core.config import AppConfig
 
 
 class DownloadCardWidget(QFrame):
@@ -341,6 +339,7 @@ class DownloadsView(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.api_client = get_api_client()
         self.tasks: Dict[str, Dict[str, Any]] = {}
         self.card_widgets: Dict[str, DownloadCardWidget] = {}
         self.init_ui()
@@ -572,40 +571,18 @@ class DownloadsView(QWidget):
         self._update_counters()
 
     def open_mods_directory(self):
-        """Exécute l'opération open mods directory."""
-        try:
-            config = AppConfig.load()
-            mods_dir = config.mods_folder
-            if mods_dir and os.path.exists(mods_dir):
-                if sys.platform == "win32":
-                    os.startfile(mods_dir)
-                else:
-                    subprocess.Popen(["xdg-open", str(mods_dir)])
-            else:
-                QMessageBox.warning(self, tr("dialogs.warning_title"), "Le dossier Mods n'a pas été trouvé.")
-        except Exception as e:
-            logger.error(f"Erreur ouverture dossier mods: {e}")
+        """Exécute l'ouverture du dossier mods de façon asynchrone."""
+        def _on_err(err: str) -> None:
+            QMessageBox.warning(self, tr("dialogs.warning_title"), f"Le dossier Mods n'a pas pu être ouvert: {err}")
+
+        run_async_ui_task(
+            self.api_client.open_folder,
+            on_error=_on_err,
+        )
 
     def open_mod_folder(self, folder_name: str):
-        """Exécute l'opération open mod folder.
-
-        Args:
-            folder_name: Paramètre folder_name.
-        """
+        """Exécute l'ouverture du dossier mod de façon asynchrone via le signal centralisé."""
         self.open_folder_requested.emit(folder_name)
-        try:
-            config = AppConfig.load()
-            mods_dir = config.mods_folder
-            target = os.path.join(mods_dir, folder_name) if folder_name else mods_dir
-            if not os.path.exists(target):
-                target = mods_dir
-            if os.path.exists(target):
-                if sys.platform == "win32":
-                    os.startfile(target)
-                else:
-                    subprocess.Popen(["xdg-open", str(target)])
-        except Exception as e:
-            logger.error(f"Erreur ouverture dossier du mod: {e}")
 
     def retranslate_ui(self):
         """Exécute l'opération retranslate ui."""

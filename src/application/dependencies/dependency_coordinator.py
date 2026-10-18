@@ -32,7 +32,7 @@ class DependencyCoordinator:
         installed_by_remote: Dict[Tuple[str, str], Any],
         installed_by_title: Dict[str, Any],
         is_syncing: bool,
-        catalog_remote_ids: Optional[Set[str]] = None,
+        catalog_remote_ids: Optional[Set[Tuple[str, str]]] = None,
         requirements_overrides: Optional[Dict[str, str]] = None,
     ) -> DependencyItem:
         """Resolves a single raw dependency item into a typed DependencyItem DTO."""
@@ -156,7 +156,7 @@ class DependencyCoordinator:
         installed_by_remote: Dict[Tuple[str, str], Any],
         installed_by_title: Dict[str, Any],
         is_syncing: bool,
-        catalog_remote_ids: Optional[Set[str]] = None,
+        catalog_remote_ids: Optional[Set[Tuple[str, str]]] = None,
         requirements_overrides: Optional[Dict[str, str]] = None,
         deduplicate: bool = True,
     ) -> List[DependencyItem]:
@@ -240,9 +240,9 @@ class DependencyCoordinator:
 
         target_remote_id = str(target.remote_id or "")
         target_source = target.source or "loverslab"
-        target_title_lower = target.title.strip().lower()
+        target_title_lower = (target.title or "").strip().lower()
 
-        target_special = find_special_dependency_case(target.title)
+        target_special = find_special_dependency_case(target.title or "")
         if not target_special and target_remote_id in SPECIAL_DEPENDENCY_REMOTE_IDS:
             for sc in SPECIAL_DEPENDENCY_CASES:
                 if sc.get("remote_id") == target_remote_id:
@@ -256,15 +256,19 @@ class DependencyCoordinator:
         cat_ids = [m.catalog_mod_id for m in other_installed if m.catalog_mod_id]
         cat_by_id = {}
         if cat_ids:
-            for c in session.query(CatalogMod).filter(CatalogMod.id.in_(cat_ids)).all():
-                cat_by_id[c.id] = c
+            for i in range(0, len(cat_ids), 100):
+                batch_ids = cat_ids[i : i + 100]
+                for c in session.query(CatalogMod).filter(CatalogMod.id.in_(batch_ids)).all():
+                    cat_by_id[c.id] = c
 
         keys = [(m.source, m.remote_id) for m in other_installed if m.remote_id]
         cat_by_key = {}
         if keys:
-            conditions = [and_(CatalogMod.source == s, CatalogMod.remote_id == r) for s, r in keys]
-            for c in session.query(CatalogMod).filter(or_(*conditions)).all():
-                cat_by_key[(c.source, c.remote_id)] = c
+            for i in range(0, len(keys), 100):
+                batch_keys = keys[i : i + 100]
+                conditions = [and_(CatalogMod.source == s, CatalogMod.remote_id == r) for s, r in batch_keys]
+                for c in session.query(CatalogMod).filter(or_(*conditions)).all():
+                    cat_by_key[(c.source, c.remote_id)] = c
 
         dependent_mods = []
 
@@ -302,7 +306,7 @@ class DependencyCoordinator:
                 if r_title and r_title.lower() == target_title_lower:
                     depends_on_target = True
                     break
-                if r_title and ModMatcher.match_score(r_title, target.title) >= 0.85:
+                if r_title and target.title and ModMatcher.match_score(r_title, target.title) >= 0.85:
                     depends_on_target = True
                     break
 

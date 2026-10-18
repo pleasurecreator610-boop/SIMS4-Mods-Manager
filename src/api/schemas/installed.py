@@ -106,6 +106,7 @@ class DbpfConflictItem(BaseModel):
     tgi: str
     resource_type_name: str
     conflicting_packages: List[str]
+    is_translation_override: bool = False
 
 
 class DbpfConflictReportResponse(BaseModel):
@@ -114,5 +115,30 @@ class DbpfConflictReportResponse(BaseModel):
     total_packages_scanned: int
     total_resources_indexed: int
     conflict_count: int
+    translation_override_count: int = 0
     conflicts: List[DbpfConflictItem]
+
+
+class InstalledRestoreResponse(BaseModel):
+    """Réponse suite à la restauration de la sauvegarde d'un mod."""
+
+    success: bool
+    message: str
+    restored_files_count: int = 0
+
+
+class ResolveConflictRequest(BaseModel):
+    """Requête de résolution d'un conflit de package."""
+
+    package_path: str
+    action: str = "disable"  # "disable" ou "enable"
+
+
+class ResolveConflictResponse(BaseModel):
+    """Réponse suite à la résolution d'un conflit."""
+
+    success: bool
+    message: str
+    new_path: Optional[str] = None
+
 

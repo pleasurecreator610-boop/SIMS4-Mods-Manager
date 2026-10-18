@@ -8,6 +8,8 @@ from src.api.schemas.settings import (
     LaunchGameResponse,
     DatabaseStatsResponse,
     DatabasePurgeResponse,
+    StorageStatsResponse,
+    StorageCleanupResponse,
 )
 from src.core.config import AppConfig
 from src.api.deps import get_catalog_repo, get_installed_repo
@@ -15,6 +17,7 @@ from src.domain.interfaces.repositories.catalog_repository_interface import ICat
 from src.domain.interfaces.repositories.mod_repository_interface import IInstalledModRepository
 from src.infrastructure.database.manager import DatabaseManager
 from src.application.game.game_service import GameDetector
+from src.application.system.storage_service import StorageService
 from src.utils.logger import logger
 
 router = APIRouter(prefix="", tags=["Settings & Game"])
@@ -74,6 +77,7 @@ def update_settings(payload: SettingsUpdateRequest):
         config.max_workers = payload.max_workers
 
     config.save()
+    GameDetector.clear_cache()
     logger.info("Paramètres applicatifs mis à jour via l'API.")
     return get_settings()
 
@@ -147,3 +151,16 @@ def purge_database():
         deleted_count=deleted,
         message=f"{deleted} mod(s) supprimé(s) du catalogue.",
     )
+
+
+@router.get("/settings/storage", response_model=StorageStatsResponse)
+def get_storage():
+    """Returns disk usage metrics for backups, cache, and downloads."""
+    return StorageService.get_storage_stats()
+
+
+@router.post("/settings/storage/cleanup", response_model=StorageCleanupResponse)
+def cleanup_storage():
+    """Purges residual downloaded archives and thumbnail cache to free disk space."""
+    return StorageService.cleanup_storage()
+

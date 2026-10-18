@@ -67,9 +67,9 @@ class DependenciesDialog(QDialog):
         mod_title: str,
         already_installed: List[dict],
         missing: List[dict],
-        unfound: List[dict] = None,
+        unfound: Optional[List[dict]] = None,
         is_partial: bool = False,
-        game_dlcs: List[dict] = None,
+        game_dlcs: Optional[List[dict]] = None,
         mod_data: Optional[dict] = None,
         parent=None,
     ):
@@ -90,7 +90,8 @@ class DependenciesDialog(QDialog):
                 d["status"] = "GAME_DLC"
                 d["is_installed"] = True
                 d["dlc_name"] = "Jeu de base"
-                if not d.get("title") or d.get("title").lower() in ["sims 4", "the sims 4"]:
+                title_val = d.get("title")
+                if not title_val or str(title_val).lower() in ["sims 4", "the sims 4"]:
                     d["title"] = "The Sims 4 (Jeu de base)"
                 raw_dlcs.append(d)
                 continue
@@ -143,9 +144,9 @@ class DependenciesDialog(QDialog):
         self.info_lbl.setWordWrap(True)
         main_layout.addWidget(self.info_lbl)
 
-        self.scroll = QScrollArea()
-        self.scroll.setWidgetResizable(True)
-        self.scroll.setStyleSheet("""
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setStyleSheet("""
             QScrollArea {
                 border: 1px solid #1e253b;
                 border-radius: 8px;
@@ -156,8 +157,8 @@ class DependenciesDialog(QDialog):
         self.c_layout = QVBoxLayout(self.scroll_content)
         self.c_layout.setContentsMargins(14, 14, 14, 14)
         self.c_layout.setSpacing(10)
-        self.scroll.setWidget(self.scroll_content)
-        main_layout.addWidget(self.scroll, stretch=1)
+        self.scroll_area.setWidget(self.scroll_content)
+        main_layout.addWidget(self.scroll_area, stretch=1)
 
         # Dedicated Author Interpellation Panel (pinned cleanly above dialog actions)
         self.interpellate_container = QWidget(self)

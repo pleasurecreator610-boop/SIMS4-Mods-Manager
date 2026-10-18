@@ -30,7 +30,7 @@ class DependencyOrchestrator:
         installed_by_remote: Dict[Tuple[str, str], Any],
         installed_by_title: Dict[str, Any],
         is_syncing: Optional[bool] = None,
-        catalog_remote_ids: Optional[Set[str]] = None,
+        catalog_remote_ids: Optional[Set[Tuple[str, str]]] = None,
         requirements_overrides: Optional[Dict[str, str]] = None,
         deduplicate: bool = True,
     ) -> List[DependencyItem]:

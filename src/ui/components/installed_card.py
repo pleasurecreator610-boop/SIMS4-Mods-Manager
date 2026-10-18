@@ -21,6 +21,7 @@ class InstalledCard(BaseModCard):
     delete_requested = Signal(dict)
     open_folder_requested = Signal(str)
     toggle_requested = Signal(dict)
+    restore_requested = Signal(dict)
 
     def __init__(self, mod_data: dict, parent=None):
         super().__init__(mod_data, parent)
@@ -203,6 +204,30 @@ class InstalledCard(BaseModCard):
         self.btn_delete.clicked.connect(lambda: self.delete_requested.emit(self.mod_data))
         actions_layout.addWidget(self.btn_delete, stretch=1)
 
+        # Restore Backup button (only if backup_path is present)
+        backup_path = self.mod_data.get("backup_path")
+        if backup_path:
+            self.btn_restore = QPushButton("↺")
+            self.btn_restore.setToolTip("Restaurer la sauvegarde de la version précédente")
+            self.btn_restore.setCursor(Qt.CursorShape.PointingHandCursor)
+            self.btn_restore.setFixedSize(30, 30)
+            self.btn_restore.setStyleSheet("""
+                QPushButton {
+                    background-color: #0f2942;
+                    color: #38bdf8;
+                    border: 1px solid #0284c7;
+                    border-radius: 6px;
+                    font-weight: 700;
+                    font-size: 13px;
+                }
+                QPushButton:hover {
+                    background-color: #0284c7;
+                    color: #ffffff;
+                }
+            """)
+            self.btn_restore.clicked.connect(lambda: self.restore_requested.emit(self.mod_data))
+            actions_layout.addWidget(self.btn_restore)
+
         layout.addLayout(actions_layout)
 
         # Start thumbnail loading via BaseModCard
@@ -216,10 +241,11 @@ class InstalledCard(BaseModCard):
         """
         if event.button() == Qt.MouseButton.LeftButton:
             child = self.childAt(event.pos())
-            if (
+            if child is not None and (
                 (hasattr(self, "btn_folder") and (child == self.btn_folder or self.btn_folder.isAncestorOf(child)))
                 or (hasattr(self, "btn_delete") and (child == self.btn_delete or self.btn_delete.isAncestorOf(child)))
                 or (hasattr(self, "btn_toggle") and (child == self.btn_toggle or self.btn_toggle.isAncestorOf(child)))
+                or (hasattr(self, "btn_restore") and (child == self.btn_restore or self.btn_restore.isAncestorOf(child)))
             ):
                 super().mousePressEvent(event)
                 return

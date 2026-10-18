@@ -227,12 +227,13 @@ class ModMatcher(TitleNormalizer):
             if im_folder:
                 candidates.append(im_folder)
 
-            files_list = []
+            files_list: list[str] = []
             if hasattr(im, "get_installed_files_list"):
                 try:
                     files_list = im.get_installed_files_list() or []
                 except Exception:
                     files_list = []
+
             elif hasattr(im, "installed_files") and isinstance(im.installed_files, list):
                 files_list = im.installed_files
 

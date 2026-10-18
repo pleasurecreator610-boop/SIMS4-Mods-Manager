@@ -19,9 +19,11 @@ from src.ui.components.responsive_card_grid import ResponsiveCardGrid
 from src.ui.components.dependencies_dialog import DependenciesDialog
 from src.ui.components.provider_drawer import ProviderDrawer
 from src.ui.workers.catalog_workers import SyncTriggerWorker, CatalogFetchWorker, CheckDependenciesWorker
+from src.ui.workers.generic_runnable import run_async_ui_task
 from src.ui.views.catalog.filter_adapter import build_catalog_api_params
 from src.ui.views.catalog.catalog_widgets import CatalogSyncBannerWidget, CatalogPaginationBar
 from src.i18n import tr
+
 from src.utils.logger import logger
 from src.utils.thread_utils import safe_stop_thread
 
@@ -310,25 +312,34 @@ class CatalogView(QWidget):
         logger.error(f"Erreur API lors du rafraîchissement du catalogue: {error_msg}")
 
     def _on_pause_sync(self, provider: str = "loverslab"):
-        try:
+        def _do_pause():
             self.api_client.pause_catalog_sync(provider)
-            self._check_sync_status()
-        except Exception as e:
-            logger.error(f"Erreur mise en pause {provider}: {e}")
+
+        run_async_ui_task(
+            _do_pause,
+            on_finished=lambda _: self._check_sync_status(),
+            on_error=lambda e: logger.error(f"Erreur mise en pause {provider}: {e}")
+        )
 
     def _on_resume_sync(self, provider: str = "loverslab"):
-        try:
+        def _do_resume():
             self.api_client.resume_catalog_sync(provider)
-            self._check_sync_status()
-        except Exception as e:
-            logger.error(f"Erreur reprise {provider}: {e}")
+
+        run_async_ui_task(
+            _do_resume,
+            on_finished=lambda _: self._check_sync_status(),
+            on_error=lambda e: logger.error(f"Erreur reprise {provider}: {e}")
+        )
 
     def _on_stop_sync(self, provider: str = "loverslab"):
-        try:
+        def _do_stop():
             self.api_client.stop_catalog_sync(provider)
-            self._check_sync_status()
-        except Exception as e:
-            logger.error(f"Erreur arrêt {provider}: {e}")
+
+        run_async_ui_task(
+            _do_stop,
+            on_finished=lambda _: self._check_sync_status(),
+            on_error=lambda e: logger.error(f"Erreur arrêt {provider}: {e}")
+        )
 
     def start_sync(self, max_pages: int = 0):
         """Exécute l'opération start sync.
@@ -357,47 +368,63 @@ class CatalogView(QWidget):
             self.monitor_timer.start()
 
     def _check_sync_status(self):
-        try:
-            status = self.api_client.get_catalog_sync_status()
-            is_running = status.get("is_running", False)
-            is_paused = status.get("is_paused", False)
-            pct = status.get("progress_percent", 0)
-            msg = status.get("message", "Synchronisation...")
-            pages_done = status.get("pages_completed", 0)
-            has_error = status.get("has_error", False)
-            err_msg = status.get("error_message") or ""
-            page1_ready = status.get("page1_ready", False)
+        """Vérifie le statut de synchronisation en arrière-plan sans bloquer la GUI."""
+        if getattr(self, "_checking_sync_status", False):
+            return
+        self._checking_sync_status = True
 
-            self.provider_drawer.update_sync_status(status)
+        def _fetch():
+            return self.api_client.get_catalog_sync_status()
 
-            if is_running:
-                if self.monitor_timer.interval() != self.ACTIVE_MONITOR_INTERVAL_MS:
-                    self.monitor_timer.setInterval(self.ACTIVE_MONITOR_INTERVAL_MS)
-                self.sync_banner_widget.set_running(msg, pct, is_paused=is_paused)
+        def _on_fetched(status):
+            self._checking_sync_status = False
+            try:
+                is_running = status.get("is_running", False)
+                is_paused = status.get("is_paused", False)
+                pct = status.get("progress_percent", 0)
+                msg = status.get("message", "Synchronisation...")
+                pages_done = status.get("pages_completed", 0)
+                has_error = status.get("has_error", False)
+                err_msg = status.get("error_message") or ""
+                page1_ready = status.get("page1_ready", False)
 
-                if page1_ready and not self._page1_displayed:
-                    self._page1_displayed = True
-                    self._last_pages_completed = pages_done
-                    self.refresh_catalog()
-                elif pages_done > self._last_pages_completed:
-                    self._last_pages_completed = pages_done
-                    if self.current_page == 1 and not is_paused:
+                self.provider_drawer.update_sync_status(status)
+
+                if is_running:
+                    if self.monitor_timer.interval() != self.ACTIVE_MONITOR_INTERVAL_MS:
+                        self.monitor_timer.setInterval(self.ACTIVE_MONITOR_INTERVAL_MS)
+                    self.sync_banner_widget.set_running(msg, pct, is_paused=is_paused)
+
+                    if page1_ready and not self._page1_displayed:
+                        self._page1_displayed = True
+                        self._last_pages_completed = pages_done
                         self.refresh_catalog()
-            elif has_error:
-                if self.monitor_timer.interval() != self.IDLE_MONITOR_INTERVAL_MS:
-                    self.monitor_timer.setInterval(self.IDLE_MONITOR_INTERVAL_MS)
-                self.sync_banner_widget.set_error(err_msg or msg)
-            else:
-                if self.monitor_timer.interval() != self.IDLE_MONITOR_INTERVAL_MS:
-                    self.monitor_timer.setInterval(self.IDLE_MONITOR_INTERVAL_MS)
-                self.sync_banner_widget.set_idle()
-                if self._last_pages_completed > 0 or not self._page1_displayed:
-                    self._last_pages_completed = 0
-                    self._page1_displayed = True
-                    self.refresh_catalog()
+                    elif pages_done > self._last_pages_completed:
+                        self._last_pages_completed = pages_done
+                        if self.current_page == 1 and not is_paused:
+                            self.refresh_catalog()
+                elif has_error:
+                    if self.monitor_timer.interval() != self.IDLE_MONITOR_INTERVAL_MS:
+                        self.monitor_timer.setInterval(self.IDLE_MONITOR_INTERVAL_MS)
+                    self.sync_banner_widget.set_error(err_msg or msg)
+                else:
+                    if self.monitor_timer.interval() != self.IDLE_MONITOR_INTERVAL_MS:
+                        self.monitor_timer.setInterval(self.IDLE_MONITOR_INTERVAL_MS)
+                    self.sync_banner_widget.set_idle()
+                    if self._last_pages_completed > 0 or not self._page1_displayed:
+                        self._last_pages_completed = 0
+                        self._page1_displayed = True
+                        self.refresh_catalog()
 
-        except Exception as e:
-            logger.debug(f"Erreur vérification statut sync: {e}")
+            except Exception as e:
+                logger.debug(f"Erreur traitement statut sync: {e}")
+
+        def _on_error(err):
+            self._checking_sync_status = False
+            logger.debug(f"Erreur vérification statut sync: {err}")
+
+        run_async_ui_task(_fetch, on_finished=_on_fetched, on_error=_on_error)
+
 
     def install_mod(self, mod_data: dict) -> bool:
         """Exécute l'opération install mod de façon non-bloquante avec protection anti-doublon."""

@@ -36,6 +36,9 @@ class ModToggleManager:
 
     def toggle(self, installed_mod_id: int, target_state: Optional[bool] = None) -> tuple[bool, str]:
         """Bascule l'état activé/désactivé d'un mod installé via l'API interne du Repository."""
+        if GameDetector.is_game_running():
+            return False, "Le jeu Les Sims 4 est actuellement en cours d'exécution. Veuillez fermer le jeu avant de basculer l'état des mods."
+
         mod = self.repo.get_by_id(installed_mod_id)
         if not mod:
             return False, f"Mod with ID {installed_mod_id} not found."

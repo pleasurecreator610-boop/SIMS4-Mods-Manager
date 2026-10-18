@@ -147,6 +147,8 @@ class DetailRequirementsWidget(QWidget):
         total_items_h = 16  # Base padding
         for i in range(self.deps_layout.count()):
             item = self.deps_layout.itemAt(i)
+            if not item:
+                continue
             w = item.widget()
             if w and not w.isHidden():
                 hint = w.sizeHint().height()
@@ -206,8 +208,10 @@ class DetailRequirementsWidget(QWidget):
         self.req_desc.setStyleSheet("font-size: 11px; color: #64748b;")
         while self.deps_layout.count():
             it = self.deps_layout.takeAt(0)
-            if it.widget():
-                it.widget().deleteLater()
+            if it and it.widget():
+                w = it.widget()
+                if w:
+                    w.deleteLater()
         self.interpellate_widget.setVisible(False)
 
     def render_requirements(self, data: dict) -> Dict[str, Any]:
@@ -218,8 +222,10 @@ class DetailRequirementsWidget(QWidget):
 
         while self.deps_layout.count():
             it = self.deps_layout.takeAt(0)
-            if it.widget():
-                it.widget().deleteLater()
+            if it and it.widget():
+                w = it.widget()
+                if w:
+                    w.deleteLater()
 
         self.req_body.setVisible(True)
         self.req_collapse_btn.setText("▲ Réduire")

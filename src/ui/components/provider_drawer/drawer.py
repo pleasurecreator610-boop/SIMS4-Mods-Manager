@@ -35,6 +35,7 @@ class ProviderDrawer(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._last_status: Optional[Dict[str, Any]] = None
+        self._last_tab_states: Dict[QLabel, str] = {}
         self._init_ui()
 
     def _init_ui(self):
@@ -70,7 +71,7 @@ class ProviderDrawer(QWidget):
         self.tab_loverslab_pill.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.tab_loverslab_pill.setCursor(Qt.CursorShape.PointingHandCursor)
         self.tab_loverslab_pill.setToolTip(tr("drawer.pill_tip_ll"))
-        self.tab_loverslab_pill.mousePressEvent = lambda e: self.toggle_drawer()
+        self.tab_loverslab_pill.mousePressEvent = lambda e: self.toggle_drawer()  # type: ignore[method-assign]
         self._style_site_tab_pill(self.tab_loverslab_pill, "OK", "LoversLab 🟢")
         tab_layout.addWidget(self.tab_loverslab_pill)
 
@@ -79,7 +80,7 @@ class ProviderDrawer(QWidget):
         self.tab_patreon_pill.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.tab_patreon_pill.setCursor(Qt.CursorShape.PointingHandCursor)
         self.tab_patreon_pill.setToolTip(tr("drawer.pill_tip_patreon"))
-        self.tab_patreon_pill.mousePressEvent = lambda e: self.toggle_drawer()
+        self.tab_patreon_pill.mousePressEvent = lambda e: self.toggle_drawer()  # type: ignore[method-assign]
         self._style_site_tab_pill(self.tab_patreon_pill, "OK", "Patreon 🟢")
         tab_layout.addWidget(self.tab_patreon_pill)
 

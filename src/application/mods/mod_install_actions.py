@@ -78,8 +78,11 @@ class ModInstallActions:
         return backup_zip
 
     def rollback_directory(self, backup_zip: Optional[Path], target_dir: Path) -> None:
-        """Restores a mod directory from a backup zip in case of failure."""
+        """Restores a mod directory from a backup zip in case of failure or cleans up unbacked partial install."""
         if not backup_zip or not backup_zip.exists():
+            if target_dir.exists():
+                logger.warning(f"Nettoyage du répertoire partiel non sauvegardé suite à l'échec d'installation : {target_dir}")
+                shutil.rmtree(target_dir, ignore_errors=True)
             return
         logger.warning(f"Rollback vers le backup {backup_zip}...")
         try:
@@ -108,8 +111,7 @@ class ModInstallActions:
             for nested in list(extracted_dir.rglob("*")):
                 if nested.is_file() and is_archive(nested):
                     try:
-                        nested_dest = nested.parent / f"_nested_{nested.stem}"
-                        extract_archive(nested, nested_dest)
+                        extract_archive(nested, nested.parent)
                         nested.unlink(missing_ok=True)
                         found_nested = True
                     except Exception as e:
@@ -187,6 +189,7 @@ class ModInstallActions:
         version_date: Optional[datetime],
         version_str: Optional[str],
         backup_path: Optional[str] = None,
+        is_enabled: Optional[bool] = None,
     ) -> InstalledMod:
         """Atomic upsert of InstalledMod record in the database."""
         existing = None
@@ -197,6 +200,8 @@ class ModInstallActions:
         if not existing:
             existing = session.query(InstalledMod).filter_by(title=title, source=source).first()
 
+        effective_enabled = is_enabled if is_enabled is not None else (existing.is_enabled if existing else True)
+
         if not existing:
             installed = InstalledMod(
                 catalog_mod_id=catalog_id,
@@ -204,7 +209,7 @@ class ModInstallActions:
                 remote_id=remote_id,
                 title=title,
                 folder_name=folder_name,
-                is_enabled=True,
+                is_enabled=effective_enabled,
                 installed_date=datetime.now(),
                 version_date=version_date,
                 version_str=version_str or "",
@@ -220,7 +225,7 @@ class ModInstallActions:
             existing.remote_id = remote_id or existing.remote_id
             existing.title = title
             existing.folder_name = folder_name
-            existing.is_enabled = True
+            existing.is_enabled = effective_enabled
             existing.version_date = version_date or existing.version_date
             if version_str:
                 existing.version_str = version_str

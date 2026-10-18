@@ -13,8 +13,10 @@ from PySide6.QtCore import Signal
 from src.api.client import get_api_client
 from src.ui.components.progress_dialog import ProgressDialog
 from src.ui.components.account_card import AccountCardWidget, LoginWorker
+from src.ui.workers.generic_runnable import run_async_ui_task
 from src.i18n import tr
 from src.utils.logger import logger
+
 
 __all__ = ["AccountsView", "LoginWorker"]
 
@@ -100,10 +102,12 @@ class AccountsView(QWidget):
         self.refresh_statuses()
 
     def refresh_statuses(self):
-        """Loads account statuses through API /api/accounts."""
-        try:
+        """Loads account statuses through API /api/accounts asynchronously."""
+        def _fetch_accounts():
             client = get_api_client()
-            accounts = client.get_accounts()
+            return client.get_accounts()
+
+        def _on_accounts_fetched(accounts):
             for acc in accounts:
                 p_name = acc.get("provider_name")
                 is_member = acc.get("is_member", False)
@@ -117,8 +121,11 @@ class AccountsView(QWidget):
                 )
                 if card:
                     card.update_badge(is_member, is_ready, display)
-        except Exception as e:
-            logger.error(f"Erreur API lors du rafraîchissement des comptes: {e}")
+
+        def _on_accounts_error(err):
+            logger.error(f"Erreur API lors du rafraîchissement des comptes: {err}")
+
+        run_async_ui_task(_fetch_accounts, on_finished=_on_accounts_fetched, on_error=_on_accounts_error)
 
     def _on_clear_clicked(self, provider_name: str):
         reply = QMessageBox.question(
@@ -128,25 +135,35 @@ class AccountsView(QWidget):
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
-            try:
+            card = self.loverslab_card if provider_name == "loverslab" else self.patreon_card
+            widgets_to_disable = [card.clear_btn, card.test_btn, card.login_btn] if card else None
+
+            def _do_clear():
                 client = get_api_client()
-                res = client.clear_account(provider_name)
+                return client.clear_account(provider_name)
+
+            def _on_cleared(res):
                 self.refresh_statuses()
                 QMessageBox.information(
                     self, tr("accounts.clear_success_title"), res.get("message", tr("accounts.clear_success_msg"))
                 )
-            except Exception as e:
-                QMessageBox.warning(self, tr("dialogs.error_title"), f"{e}")
+
+            def _on_clear_error(err):
+                QMessageBox.warning(self, tr("dialogs.error_title"), f"{err}")
+
+            run_async_ui_task(_do_clear, on_finished=_on_cleared, on_error=_on_clear_error, disable_widgets=widgets_to_disable)
 
     def _on_test_clicked(self, provider_name: str):
-        try:
+        card = self.loverslab_card if provider_name == "loverslab" else self.patreon_card
+        widgets_to_disable = [card.clear_btn, card.test_btn, card.login_btn] if card else None
+        if card and hasattr(card, "test_btn"):
+            card.test_btn.setText("⏳ Test...")
+
+        def _do_test():
             client = get_api_client()
             res = client.test_account(provider_name)
             ok = res.get("success", False)
-            msg = res.get("message", "")
             if ok:
-                QMessageBox.information(self, tr("accounts.test_success_title"), f"{msg}")
-                # Auto-trigger background sync if not already running
                 try:
                     sync_st = client.get_catalog_sync_status()
                     if not sync_st.get("is_running", False):
@@ -156,11 +173,26 @@ class AccountsView(QWidget):
                         )
                 except Exception as e:
                     logger.debug(f"Impossible de démarrer la synchro auto après test: {e}")
+            return res
+
+        def _on_tested(res):
+            if card and hasattr(card, "test_btn"):
+                card.test_btn.setText(tr("accounts.test_btn"))
+            ok = res.get("success", False)
+            msg = res.get("message", "")
+            if ok:
+                QMessageBox.information(self, tr("accounts.test_success_title"), f"{msg}")
             else:
                 QMessageBox.warning(self, tr("accounts.test_failed_title"), f"{msg}")
-        except Exception as e:
-            QMessageBox.warning(self, tr("dialogs.error_title"), f"{e}")
-        self.refresh_statuses()
+            self.refresh_statuses()
+
+        def _on_test_error(err):
+            if card and hasattr(card, "test_btn"):
+                card.test_btn.setText(tr("accounts.test_btn"))
+            QMessageBox.warning(self, tr("dialogs.error_title"), f"{err}")
+            self.refresh_statuses()
+
+        run_async_ui_task(_do_test, on_finished=_on_tested, on_error=_on_test_error, disable_widgets=widgets_to_disable)
 
     def open_login_window(self, provider_name: str):
         """Exécute l'opération open login window.
@@ -192,16 +224,16 @@ class AccountsView(QWidget):
         self.refresh_statuses()
 
         if success:
-            try:
+            def _trigger_sync():
                 client = get_api_client()
                 client.start_catalog_sync(max_pages=0)
-                logger.info(
-                    f"Synchronisation automatique intégrale du catalogue lancée suite à l'authentification de {p_name}."
-                )
-            except Exception as e:
-                logger.error(f"Impossible de lancer la synchronisation automatique: {e}")
 
+            run_async_ui_task(_trigger_sync)
+            logger.info(
+                f"Synchronisation automatique intégrale du catalogue lancée suite à l'authentification de {p_name}."
+            )
             QMessageBox.information(self, tr("accounts.login_success_title"), tr("accounts.login_success_msg", msg=msg))
             self.login_successful.emit(p_name)
         else:
             QMessageBox.warning(self, tr("dialogs.info_title"), msg)
+

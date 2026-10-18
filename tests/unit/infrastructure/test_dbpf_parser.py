@@ -144,3 +144,51 @@ def test_dbpf_parser_corrupted_or_overflow_bounds(tmp_path: Path):
 
     assert DbpfParser.parse_index(pkg_path2) == []
 
+
+def test_conflict_detector_ignores_disabled_folders(tmp_path: Path):
+    """Vérifie que les fichiers .package situés dans un dossier .disabled sont ignorés par le détecteur de conflits."""
+    mods_dir = tmp_path / "Mods"
+    mods_dir.mkdir()
+
+    shared_tgi = (0x03B33DDF, 0x80000000, 0x9999888877776666)
+
+    # Mod A actif
+    pkg_a = mods_dir / "ModActive" / "mod_a.package"
+    create_mock_dbpf_package(pkg_a, [shared_tgi])
+
+    # Mod B désactivé (dans un dossier .disabled)
+    pkg_b = mods_dir / "ModB.disabled" / "mod_b.package"
+    create_mock_dbpf_package(pkg_b, [shared_tgi])
+
+    detector = ConflictDetectorService()
+    report = detector.detect_conflicts(mods_dir)
+
+    # Seul ModActive doit avoir été scanné, aucun conflit
+    assert report.total_packages_scanned == 1
+    assert report.conflict_count == 0
+
+
+def test_conflict_detector_categorizes_stbl_translation_overrides(tmp_path: Path):
+    """Vérifie que les collisions sur les tables STBL (0x220557DA) sont marquées comme is_translation_override."""
+    mods_dir = tmp_path / "Mods"
+    mods_dir.mkdir()
+
+    stbl_tgi = (0x220557DA, 0x80000000, 0x5555444433332222)
+
+    pkg_base = mods_dir / "ModMain" / "main.package"
+    create_mock_dbpf_package(pkg_base, [stbl_tgi])
+
+    pkg_french = mods_dir / "ModFrench" / "french_translation.package"
+    create_mock_dbpf_package(pkg_french, [stbl_tgi])
+
+    detector = ConflictDetectorService()
+    report = detector.detect_conflicts(mods_dir)
+
+    assert report.total_packages_scanned == 2
+    assert report.conflict_count == 1
+    assert report.translation_override_count == 1
+
+    c = report.conflicts[0]
+    assert c.is_translation_override is True
+    assert c.resource_type_name == "String Table (STBL)"
+

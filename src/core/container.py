@@ -43,12 +43,13 @@ class AppContainer:
     def resolve(self, target: Type[T]) -> T:
         """Résout une dépendance avec prise en compte des surcharges actives."""
         if target in self._overrides:
-            return self._overrides[target]  # type: ignore[no-any-return]
+            return self._overrides[target]
         if target in self._singletons:
-            return self._singletons[target]  # type: ignore[no-any-return]
+            return self._singletons[target]
         # Instanciation par défaut
         instance = target()
         return instance
+
 
     # Propriétés de commodité typées pour les composants clés
     @property

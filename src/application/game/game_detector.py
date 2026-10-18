@@ -5,7 +5,10 @@ and handles Resource.cfg and background path updates.
 
 import os
 import re
-import winreg
+try:
+    import winreg
+except ImportError:
+    winreg = None  # type: ignore[assignment]
 import unicodedata
 import time
 from pathlib import Path
@@ -59,17 +62,18 @@ class GameDetector:
         candidates: List[Path] = []
 
         # 1. Windows Registry User Shell Folders
-        try:
-            with winreg.OpenKey(
-                winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders"
-            ) as key:
-                val, _ = winreg.QueryValueEx(key, "Personal")
-                expanded = os.path.expandvars(val)
-                p = Path(expanded)
-                if p.exists() and p not in candidates:
-                    candidates.append(p)
-        except Exception as e:
-            logger.debug(f"Registry Personal lookup failed: {e}")
+        if winreg is not None:
+            try:
+                with winreg.OpenKey(
+                    winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders"
+                ) as key:
+                    val, _ = winreg.QueryValueEx(key, "Personal")
+                    expanded = os.path.expandvars(val)
+                    p = Path(expanded)
+                    if p.exists() and p not in candidates:
+                        candidates.append(p)
+            except Exception as e:
+                logger.debug(f"Registry Personal lookup failed: {e}")
 
         # 2. Standard user home Documents
         home_docs = Path.home() / "Documents"
@@ -177,15 +181,32 @@ class GameDetector:
             cls._cached_mods_dir = mods_dir
             return mods_dir
 
-        # 2. Persistent config cache
+        # 2. Config custom mods dir
         config = AppConfig.load()
+        if config.custom_mods_dir:
+            p = Path(config.custom_mods_dir)
+            if p.exists():
+                if p.name.lower() == "mods":
+                    ensure_resource_cfg(p)
+                    cls._cached_mods_dir = p
+                    return p
+                mods_sub = p / "Mods"
+                if mods_sub.exists():
+                    ensure_resource_cfg(mods_sub)
+                    cls._cached_mods_dir = mods_sub
+                    return mods_sub
+                ensure_resource_cfg(p)
+                cls._cached_mods_dir = p
+                return p
+
+        # 3. Persistent config cache
         if config.cached_mods_dir:
             cached_p = Path(config.cached_mods_dir)
             if cached_p.exists() and cached_p.is_dir():
                 cls._cached_mods_dir = cached_p
                 return cached_p
 
-        # 3. Discovery
+        # 4. Discovery
         detected_dir = cls._do_detect_mods_dir()
         if detected_dir:
             cls._cached_mods_dir = detected_dir
@@ -207,6 +228,12 @@ class GameDetector:
     def detect_game_executable(cls, custom_exe: Optional[str] = None) -> Optional[Path]:
         """Locates TS4_x64.exe or TS4_DX9_x64.exe."""
         return GameLauncher.detect_game_executable(custom_exe)
+
+    @classmethod
+    def get_game_exe_path(cls, custom_exe: Optional[str] = None) -> Optional[Path]:
+        """Alias retournant le chemin de l'exécutable Sims 4."""
+        return cls.detect_game_executable(custom_exe)
+
 
     @classmethod
     def launch_game(cls, exe_path: Optional[Path] = None) -> bool:

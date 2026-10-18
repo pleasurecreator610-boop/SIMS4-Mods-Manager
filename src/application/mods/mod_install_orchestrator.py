@@ -18,6 +18,7 @@ from src.core.config import AppConfig
 from src.database.manager import DatabaseManager
 from src.database.models import CatalogMod, InstalledMod
 from src.providers import ProviderRegistry
+from src.utils.dependency_noise_rules import is_likely_comment_or_noise
 from src.utils.logger import logger
 
 
@@ -47,6 +48,12 @@ class ModInstallOrchestrator:
         4. Delegates extraction, deployment, and DB persistence to coordinator.
         5. Formats response DTO.
         """
+        if GameDetector.is_game_running():
+            return CatalogInstallResponse(
+                success=False,
+                message="Le jeu Les Sims 4 est actuellement en cours d'exécution. Veuillez fermer le jeu avant d'installer des mods.",
+            )
+
         cat_mod = None
         with self.db.get_session() as session:
             if payload.catalog_mod_id:
@@ -54,10 +61,10 @@ class ModInstallOrchestrator:
             elif payload.source and payload.remote_id:
                 cat_mod = session.query(CatalogMod).filter_by(source=payload.source, remote_id=payload.remote_id).first()
 
-        source: str = str(cat_mod.source if (cat_mod and cat_mod.source) else (payload.source or "loverslab"))
+        source: str = str((cat_mod.source if cat_mod and cat_mod.source else None) or (payload.source or "loverslab"))
         page_url = cat_mod.page_url if cat_mod else payload.page_url
-        mod_title = cat_mod.title if cat_mod else (payload.title or "Mod")
-        remote_id = cat_mod.remote_id if cat_mod else (payload.remote_id or "unknown")
+        mod_title: str = str((cat_mod.title if cat_mod and cat_mod.title else None) or (payload.title or "Mod"))
+        remote_id: str = str((cat_mod.remote_id if cat_mod and cat_mod.remote_id else None) or (payload.remote_id or "unknown"))
         version_date = cat_mod.updated_date if cat_mod else payload.updated_date
 
         if not page_url:
@@ -119,7 +126,17 @@ class ModInstallOrchestrator:
                         installed_by_title,
                     )
 
-                missing_dependencies = [d for d in resolved_deps if not d.is_installed and d.status != "INSTALLED"]
+                missing_dependencies = [
+                    d
+                    for d in resolved_deps
+                    if not d.is_installed
+                    and d.status != "INSTALLED"
+                    and not d.is_game_dlc
+                    and d.status != "GAME_DLC"
+                    and not d.is_comment
+                    and d.status not in ["COMMENT_NOISE", "COMMENT"]
+                    and not is_likely_comment_or_noise(d.title)
+                ]
                 not_detected_deps = [d for d in missing_dependencies if d.status == "NOT_DETECTED_FINISHED" or not d.remote_id]
                 if not_detected_deps:
                     missing_dependencies = [d for d in missing_dependencies if d not in not_detected_deps]
@@ -186,6 +203,15 @@ class ModInstallOrchestrator:
             file_to_install = self.actions.detect_and_normalize_extension(file_to_install)
 
             v_date = version_date if isinstance(version_date, datetime) else None
+            if not v_date and details_dict.get("updated_date"):
+                raw_d = details_dict.get("updated_date")
+                if isinstance(raw_d, datetime):
+                    v_date = raw_d
+                elif isinstance(raw_d, str):
+                    try:
+                        v_date = datetime.fromisoformat(raw_d.replace("Z", "+00:00")).replace(tzinfo=None)
+                    except Exception:
+                        pass
 
             config = AppConfig.load()
             mods_dir = GameDetector.detect_mods_dir(config.custom_mods_dir)

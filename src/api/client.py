@@ -8,6 +8,10 @@ class ApiClient:
     Used by all PySide6 GUI views to guarantee 100% decoupling from core/DB.
     """
 
+    FAST_TIMEOUT: float = 10.0
+    DEFAULT_TIMEOUT: float = 30.0
+    HEAVY_TIMEOUT: float = 360.0
+
     def __init__(self, base_url: str = "http://127.0.0.1:8000", token: Optional[str] = None):
         self.base_url = base_url.rstrip("/")
         from src.core.security import get_internal_token
@@ -16,8 +20,8 @@ class ApiClient:
         headers = {}
         if self.token:
             headers["X-Internal-Token"] = self.token
-        # High timeout for long-running actions like interactive login, downloads, sync
-        self._client = httpx.Client(base_url=self.base_url, headers=headers, timeout=360.0)
+        # Default 30s timeout with fine-grained per-method timeouts to avoid freezing background workers
+        self._client = httpx.Client(base_url=self.base_url, headers=headers, timeout=self.DEFAULT_TIMEOUT)
 
     def close(self) -> None:
         """Closes the underlying httpx.Client and releases connection resources."""
@@ -45,7 +49,7 @@ class ApiClient:
         Returns:
             Résultat de l'opération get_health.
         """
-        resp = self._client.get("/api/system/health")
+        resp = self._client.get("/api/system/health", timeout=self.FAST_TIMEOUT)
         resp.raise_for_status()
         return resp.json()
 
@@ -56,9 +60,10 @@ class ApiClient:
         Returns:
             Résultat de l'opération get_accounts.
         """
-        resp = self._client.get("/api/accounts")
+        resp = self._client.get("/api/accounts", timeout=self.FAST_TIMEOUT)
         resp.raise_for_status()
         return resp.json().get("accounts", [])
+
 
     def test_account(self, provider_name: str) -> Dict[str, Any]:
         """Exécute l'opération test account.
@@ -164,7 +169,7 @@ class ApiClient:
         Returns:
             Résultat de l'opération get_catalog_sync_status.
         """
-        resp = self._client.get("/api/catalog/sync/status")
+        resp = self._client.get("/api/catalog/sync/status", timeout=self.FAST_TIMEOUT)
         resp.raise_for_status()
         return resp.json()
 
@@ -178,7 +183,7 @@ class ApiClient:
             Résultat de l'opération pause_catalog_sync.
         """
         params = {"provider": provider} if provider else None
-        resp = self._client.post("/api/catalog/sync/pause", params=params)
+        resp = self._client.post("/api/catalog/sync/pause", params=params, timeout=self.FAST_TIMEOUT)
         resp.raise_for_status()
         return resp.json()
 
@@ -192,7 +197,7 @@ class ApiClient:
             Résultat de l'opération resume_catalog_sync.
         """
         params = {"provider": provider} if provider else None
-        resp = self._client.post("/api/catalog/sync/resume", params=params)
+        resp = self._client.post("/api/catalog/sync/resume", params=params, timeout=self.FAST_TIMEOUT)
         resp.raise_for_status()
         return resp.json()
 
@@ -206,9 +211,10 @@ class ApiClient:
             Résultat de l'opération stop_catalog_sync.
         """
         params = {"provider": provider} if provider else None
-        resp = self._client.post("/api/catalog/sync/stop", params=params)
+        resp = self._client.post("/api/catalog/sync/stop", params=params, timeout=self.FAST_TIMEOUT)
         resp.raise_for_status()
         return resp.json()
+
 
     def install_mod(
         self,
@@ -366,7 +372,7 @@ class ApiClient:
         Returns:
             Résultat de l'opération toggle_mod.
         """
-        resp = self._client.post(f"/api/installed/{mod_id}/toggle", json={"enabled": enabled})
+        resp = self._client.post(f"/api/installed/{mod_id}/toggle", json={"enabled": enabled}, timeout=self.FAST_TIMEOUT)
         resp.raise_for_status()
         return resp.json()
 
@@ -379,7 +385,7 @@ class ApiClient:
         Returns:
             Résultat de l'opération get_mod_dependents.
         """
-        resp = self._client.get(f"/api/installed/{mod_id}/dependents")
+        resp = self._client.get(f"/api/installed/{mod_id}/dependents", timeout=self.FAST_TIMEOUT)
         resp.raise_for_status()
         return resp.json()
 
@@ -402,7 +408,7 @@ class ApiClient:
         Returns:
             Résultat de l'opération scan_installed_mods.
         """
-        resp = self._client.post("/api/installed/scan")
+        resp = self._client.post("/api/installed/scan", timeout=120.0)
         resp.raise_for_status()
         return resp.json()
 
@@ -415,9 +421,10 @@ class ApiClient:
         Returns:
             Résultat de l'opération open_folder.
         """
-        resp = self._client.post("/api/installed/open-folder", json={"folder_name": folder_name})
+        resp = self._client.post("/api/installed/open-folder", json={"folder_name": folder_name}, timeout=self.FAST_TIMEOUT)
         resp.raise_for_status()
         return resp.json()
+
 
     # --- Updates ---
     def get_updates(self) -> Dict[str, Any]:
@@ -473,7 +480,7 @@ class ApiClient:
         Returns:
             Résultat de l'opération get_settings.
         """
-        resp = self._client.get("/api/settings")
+        resp = self._client.get("/api/settings", timeout=self.FAST_TIMEOUT)
         resp.raise_for_status()
         return resp.json()
 
@@ -486,7 +493,7 @@ class ApiClient:
         Returns:
             Résultat de l'opération update_settings.
         """
-        resp = self._client.patch("/api/settings", json=payload)
+        resp = self._client.patch("/api/settings", json=payload, timeout=self.FAST_TIMEOUT)
         resp.raise_for_status()
         return resp.json()
 
@@ -496,7 +503,7 @@ class ApiClient:
         Returns:
             Résultat de l'opération clear_cache.
         """
-        resp = self._client.post("/api/settings/cache/clear")
+        resp = self._client.post("/api/settings/cache/clear", timeout=30.0)
         resp.raise_for_status()
         return resp.json()
 
@@ -506,7 +513,7 @@ class ApiClient:
         Returns:
             Résultat de l'opération launch_game.
         """
-        resp = self._client.post("/api/game/launch")
+        resp = self._client.post("/api/game/launch", timeout=15.0)
         resp.raise_for_status()
         return resp.json()
 
@@ -516,7 +523,7 @@ class ApiClient:
         Returns:
             Dictionnaire avec clé 'is_running'.
         """
-        resp = self._client.get("/api/game/status")
+        resp = self._client.get("/api/game/status", timeout=self.FAST_TIMEOUT)
         resp.raise_for_status()
         return resp.json()
 
@@ -526,7 +533,7 @@ class ApiClient:
         Returns:
             Rapport de conflits incluant le nombre et la liste des collisions.
         """
-        resp = self._client.get("/api/installed/conflicts")
+        resp = self._client.get("/api/installed/conflicts", timeout=60.0)
         resp.raise_for_status()
         return resp.json()
 
@@ -536,7 +543,7 @@ class ApiClient:
         Returns:
             Résultat de l'opération get_database_stats.
         """
-        resp = self._client.get("/api/settings/database/stats")
+        resp = self._client.get("/api/settings/database/stats", timeout=self.FAST_TIMEOUT)
         resp.raise_for_status()
         return resp.json()
 
@@ -546,9 +553,36 @@ class ApiClient:
         Returns:
             Résultat de l'opération purge_database.
         """
-        resp = self._client.post("/api/settings/database/purge")
+        resp = self._client.post("/api/settings/database/purge", timeout=30.0)
         resp.raise_for_status()
         return resp.json()
+
+    def restore_mod_backup(self, mod_id: int) -> Dict[str, Any]:
+        """Restaure la sauvegarde ZIP précédente d'un mod."""
+        resp = self._client.post(f"/api/installed/{mod_id}/restore-backup", timeout=60.0)
+        resp.raise_for_status()
+        return resp.json()
+
+    def resolve_conflict(self, package_path: str, action: str = "disable") -> Dict[str, Any]:
+        """Active ou désactive un package pour résoudre un conflit DBPF."""
+        payload = {"package_path": package_path, "action": action}
+        resp = self._client.post("/api/installed/conflicts/resolve", json=payload, timeout=self.FAST_TIMEOUT)
+        resp.raise_for_status()
+        return resp.json()
+
+    def get_storage_stats(self) -> Dict[str, Any]:
+        """Récupère les statistiques d'utilisation du stockage."""
+        resp = self._client.get("/api/settings/storage", timeout=self.FAST_TIMEOUT)
+        resp.raise_for_status()
+        return resp.json()
+
+    def cleanup_storage(self) -> Dict[str, Any]:
+        """Purge les archives résiduelles et miniatures pour libérer de l'espace disque."""
+        resp = self._client.post("/api/settings/storage/cleanup", timeout=60.0)
+        resp.raise_for_status()
+        return resp.json()
+
+
 
     # --- Logs ---
     def get_logs(self, level: Optional[str] = None, search: Optional[str] = None, limit: int = 200) -> Dict[str, Any]:

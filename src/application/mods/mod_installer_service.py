@@ -9,7 +9,6 @@ from src.core.config import AppConfig
 from src.database.models import CatalogMod, InstalledMod
 from src.database.manager import DatabaseManager
 from src.application.game.game_service import GameDetector
-from src.utils.archive import extract_archive, is_archive, create_backup_zip
 from src.utils.logger import logger
 from src.application.mods.mod_install_orchestrator import perform_mod_install
 
@@ -42,143 +41,31 @@ class ModInstaller:
         version_str: Optional[str] = None,
         progress_callback: Optional[Callable[[int, str, str], None]] = None,
     ) -> Tuple[bool, str]:
-        """Installs a mod from a downloaded file (archive or direct package/script)."""
+        """Installs a mod from a downloaded file (archive or direct package/script) via ModInstallCoordinator."""
+        if GameDetector.is_game_running():
+            return (
+                False,
+                "Le jeu Les Sims 4 est actuellement en cours d'exécution. Veuillez fermer le jeu avant d'installer des mods.",
+            )
+
         config = AppConfig.load()
         mods_dir = GameDetector.detect_mods_dir(config.custom_mods_dir)
         if not mods_dir:
             return False, "Dossier Mods de Sims 4 introuvable. Veuillez vérifier vos paramètres."
 
-        title = custom_title or (catalog_mod.title if catalog_mod else file_path.stem)
-        source_name = source or (catalog_mod.source if catalog_mod else "manual")
-        remote_id = catalog_mod.remote_id if catalog_mod else ""
-        catalog_id = catalog_mod.id if catalog_mod else None
+        from src.application.mods.mod_install_coordinator import ModInstallCoordinator
 
-        db = DatabaseManager.get_instance()
-        with db.get_session() as session:
-            existing_installed = None
-            if catalog_id:
-                existing_installed = session.query(InstalledMod).filter_by(catalog_mod_id=catalog_id).first()
-            if not existing_installed and remote_id and source_name:
-                existing_installed = (
-                    session.query(InstalledMod).filter_by(remote_id=remote_id, source=source_name).first()
-                )
-            if not existing_installed:
-                existing_installed = session.query(InstalledMod).filter_by(title=title, source=source_name).first()
-
-            if existing_installed and existing_installed.folder_name:
-                safe_folder_name = existing_installed.folder_name
-            else:
-                safe_folder_name = generate_unique_mod_folder_name(
-                    source_name or "manual", title or file_path.stem, mods_dir
-                )
-
-            target_mod_dir = mods_dir / (safe_folder_name or "unknown_mod")
-
-            backup_file_path = None
-            if existing_installed and target_mod_dir.exists():
-                if config.auto_backup:
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    backup_name = f"{safe_folder_name}_{timestamp}.zip"
-                    backup_dest = AppConfig.get_backups_dir() / backup_name
-                    try:
-                        create_backup_zip(target_mod_dir, backup_dest)
-                        backup_file_path = str(backup_dest)
-                        logger.info(f"Backup created at: {backup_dest}")
-                    except Exception as e:
-                        logger.warning(f"Backup failed: {e}")
-
-                shutil.rmtree(target_mod_dir, ignore_errors=True)
-
-            target_mod_dir.mkdir(parents=True, exist_ok=True)
-            installed_files: List[str] = []
-
-            file_size_mb = file_path.stat().st_size / (1024 * 1024) if file_path.exists() else 0
-            if progress_callback:
-                progress_callback(78, "Préparation de l'installation...", f"Fichier source : {file_size_mb:.2f} Mo")
-
-            if is_archive(file_path):
-                logger.info(
-                    f"Début de la décompression de l'archive '{file_path.name}' ({file_size_mb:.2f} Mo) vers '{safe_folder_name}'..."
-                )
-                if progress_callback:
-                    progress_callback(82, "Décompression de l'archive en cours...", f"Dossier : {safe_folder_name}")
-                try:
-                    extracted = extract_archive(file_path, target_mod_dir)
-                    logger.info(f"Décompression réussie : {len(extracted)} fichier(s) extrait(s) pour '{title}'.")
-                    for f in extracted:
-                        if f.is_file():
-                            logger.info(f"  • Extrait : {f.name} ({f.stat().st_size / 1024:.1f} Ko)")
-                            installed_files.append(str(f.relative_to(mods_dir)))
-                    if progress_callback:
-                        progress_callback(92, "Décompression terminée", f"{len(installed_files)} fichier(s) extraits")
-                except Exception as e:
-                    logger.error(f"Erreur lors de l'extraction de l'archive {file_path.name}: {e}")
-                    return False, f"Erreur lors de l'extraction de l'archive: {e}"
-            else:
-                if progress_callback:
-                    progress_callback(85, "Copie du fichier package...", f"Dossier : {safe_folder_name}")
-                target_filename = file_path.name
-                try:
-                    with open(file_path, "rb") as fh:
-                        magic = fh.read(4)
-                    if magic == b"DBPF":
-                        clean_name = re.sub(r"[^a-zA-Z0-9_\-\. ]+", "_", custom_title or file_path.stem).strip()
-                        if not clean_name.lower().endswith(".package"):
-                            clean_name = f"{clean_name}.package"
-                        target_filename = clean_name
-                    elif target_filename.endswith(".zip") or target_filename.startswith("mod_"):
-                        clean_name = re.sub(r"[^a-zA-Z0-9_\-\. ]+", "_", custom_title or file_path.stem).strip()
-                        target_filename = f"{clean_name}.package"
-                except Exception as e:
-                    logger.debug(f"Header check error on {file_path.name}: {e}")
-
-                dest_file = target_mod_dir / target_filename
-                shutil.copy2(file_path, dest_file)
-                installed_files.append(str(dest_file.relative_to(mods_dir)))
-
-            # CRITICAL SIMS 4 FIX: Ensure all .ts4script are at max 1 level of subfolder
-            cls._fix_ts4script_depth(target_mod_dir, mods_dir)
-
-            installed_files = [str(p.relative_to(mods_dir)) for p in target_mod_dir.rglob("*") if p.is_file()]
-
-            if not existing_installed:
-                installed_record = InstalledMod(
-                    catalog_mod_id=catalog_id,
-                    source=source_name,
-                    remote_id=remote_id,
-                    title=title,
-                    folder_name=safe_folder_name,
-                    installed_date=datetime.now(),
-                    version_date=version_date or (catalog_mod.updated_date if catalog_mod else None),
-                    version_str=version_str or (catalog_mod.version_str if catalog_mod else ""),
-                    is_enabled=True,
-                    backup_path=backup_file_path,
-                )
-                installed_record.set_installed_files_list(installed_files)
-                session.add(installed_record)
-            else:
-                existing_installed.installed_date = datetime.now()
-                existing_installed.version_date = version_date or (
-                    catalog_mod.updated_date if catalog_mod else existing_installed.version_date
-                )
-                existing_installed.version_str = version_str or (
-                    catalog_mod.version_str if catalog_mod else existing_installed.version_str
-                )
-                existing_installed.catalog_mod_id = catalog_id or existing_installed.catalog_mod_id
-                existing_installed.is_enabled = True
-                if backup_file_path:
-                    existing_installed.backup_path = backup_file_path
-                existing_installed.set_installed_files_list(installed_files)
-
-            if progress_callback:
-                progress_callback(96, "Enregistrement en base de données...", f"{len(installed_files)} fichier(s)")
-
-            session.commit()
-
-        logger.info(f"Mod '{title}' successfully installed in {target_mod_dir}")
-        if progress_callback:
-            progress_callback(100, "Installation terminée avec succès !", f"Dossier : {safe_folder_name}")
-        return True, f"Mod '{title}' installé avec succès !"
+        coordinator = ModInstallCoordinator()
+        return coordinator.coordinate_file_install(
+            file_path=file_path,
+            mods_dir=mods_dir,
+            catalog_mod=catalog_mod,
+            source=source,
+            custom_title=custom_title,
+            version_date=version_date,
+            version_str=version_str,
+            progress_callback=progress_callback,
+        )
 
     @classmethod
     def _fix_ts4script_depth(cls, mod_dir: Path, mods_root: Path) -> None:
@@ -194,6 +81,9 @@ class ModInstaller:
     @classmethod
     def uninstall_mod(cls, installed_mod_id: int) -> Tuple[bool, str]:
         """Removes the mod folder and its database record."""
+        if GameDetector.is_game_running():
+            return False, "Le jeu Les Sims 4 est actuellement en cours d'exécution. Veuillez fermer le jeu avant de désinstaller des mods."
+
         config = AppConfig.load()
         mods_dir = GameDetector.detect_mods_dir(config.custom_mods_dir)
         db = DatabaseManager.get_instance()
@@ -216,6 +106,19 @@ class ModInstaller:
                 if target_dir == mods_dir_resolved or mods_dir_resolved not in target_dir.parents:
                     logger.error(f"Tentative de suppression non autorisée hors de Mods/ : {target_dir}")
                     return False, "Opération annulée : le chemin cible est invalide ou pointe hors du dossier Mods."
+
+                if not target_dir.exists():
+                    alt = None
+                    if folder_name.endswith(".disabled"):
+                        candidate = (mods_dir / folder_name[:-9]).resolve()
+                        if candidate.exists():
+                            alt = candidate
+                    else:
+                        candidate = (mods_dir / f"{folder_name}.disabled").resolve()
+                        if candidate.exists():
+                            alt = candidate
+                    if alt and (alt == mods_dir_resolved or mods_dir_resolved in alt.parents):
+                        target_dir = alt
 
                 if target_dir.exists():
                     try:
@@ -257,14 +160,14 @@ class ModInstaller:
                 elif mod_folder.is_file():
                     exists = True
                 else:
-                    # Check if loose mod file was renamed to/from .disabled
+                    # Check if loose mod file or folder was renamed to/from .disabled
                     if mod.folder_name and mod.folder_name.endswith(".disabled"):
                         alt = mods_dir / mod.folder_name[:-9]
-                        if alt.is_file():
+                        if alt.is_file() or (alt.is_dir() and any(alt.glob("*"))):
                             exists = True
                     elif mod.folder_name:
                         alt = mods_dir / f"{mod.folder_name}.disabled"
-                        if alt.is_file():
+                        if alt.is_file() or (alt.is_dir() and any(alt.glob("*"))):
                             exists = True
 
                 if not exists:
@@ -331,17 +234,24 @@ class ModInstaller:
                     files = [str(p.relative_to(mods_dir)) for p in item.rglob("*") if p.is_file()]
                     if not files:
                         continue
-                    is_enabled = not all(f.endswith(".disabled") for f in files)
+                    if folder_name.lower().endswith(".disabled"):
+                        is_enabled = False
+                    else:
+                        is_enabled = not all(f.endswith(".disabled") for f in files)
                 else:
                     files = [str(item.relative_to(mods_dir))]
                     is_enabled = not item.name.lower().endswith(".disabled")
 
-                existing = existing_by_folder.get(folder_name)
+                clean_fn = folder_name[:-9] if folder_name.endswith(".disabled") else folder_name
+                alt_fn = folder_name[:-9] if folder_name.endswith(".disabled") else f"{folder_name}.disabled"
+                existing = existing_by_folder.get(folder_name) or existing_by_folder.get(clean_fn) or existing_by_folder.get(alt_fn)
 
                 if not existing:
                     stripped_name = re.sub(r"_\d{3,4}$", "", folder_name)
+                    if stripped_name.lower().endswith(".disabled"):
+                        stripped_name = stripped_name[:-9]
                     if is_mod_file:
-                        for ext in [".disabled", ".package", ".ts4script"]:
+                        for ext in [".package", ".ts4script"]:
                             if stripped_name.lower().endswith(ext):
                                 stripped_name = stripped_name[: -len(ext)]
 
@@ -374,6 +284,7 @@ class ModInstaller:
                     session.add(record)
                     found_mods.append({"title": record.title, "folder": folder_name, "status": "added"})
                 else:
+                    existing.folder_name = folder_name
                     existing.set_installed_files_list(files)
                     existing.is_enabled = is_enabled
                     found_mods.append({"title": existing.title, "folder": folder_name, "status": "updated"})

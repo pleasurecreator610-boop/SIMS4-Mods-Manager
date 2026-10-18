@@ -203,3 +203,250 @@ def test_game_running_detection():
     """
     is_running = GameLauncher.is_game_running()
     assert isinstance(is_running, bool)
+
+
+def test_game_launcher_detects_custom_game_exe(tmp_path, monkeypatch):
+    """Test: Validates GameLauncher prioritizes config.custom_game_exe if set."""
+    custom_exe = tmp_path / "Custom_TS4_x64.exe"
+    custom_exe.write_text("DUMMY_EXE")
+
+    from src.core.config import AppConfig
+
+    cfg = AppConfig.load()
+    cfg.custom_game_exe = str(custom_exe)
+    monkeypatch.setattr(AppConfig, "load", lambda: cfg)
+
+    GameLauncher.clear_cache()
+    detected = GameLauncher.detect_game_executable()
+    assert detected == custom_exe
+
+
+def test_archive_extractor_blocks_seven_zip_traversal(tmp_path, monkeypatch):
+    """Test: Validates SevenZipArchiveHandler rejects path traversal attempts."""
+    from src.infrastructure.filesystem.archive_extractor import SevenZipArchiveHandler
+
+    handler = SevenZipArchiveHandler()
+    dest_dir = tmp_path / "dest"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+
+    class MockSevenZip:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+        def getnames(self):
+            return ["safe.package", "../evil.exe"]
+
+        def extractall(self, path):
+            pass
+
+    import py7zr
+
+    monkeypatch.setattr(py7zr, "SevenZipFile", MockSevenZip)
+
+    fake_7z = tmp_path / "malicious.7z"
+    fake_7z.write_bytes(b"dummy")
+
+    import pytest
+
+    with pytest.raises(ValueError, match="Évasion de chemin interdite dans l'archive 7Z"):
+        handler.extract(fake_7z, dest_dir)
+
+
+def test_installed_mods_service_populates_dependencies_and_screenshots(monkeypatch):
+    """Test: Validates InstalledModsService maps dependencies and screenshots from CatalogModEntity."""
+    from src.application.mods.installed_mods_service import InstalledModsService
+    from src.domain.models.mod_entity import CatalogModEntity, InstalledModEntity
+
+    mock_catalog = [
+        CatalogModEntity(
+            id=10,
+            source="loverslab",
+            remote_id="12345",
+            title="Complex Mod",
+            author="AuthorX",
+            external_links=["https://example.com/screenshot.png", "https://example.com/site.html"],
+            requirements_mods_json=[
+                {"source": "loverslab", "remote_id": "999", "title": "Required Dep", "url": "https://example.com/999"}
+            ],
+        )
+    ]
+    mock_installed = [
+        InstalledModEntity(
+            id=1,
+            catalog_mod_id=10,
+            source="loverslab",
+            remote_id="12345",
+            title="Complex Mod",
+            folder_name="ComplexMod",
+            is_enabled=True,
+        )
+    ]
+
+    class FakeInstalledRepo:
+        def get_all(self):
+            return mock_installed
+
+    class FakeCatalogRepo:
+        def get_all(self):
+            return mock_catalog
+
+    service = InstalledModsService(
+        installed_repo=FakeInstalledRepo(),  # type: ignore[arg-type]
+        catalog_repo=FakeCatalogRepo(),  # type: ignore[arg-type]
+    )
+
+    resp = service.list_installed_mods()
+    assert len(resp.items) == 1
+    item = resp.items[0]
+    assert len(item.dependencies) == 1
+    assert item.dependencies[0].title == "Required Dep"
+    assert item.dependencies[0].remote_id == "999"
+    assert len(item.screenshots) == 1
+    assert item.screenshots[0] == "https://example.com/screenshot.png"
+
+
+def test_installed_card_restore_signal(qapp):
+    """Test: Validates that InstalledCard has a restore button and emits restore_requested."""
+    mod_data = {
+        "id": 99,
+        "title": "Restore Test Mod",
+        "folder_name": "RestoreMod_99",
+        "author": "ModderNine",
+        "source": "loverslab",
+        "is_enabled": True,
+        "files_count": 2,
+        "backup_path": "C:/fake/backup.zip",
+    }
+    card = InstalledCard(mod_data)
+    assert hasattr(card, "btn_restore")
+    assert card.btn_restore.text() == "↺"
+
+    emitted = []
+    card.restore_requested.connect(lambda d: emitted.append(d))
+    card.btn_restore.click()
+    assert len(emitted) == 1
+    assert emitted[0]["id"] == 99
+
+
+def test_installed_mods_service_restore_backup(tmp_path, monkeypatch):
+    """Test: Validates InstalledModsService.restore_backup successfully restores files from backup ZIP."""
+    from src.application.mods.installed_mods_service import InstalledModsService
+    from src.core.config import AppConfig
+    from src.domain.models.mod_entity import InstalledModEntity
+
+    mods_dir = tmp_path / "TheSims4Mods"
+    mods_dir.mkdir(parents=True, exist_ok=True)
+    app_dir = tmp_path / "AppData"
+    backups_dir = app_dir / "backups"
+    backups_dir.mkdir(parents=True, exist_ok=True)
+
+    cfg = AppConfig.load()
+    cfg.custom_mods_dir = str(mods_dir)
+    monkeypatch.setattr(AppConfig, "load", lambda: cfg)
+    monkeypatch.setattr(AppConfig, "get_app_dir", classmethod(lambda cls: app_dir))
+
+    # Existing corrupted or modified mod directory
+    mod_folder = mods_dir / "BackupMod"
+    mod_folder.mkdir(parents=True, exist_ok=True)
+    (mod_folder / "corrupted.package").write_bytes(b"CORRUPTED")
+
+    # Create a backup zip
+    backup_zip = backups_dir / "BackupMod_20261018_120000.zip"
+    with zipfile.ZipFile(backup_zip, "w") as zf:
+        zf.writestr("original.package", b"ORIGINAL_VALID_DBPF")
+
+    installed_mod = InstalledModEntity(
+        id=77,
+        folder_name="BackupMod",
+        title="Backup Mod",
+        source="loverslab",
+        remote_id="777",
+        is_enabled=True,
+        backup_path=str(backup_zip),
+    )
+
+    class FakeInstalledRepo:
+        def get_by_id(self, mid):
+            return installed_mod if mid == 77 else None
+
+        def update(self, entity):
+            return entity
+
+    service = InstalledModsService(
+        installed_repo=FakeInstalledRepo(),  # type: ignore[arg-type]
+        catalog_repo=None,  # type: ignore[arg-type]
+    )
+
+    res = service.restore_backup(77)
+    assert res.success is True
+    assert (mod_folder / "original.package").exists()
+    assert (mod_folder / "original.package").read_bytes() == b"ORIGINAL_VALID_DBPF"
+    assert not (mod_folder / "corrupted.package").exists()
+
+
+def test_conflict_detector_service_resolve_conflict(tmp_path):
+    """Test: Validates ConflictDetectorService.resolve_conflict enables and disables packages."""
+    from src.application.mods.conflict_detector_service import ConflictDetectorService
+
+    mods_dir = tmp_path / "Mods"
+    mod_sub = mods_dir / "ConflictingMod"
+    mod_sub.mkdir(parents=True, exist_ok=True)
+    pkg = mod_sub / "conflict_item.package"
+    pkg.write_bytes(b"DBPF_DATA")
+
+    # Disable action
+    ok, msg, new_path = ConflictDetectorService.resolve_conflict(mods_dir, "ConflictingMod/conflict_item.package", action="disable")
+    assert ok is True
+    assert new_path == "ConflictingMod/conflict_item.package.disabled"
+    assert not pkg.exists()
+    assert (mod_sub / "conflict_item.package.disabled").exists()
+
+    # Enable action
+    ok2, msg2, new_path2 = ConflictDetectorService.resolve_conflict(mods_dir, "ConflictingMod/conflict_item.package.disabled", action="enable")
+    assert ok2 is True
+    assert new_path2 == "ConflictingMod/conflict_item.package"
+    assert pkg.exists()
+    assert not (mod_sub / "conflict_item.package.disabled").exists()
+
+
+def test_storage_service_stats_and_cleanup(tmp_path, monkeypatch):
+    """Test: Validates StorageService calculates storage sizes and safely cleans up obsolete files."""
+    from src.application.system.storage_service import StorageService
+    from src.core.config import AppConfig
+
+    app_dir = tmp_path / "Sims4ManagerApp"
+    backups_dir = app_dir / "backups"
+    cache_dir = app_dir / "cache"
+    downloads_dir = app_dir / "downloads"
+    for d in (backups_dir, cache_dir, downloads_dir):
+        d.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(AppConfig, "get_app_dir", classmethod(lambda cls: app_dir))
+
+    # Create dummy files
+    (cache_dir / "thumb1.jpg").write_bytes(b"A" * 1024 * 100)  # 100 KB
+    (downloads_dir / "temp_archive.zip").write_bytes(b"B" * 1024 * 200)  # 200 KB
+    (backups_dir / "backup.zip").write_bytes(b"C" * 1024 * 50)  # 50 KB
+
+    stats = StorageService.get_storage_stats()
+    assert stats.cache_size_bytes >= 1024 * 100
+    assert stats.downloads_size_bytes >= 1024 * 200
+    assert stats.backups_count == 1
+    assert stats.total_size_mb > 0.0
+
+    # Cleanup temporary downloads and cache
+    cleanup_res = StorageService.cleanup_storage(clean_cache=True, clean_downloads=True)
+    assert cleanup_res.freed_size_mb > 0.0
+    assert cleanup_res.deleted_files_count >= 2
+    assert not (cache_dir / "thumb1.jpg").exists()
+    assert not (downloads_dir / "temp_archive.zip").exists()
+    assert (backups_dir / "backup.zip").exists()
+
+
+

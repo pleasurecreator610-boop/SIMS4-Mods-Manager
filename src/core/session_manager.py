@@ -1,3 +1,4 @@
+import asyncio
 import shutil
 import threading
 from datetime import datetime
@@ -5,8 +6,26 @@ from typing import Optional, Dict, Tuple
 from curl_cffi import requests as cffi_requests
 
 from src.core.config import AppConfig
+from src.core.shutdown_manager import ShutdownManager
 from src.database import DatabaseManager, AccountSession
 from src.utils.logger import logger
+
+
+
+def _close_async_session(async_sess: cffi_requests.AsyncSession) -> None:
+    """Closes an AsyncSession cleanly without leaving orphaned coroutines."""
+    try:
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            loop.create_task(async_sess.close())
+        else:
+            asyncio.run(async_sess.close())
+    except Exception:
+        pass
 
 
 class SessionManager:
@@ -37,10 +56,7 @@ class SessionManager:
                     pass
             old_async_sess = cls._async_http_sessions.pop(key, None)
             if old_async_sess:
-                try:
-                    old_async_sess.close()
-                except Exception:
-                    pass
+                _close_async_session(old_async_sess)
 
     @classmethod
     def close_all_http_sessions(cls) -> None:
@@ -54,11 +70,9 @@ class SessionManager:
             cls._http_sessions.clear()
 
             for async_s in cls._async_http_sessions.values():
-                try:
-                    async_s.close()
-                except Exception:
-                    pass
+                _close_async_session(async_s)
             cls._async_http_sessions.clear()
+
 
 
     @classmethod
@@ -339,3 +353,8 @@ class SessionManager:
             user_agent=cls.DEFAULT_USER_AGENT,
             timeout_seconds=timeout_seconds,
         )
+
+
+ShutdownManager.register_callback(SessionManager.close_all_http_sessions)
+
+

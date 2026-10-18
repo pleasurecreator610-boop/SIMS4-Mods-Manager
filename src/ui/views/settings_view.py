@@ -17,8 +17,10 @@ from PySide6.QtWidgets import (
 )
 
 from src.api.client import get_api_client
+from src.ui.workers.generic_runnable import run_async_ui_task
 from src.utils.logger import logger
 from src.i18n import I18nManager, tr
+
 from src.ui.views.settings.settings_cards import (
     LanguageCardWidget,
     PathsCardWidget,
@@ -108,11 +110,17 @@ class SettingsView(QWidget):
         layout.addWidget(self.launcher_card)
 
         # 4. Preferences Card
-        self.pref_card = PreferencesCardWidget(on_clear_cache=self.clear_cache, parent=self)
+        self.pref_card = PreferencesCardWidget(
+            on_clear_cache=self.clear_cache,
+            on_cleanup_storage=self.confirm_and_cleanup_storage,
+            parent=self,
+        )
         self.backup_chk = self.pref_card.backup_chk
         self.adult_chk = self.pref_card.adult_chk
         self.cache_lbl = self.pref_card.cache_lbl
         self.clear_cache_btn = self.pref_card.clear_cache_btn
+        self.storage_lbl = self.pref_card.storage_lbl
+        self.cleanup_storage_btn = self.pref_card.cleanup_storage_btn
         self.pref_frame = self.pref_card
         layout.addWidget(self.pref_card)
 
@@ -150,10 +158,10 @@ class SettingsView(QWidget):
             return
         logger.info(f"Changement de langue vers: {lang_code}")
         self.i18n.set_language(lang_code)
-        try:
-            self.api_client.update_settings({"language": lang_code})
-        except Exception as e:
-            logger.error(f"Erreur API lors de la sauvegarde de la langue: {e}")
+        run_async_ui_task(
+            lambda: self.api_client.update_settings({"language": lang_code}),
+            on_error=lambda err: logger.error(f"Erreur API lors de la sauvegarde de la langue: {err}")
+        )
 
     def _on_mods_path_changed(self, text: str):
         p = Path(text.strip()) if text.strip() else None
@@ -171,11 +179,14 @@ class SettingsView(QWidget):
         self.db_card.retranslate_ui()
         self.save_btn.setText(tr("settings.save_btn"))
         self.load_database_stats()
+        self.load_storage_stats()
 
     def load_settings(self):
-        """Loads settings through API /api/settings."""
-        try:
-            settings = self.api_client.get_settings()
+        """Loads settings through API /api/settings asynchronously."""
+        def _fetch():
+            return self.api_client.get_settings()
+
+        def _on_fetched(settings):
             mods_dir = settings.get("custom_mods_dir") or settings.get("detected_mods_dir") or ""
             exe_path = settings.get("custom_game_exe") or settings.get("detected_game_exe") or ""
             lang = settings.get("language", "fr")
@@ -196,19 +207,28 @@ class SettingsView(QWidget):
             self._has_valid_mods = bool(settings.get("detected_mods_dir"))
             self.paths_card.update_status(self._has_valid_mods)
             self.load_database_stats()
-        except Exception as e:
-            logger.error(f"Erreur API lors du chargement des paramètres: {e}")
+            self.load_storage_stats()
+
+        def _on_error(err):
+            logger.error(f"Erreur API lors du chargement des paramètres: {err}")
+
+        run_async_ui_task(_fetch, on_finished=_on_fetched, on_error=_on_error)
 
     def load_database_stats(self):
-        """Fetches and displays current catalog and installed database counts."""
-        try:
-            stats = self.api_client.get_database_stats()
+        """Fetches and displays current catalog and installed database counts asynchronously."""
+        def _fetch():
+            return self.api_client.get_database_stats()
+
+        def _on_fetched(stats):
             cat_count = stats.get("catalog_mods_count", 0)
             inst_count = stats.get("installed_mods_count", 0)
             self.db_stats_lbl.setText(tr("settings.db_stats", catalog=cat_count, installed=inst_count))
-        except Exception as e:
-            logger.debug(f"Impossible de charger les statistiques de base de données : {e}")
+
+        def _on_error(err):
+            logger.debug(f"Impossible de charger les statistiques de base de données : {err}")
             self.db_stats_lbl.setText(tr("settings.db_stats_error"))
+
+        run_async_ui_task(_fetch, on_finished=_on_fetched, on_error=_on_error)
 
     def confirm_and_purge_database(self):
         """Exécute l'opération confirm and purge database."""
@@ -220,8 +240,12 @@ class SettingsView(QWidget):
             QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
-            try:
-                res = self.api_client.purge_database()
+            btn = getattr(self.db_card, "purge_btn", None)
+
+            def _do_purge():
+                return self.api_client.purge_database()
+
+            def _on_purged(res):
                 deleted = res.get("deleted_count", 0)
                 QMessageBox.information(
                     self,
@@ -229,9 +253,12 @@ class SettingsView(QWidget):
                     tr("settings.purge_success_msg", count=deleted),
                 )
                 self.load_database_stats()
-            except Exception as e:
-                logger.error(f"Erreur lors de la purge de la base de données : {e}")
-                QMessageBox.warning(self, tr("dialogs.error_title"), tr("settings.purge_error", error=str(e)))
+
+            def _on_error(err):
+                logger.error(f"Erreur lors de la purge de la base de données : {err}")
+                QMessageBox.warning(self, tr("dialogs.error_title"), tr("settings.purge_error", error=str(err)))
+
+            run_async_ui_task(_do_purge, on_finished=_on_purged, on_error=_on_error, disable_widgets=[btn] if btn else None)
 
     def browse_mods_folder(self):
         """Exécute l'opération browse mods folder."""
@@ -247,28 +274,46 @@ class SettingsView(QWidget):
             self.exe_path_input.setText(file_path)
 
     def launch_game(self):
-        """Exécute l'opération launch game."""
-        try:
-            res = self.api_client.launch_game()
+        """Exécute l'opération launch game sans bloquer la GUI."""
+        btn = getattr(self.launcher_card, "launch_btn", None)
+
+        def _do_launch():
+            return self.api_client.launch_game()
+
+        def _on_launched(res):
             QMessageBox.information(
                 self, tr("nav.launch_game_title"), res.get("message", tr("nav.launch_game_success"))
             )
-        except Exception as e:
-            QMessageBox.warning(self, tr("dialogs.error_title"), tr("nav.launch_game_error", error=str(e)))
+
+        def _on_error(err):
+            QMessageBox.warning(self, tr("dialogs.error_title"), tr("nav.launch_game_error", error=str(err)))
+
+        run_async_ui_task(_do_launch, on_finished=_on_launched, on_error=_on_error, disable_widgets=[btn] if btn else None)
 
     def clear_cache(self):
         """Exécute l'opération clear cache."""
-        try:
+        btn = getattr(self.pref_card, "clear_cache_btn", None)
+
+        def _do_clear():
             res = self.api_client.clear_cache()
+            from src.ui.components.image_cache import ImageCache
+
+            ImageCache.clear()
+            return res
+
+        def _on_cleared(res):
             count = res.get("deleted_count", 0)
             QMessageBox.information(
                 self, tr("settings.clear_cache_title"), tr("settings.clear_cache_success", count=count)
             )
-        except Exception as e:
-            QMessageBox.warning(self, tr("dialogs.error_title"), tr("settings.clear_cache_error", error=str(e)))
+
+        def _on_error(err):
+            QMessageBox.warning(self, tr("dialogs.error_title"), tr("settings.clear_cache_error", error=str(err)))
+
+        run_async_ui_task(_do_clear, on_finished=_on_cleared, on_error=_on_error, disable_widgets=[btn] if btn else None)
 
     def save_settings(self):
-        """Exécute l'opération save settings."""
+        """Exécute l'opération save settings sans bloquer la GUI."""
         current_lang = self.i18n.get_language()
         payload = {
             "custom_mods_dir": self.mods_path_input.text().strip() or None,
@@ -277,9 +322,72 @@ class SettingsView(QWidget):
             "adult_content_enabled": self.adult_chk.isChecked(),
             "language": current_lang,
         }
-        try:
-            self.api_client.update_settings(payload)
+
+        def _do_save():
+            return self.api_client.update_settings(payload)
+
+        def _on_saved(res):
             QMessageBox.information(self, tr("settings.save_success_title"), tr("settings.save_success_msg"))
             self.load_settings()
-        except Exception as e:
-            QMessageBox.warning(self, tr("settings.save_error_title"), tr("settings.save_error_msg", error=str(e)))
+
+        def _on_error(err):
+            QMessageBox.warning(self, tr("settings.save_error_title"), tr("settings.save_error_msg", error=str(err)))
+
+        run_async_ui_task(_do_save, on_finished=_on_saved, on_error=_on_error, disable_widgets=[self.save_btn])
+
+    def load_storage_stats(self):
+        """Fetches and displays disk usage stats (backups, cache, downloads) asynchronously."""
+        def _fetch():
+            return self.api_client.get_storage_stats()
+
+        def _on_fetched(stats):
+            total_bytes = stats.get("total_size_bytes", 0)
+            backups_bytes = stats.get("backups_size_bytes", 0)
+            cache_bytes = stats.get("cache_size_bytes", 0)
+            downloads_bytes = stats.get("downloads_size_bytes", 0)
+            total_mb = total_bytes / (1024 * 1024)
+            backups_mb = backups_bytes / (1024 * 1024)
+            cache_mb = cache_bytes / (1024 * 1024)
+            downloads_mb = downloads_bytes / (1024 * 1024)
+            text = f"Stockage : {total_mb:.1f} Mo (Backups: {backups_mb:.1f} Mo, Cache: {cache_mb:.1f} Mo, Temp: {downloads_mb:.1f} Mo)"
+            self.storage_lbl.setText(text)
+
+        def _on_error(err):
+            logger.debug(f"Impossible de charger les statistiques de stockage : {err}")
+            self.storage_lbl.setText("Stockage : Indisponible")
+
+        run_async_ui_task(_fetch, on_finished=_on_fetched, on_error=_on_error)
+
+    def confirm_and_cleanup_storage(self):
+        """Demande confirmation et nettoie le stockage temporaire sans bloquer l'UI."""
+        reply = QMessageBox.question(
+            self,
+            "Nettoyage de l'espace disque",
+            "Voulez-vous nettoyer les caches et téléchargements temporaires pour libérer de l'espace disque ?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            btn = self.cleanup_storage_btn
+
+            def _do_cleanup():
+                return self.api_client.cleanup_storage()
+
+            def _on_cleaned(res):
+                freed_bytes = res.get("freed_bytes", 0)
+                freed_mb = freed_bytes / (1024 * 1024)
+                deleted_files = res.get("deleted_files_count", 0)
+                QMessageBox.information(
+                    self,
+                    "Nettoyage terminé",
+                    f"Espace disque libéré avec succès : {freed_mb:.1f} Mo\n({deleted_files} fichiers nettoyés)",
+                )
+                self.load_storage_stats()
+
+            def _on_error(err):
+                logger.error(f"Erreur lors du nettoyage de stockage : {err}")
+                QMessageBox.warning(self, tr("dialogs.error_title"), f"Erreur lors du nettoyage : {err}")
+
+            run_async_ui_task(_do_cleanup, on_finished=_on_cleaned, on_error=_on_error, disable_widgets=[btn] if btn else None)
+
+

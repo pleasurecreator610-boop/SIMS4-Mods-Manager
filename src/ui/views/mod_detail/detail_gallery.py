@@ -34,6 +34,18 @@ class DetailGalleryWidget(QWidget):
         self._current_load_id: int = 0
         self._init_ui()
 
+    @property
+    def gallery_frame(self):
+        return self.scroll_area
+
+    @property
+    def gallery_title(self):
+        return self.lbl_title
+
+    @property
+    def gallery_cards_layout(self):
+        return self.strip_layout
+
     def _init_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 8)
@@ -97,6 +109,10 @@ class DetailGalleryWidget(QWidget):
     def _on_item_clicked(self, index: int):
         self.image_clicked.emit(index, self.screenshots)
 
+    def retranslate_ui(self):
+        """Retranslates UI texts for DetailGalleryWidget."""
+        self.lbl_title.setText("📸 " + tr("mod_detail.gallery_title"))
+
     def cleanup(self):
         """Exécute l'opération cleanup."""
         if self._batch_worker:
@@ -105,8 +121,10 @@ class DetailGalleryWidget(QWidget):
 
         while self.strip_layout.count():
             item = self.strip_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+            if item and item.widget():
+                w = item.widget()
+                if w:
+                    w.deleteLater()
         self._gallery_items.clear()
 
     def clear_gallery(self):

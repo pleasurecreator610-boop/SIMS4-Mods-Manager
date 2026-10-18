@@ -1,18 +1,24 @@
 import json
 import threading
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, TYPE_CHECKING
 
-try:
+if TYPE_CHECKING:
     from PySide6.QtCore import QObject, Signal
 
     HAS_PYSIDE = True
-except ImportError:
-    HAS_PYSIDE = False
-    QObject = object
+else:
+    try:
+        from PySide6.QtCore import QObject, Signal
 
-    def Signal(*args):  # type: ignore
-        return None
+        HAS_PYSIDE = True
+    except ImportError:
+        HAS_PYSIDE = False
+        QObject = object
+
+        def Signal(*args):
+            return None
+
 
 
 SUPPORTED_LANGUAGES = {

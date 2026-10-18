@@ -4,8 +4,22 @@ strict backwards compatibility with legacy callers and unit tests.
 """
 
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from src.ui.views.mod_detail.detail_header import DetailHeaderWidget
+    from src.ui.views.mod_detail.detail_requirements import DetailRequirementsWidget
+    from src.ui.views.mod_detail.detail_gallery import DetailGalleryWidget
+    from src.ui.views.mod_detail.detail_description import DetailDescriptionWidget
+
+
 class ModDetailCompatMixin:
     """Mixin delegating property accesses to internal ModDetail sub-widgets."""
+
+    header_widget: "DetailHeaderWidget"
+    requirements_widget: "DetailRequirementsWidget"
+    gallery_widget: "DetailGalleryWidget"
+    desc_widget: "DetailDescriptionWidget"
 
     @property
     def back_btn(self):
