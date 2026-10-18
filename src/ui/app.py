@@ -301,7 +301,7 @@ class MainWindow(QMainWindow):
         self.updates_view.refresh_updates()
         self.catalog_view.refresh_catalog()
         self.update_nav_badge()
-        if self.stacked_widget.currentIndex() == 6:
+        if self.stacked_widget.currentWidget() == self.mod_detail_view:
             self._refresh_current_mod_detail()
 
     def _refresh_current_mod_detail(self):
@@ -469,5 +469,12 @@ class MainWindow(QMainWindow):
                 self.catalog_view.monitor_timer.stop()
             except Exception:
                 pass
+        for view_name in ["catalog_view", "installed_view", "mod_detail_view", "downloads_view"]:
+            view = getattr(self, view_name, None)
+            if view and hasattr(view, "cleanup") and callable(view.cleanup):
+                try:
+                    view.cleanup()
+                except Exception:
+                    pass
         cleanup_all_threads(500)
         super().closeEvent(event)

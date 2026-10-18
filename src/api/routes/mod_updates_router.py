@@ -1,6 +1,5 @@
 from datetime import datetime
-from pathlib import Path
-import tempfile
+from src.core.config import AppConfig
 from typing import Any
 from fastapi import APIRouter, HTTPException
 
@@ -130,9 +129,9 @@ def _update_one_mod(installed_id: int) -> tuple[bool, str]:
         dl_info = download_urls[0]
         dl_url = dl_info["url"] if isinstance(dl_info, dict) else dl_info
 
-        temp_dir = Path(tempfile.gettempdir()) / "sims4_mod_manager_downloads"
-        temp_dir.mkdir(parents=True, exist_ok=True)
-        dest_file = temp_dir / f"mod_{remote_id}.zip"
+        downloads_dir = AppConfig.get_app_dir() / "downloads"
+        downloads_dir.mkdir(parents=True, exist_ok=True)
+        dest_file = downloads_dir / f"update_{source}_{remote_id}.zip"
 
         ok, msg = provider.download_mod_file(dl_url, dest_file)
         if not ok:

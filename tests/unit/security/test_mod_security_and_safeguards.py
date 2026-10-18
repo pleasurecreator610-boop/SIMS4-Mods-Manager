@@ -452,4 +452,50 @@ def test_storage_service_stats_and_cleanup(tmp_path, monkeypatch):
     assert (backups_dir / "backup.zip").exists()
 
 
+def test_main_window_mod_detail_view_refresh_trigger(qapp, monkeypatch):
+    """Test: Validates MainWindow._on_mods_state_changed refreshes mod_detail_view when active."""
+    from src.ui.app import MainWindow
+
+    monkeypatch.setattr(MainWindow, "refresh_game_status", lambda self: None)
+    monkeypatch.setattr(MainWindow, "update_nav_badge", lambda self: None)
+    monkeypatch.setattr(MainWindow, "auto_start_background_sync", lambda self: None)
+
+    win = MainWindow()
+    refreshed = []
+    win._refresh_current_mod_detail = lambda: refreshed.append(True)
+
+    # Set to catalog (index 1) - should not refresh mod_detail_view
+    win.stacked_widget.setCurrentWidget(win.catalog_view)
+    win._on_mods_state_changed()
+    assert len(refreshed) == 0
+
+    # Set to mod_detail_view (index 7) - should refresh mod_detail_view
+    win.stacked_widget.setCurrentWidget(win.mod_detail_view)
+    win._on_mods_state_changed()
+    assert len(refreshed) == 1
+
+    win.close()
+
+
+def test_catalog_view_cleanup_dep_workers(qapp, monkeypatch):
+    """Test: Validates CatalogView._cleanup_dep_worker and cleanup() properly manage worker life cycle."""
+    from src.ui.views.catalog_view import CatalogView
+    from PySide6.QtCore import QThread
+
+    cat = CatalogView()
+    dummy_worker = QThread()
+    cat._dep_workers.append(dummy_worker)
+    assert dummy_worker in cat._dep_workers
+
+    cat._cleanup_dep_worker(dummy_worker)
+    assert dummy_worker not in cat._dep_workers
+
+    dummy_worker2 = QThread()
+    cat._dep_workers.append(dummy_worker2)
+    cat.cleanup()
+    assert len(cat._dep_workers) == 0
+    cat.close()
+
+
+
 

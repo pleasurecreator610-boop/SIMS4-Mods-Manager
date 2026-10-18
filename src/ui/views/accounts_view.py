@@ -76,6 +76,11 @@ class AccountsView(QWidget):
         self.patreon_card.login_requested.connect(self.open_login_window)
         self.cards_layout.addWidget(self.patreon_card)
 
+        self.cards_by_provider: dict[str, AccountCardWidget] = {
+            "loverslab": self.loverslab_card,
+            "patreon": self.patreon_card,
+        }
+
         layout.addLayout(self.cards_layout)
         layout.addStretch()
 
@@ -97,8 +102,8 @@ class AccountsView(QWidget):
         """Retranslates all text in AccountsView dynamically."""
         self.title_lbl.setText(tr("accounts.title"))
         self.subtitle_lbl.setText(tr("accounts.subtitle"))
-        self.loverslab_card.retranslate_ui()
-        self.patreon_card.retranslate_ui()
+        for card in self.cards_by_provider.values():
+            card.retranslate_ui()
         self.refresh_statuses()
 
     def refresh_statuses(self):
@@ -109,16 +114,34 @@ class AccountsView(QWidget):
 
         def _on_accounts_fetched(accounts):
             for acc in accounts:
-                p_name = acc.get("provider_name")
+                p_name = acc.get("provider_name", "").lower()
                 is_member = acc.get("is_member", False)
                 is_ready = acc.get("is_ready", False)
                 display = acc.get("user_display_name", "")
 
-                card = (
-                    self.loverslab_card
-                    if p_name == "loverslab"
-                    else (self.patreon_card if p_name == "patreon" else None)
-                )
+                card = self.cards_by_provider.get(p_name)
+                if not card and p_name:
+                    card = AccountCardWidget(
+                        provider_name=p_name,
+                        title_key=f"Fournisseur : {p_name.capitalize()}",
+                        desc_key=f"Gestion de session et anti-bot pour le plugin {p_name.capitalize()}.",
+                        parent=self,
+                    )
+                    card.clear_requested.connect(self._on_clear_clicked)
+                    card.test_requested.connect(self._on_test_clicked)
+                    card.login_requested.connect(self.open_login_window)
+                    self.cards_by_provider[p_name] = card
+                    self.card_widgets[p_name] = {
+                        "title_lbl": card.title_lbl,
+                        "title_key": card.title_key,
+                        "desc_lbl": card.desc_lbl,
+                        "desc_key": card.desc_key,
+                        "clear_btn": card.clear_btn,
+                        "test_btn": card.test_btn,
+                        "login_btn": card.login_btn,
+                    }
+                    self.cards_layout.addWidget(card)
+
                 if card:
                     card.update_badge(is_member, is_ready, display)
 
@@ -135,7 +158,7 @@ class AccountsView(QWidget):
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
-            card = self.loverslab_card if provider_name == "loverslab" else self.patreon_card
+            card = self.cards_by_provider.get(provider_name)
             widgets_to_disable = [card.clear_btn, card.test_btn, card.login_btn] if card else None
 
             def _do_clear():
@@ -154,7 +177,7 @@ class AccountsView(QWidget):
             run_async_ui_task(_do_clear, on_finished=_on_cleared, on_error=_on_clear_error, disable_widgets=widgets_to_disable)
 
     def _on_test_clicked(self, provider_name: str):
-        card = self.loverslab_card if provider_name == "loverslab" else self.patreon_card
+        card = self.cards_by_provider.get(provider_name)
         widgets_to_disable = [card.clear_btn, card.test_btn, card.login_btn] if card else None
         if card and hasattr(card, "test_btn"):
             card.test_btn.setText("⏳ Test...")

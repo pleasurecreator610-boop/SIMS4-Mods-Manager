@@ -461,6 +461,7 @@ class CatalogView(QWidget):
         # Lance la vérification des dépendances en arrière-plan sans bloquer l'interface Qt
         worker = CheckDependenciesWorker(self.api_client, payload, mod_data)
         worker.finished_signal.connect(self._on_dependencies_checked)
+        worker.finished_signal.connect(lambda _res, _md, w=worker: self._cleanup_dep_worker(w))
         self._dep_workers.append(worker)
         worker.start()
         return True
@@ -535,3 +536,31 @@ class CatalogView(QWidget):
         self.pagination_bar.retranslate_ui()
         self.pagination_bar.update_pagination(self.current_page, self.total_pages, self.total_items)
         self.refresh_catalog()
+
+    def _cleanup_dep_worker(self, worker):
+        """Supprime un worker de dépendances terminé de la liste active."""
+        if worker in self._dep_workers:
+            try:
+                self._dep_workers.remove(worker)
+            except ValueError:
+                pass
+
+    def cleanup(self):
+        """Arrête proprement les workers et timers en arrière-plan."""
+        if hasattr(self, "monitor_timer"):
+            try:
+                self.monitor_timer.stop()
+            except Exception:
+                pass
+        if self._fetch_worker:
+            safe_stop_thread(self._fetch_worker)
+            self._fetch_worker = None
+        for w in list(self._dep_workers):
+            safe_stop_thread(w)
+        self._dep_workers.clear()
+
+    def closeEvent(self, event):
+        """Interrompt les tâches asynchrones lors de la fermeture."""
+        self.cleanup()
+        super().closeEvent(event)
+

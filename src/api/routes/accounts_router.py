@@ -16,6 +16,8 @@ from src.infrastructure.database.repositories.sqlalchemy_account_repository impo
     SqlAlchemyAccountRepository,
 )
 
+from src.providers import ProviderRegistry
+
 router = APIRouter(prefix="/accounts", tags=["Accounts & Anti-Bot"])
 _account_repo = SqlAlchemyAccountRepository()
 
@@ -25,12 +27,36 @@ PROVIDERS_LOGIN_URLS = {
 }
 
 
+def _get_registered_provider_names() -> list[str]:
+    names = ["loverslab", "patreon"]
+    for prov in ProviderRegistry.list_providers():
+        pname = prov.provider_name.lower()
+        if pname not in names:
+            names.append(pname)
+    return names
+
+
+def _get_login_url(provider_name: str) -> str | None:
+    p_lower = provider_name.lower()
+    if p_lower in PROVIDERS_LOGIN_URLS:
+        return PROVIDERS_LOGIN_URLS[p_lower]
+    prov = ProviderRegistry.get_provider(p_lower)
+    if prov:
+        login_url = getattr(prov, "login_url", None)
+        if login_url:
+            return str(login_url)
+        base_url = getattr(prov, "base_url", None)
+        if base_url:
+            return f"{str(base_url).rstrip('/')}/login"
+    return None
+
+
 @router.get("", response_model=AccountListResponse)
 def get_accounts() -> AccountListResponse:
     """Liste le statut d'authentification et anti-bot de tous les providers supportés."""
     accounts_list: list[AccountStatusItem] = []
 
-    for p_name in ["loverslab", "patreon"]:
+    for p_name in _get_registered_provider_names():
         acc = _account_repo.get_by_provider(p_name)
         is_ready = SessionManager.is_session_ready(p_name)
         is_member = SessionManager.is_member_authenticated(p_name)
@@ -63,7 +89,7 @@ def get_accounts() -> AccountListResponse:
 def test_account(provider_name: str) -> AccountActionResponse:
     """Effectue un test HTTP en direct des cookies de session pour le provider spécifié."""
     p_lower = provider_name.lower()
-    if p_lower not in ["loverslab", "patreon"]:
+    if p_lower not in _get_registered_provider_names():
         raise HTTPException(status_code=400, detail=f"Fournisseur non reconnu: {provider_name}")
 
     ok, msg = SessionManager.verify_session(p_lower)
@@ -74,7 +100,7 @@ def test_account(provider_name: str) -> AccountActionResponse:
 def clear_account(provider_name: str) -> AccountActionResponse:
     """Efface les cookies de session stockés et supprime le profil de navigateur persistant."""
     p_lower = provider_name.lower()
-    if p_lower not in ["loverslab", "patreon"]:
+    if p_lower not in _get_registered_provider_names():
         raise HTTPException(status_code=400, detail=f"Fournisseur non reconnu: {provider_name}")
 
     ok = SessionManager.clear_session(p_lower)
@@ -89,10 +115,10 @@ def clear_account(provider_name: str) -> AccountActionResponse:
 def login_account(provider_name: str, payload: AccountLoginRequest = AccountLoginRequest()) -> AccountLoginResponse:
     """Lance une fenêtre Playwright interactive pour résoudre Cloudflare ou se connecter."""
     p_lower = provider_name.lower()
-    if p_lower not in PROVIDERS_LOGIN_URLS:
-        raise HTTPException(status_code=400, detail=f"Fournisseur non reconnu: {provider_name}")
+    login_url = _get_login_url(p_lower)
+    if not login_url:
+        raise HTTPException(status_code=400, detail=f"Fournisseur non reconnu ou sans URL de connexion: {provider_name}")
 
-    login_url = PROVIDERS_LOGIN_URLS[p_lower]
     ok, msg, cookies = SessionManager.launch_interactive_login(
         provider_name=p_lower,
         target_url=login_url,

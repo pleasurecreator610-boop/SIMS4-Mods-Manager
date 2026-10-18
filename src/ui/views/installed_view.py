@@ -450,3 +450,17 @@ class InstalledView(QWidget):
         count = len(self.all_mods)
         self.badge_count.setText(tr("installed.badge_count", count=count))
         self._filter_cards()
+
+    def cleanup(self):
+        """Arrête proprement les workers d'arrière-plan de InstalledView."""
+        for worker_attr in ["_fetch_worker", "_scan_worker", "_conflicts_worker"]:
+            w = getattr(self, worker_attr, None)
+            if w:
+                safe_stop_thread(w)
+                setattr(self, worker_attr, None)
+
+    def closeEvent(self, event):
+        """Interrompt les tâches asynchrones lors de la fermeture."""
+        self.cleanup()
+        super().closeEvent(event)
+
