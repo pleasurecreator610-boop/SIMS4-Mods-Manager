@@ -20,6 +20,7 @@ from src.application.dependencies.dependency_normalizer import clean_dependency_
 from src.ui.components.dependency_card import DependencyCardWidget
 from src.ui.components.author_interpellate_widget import AuthorInterpellateWidget
 from src.ui.theme import Theme
+from src.i18n import tr
 
 
 class DetailRequirementsWidget(QWidget):
@@ -50,11 +51,11 @@ class DetailRequirementsWidget(QWidget):
 
         # Header row with collapse button
         hdr_row = QHBoxLayout()
-        self.req_title = QLabel("🔗 Dépendances & Prérequis (Requirements) :")
+        self.req_title = QLabel(tr("mod_detail.req_section_title"))
         self.req_title.setStyleSheet("font-size: 13px; font-weight: 700; color: #f8fafc;")
         hdr_row.addWidget(self.req_title, stretch=1)
 
-        self.req_collapse_btn = QPushButton("▲ Réduire")
+        self.req_collapse_btn = QPushButton(tr("mod_detail.btn_collapse"))
         self.btn_collapse = self.req_collapse_btn
         self.req_collapse_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.req_collapse_btn.setStyleSheet("""
@@ -178,7 +179,7 @@ class DetailRequirementsWidget(QWidget):
     def _toggle_collapse(self):
         self._is_collapsed = not self._is_collapsed
         self.req_body.setVisible(not self._is_collapsed)
-        self.req_collapse_btn.setText("▼ Développer" if self._is_collapsed else "▲ Réduire")
+        self.req_collapse_btn.setText(tr("mod_detail.btn_expand") if self._is_collapsed else tr("mod_detail.btn_collapse"))
         if not self._is_collapsed:
             self._update_responsive_height()
 
@@ -187,7 +188,7 @@ class DetailRequirementsWidget(QWidget):
         self._is_collapsed = False
         self.req_frame.setVisible(True)
         self.req_collapse_btn.setVisible(True)
-        self.req_collapse_btn.setText("▲ Réduire")
+        self.req_collapse_btn.setText(tr("mod_detail.btn_collapse"))
         self.req_body.setVisible(True)
         self.deps_scroll.setVisible(False)
         self.deps_scroll.setMinimumHeight(0)
@@ -199,12 +200,9 @@ class DetailRequirementsWidget(QWidget):
                 padding: 10px 14px;
             }
         """)
-        self.req_title.setText("🔄 Analyse des dépendances et prérequis...")
+        self.req_title.setText(tr("mod_detail.analyzing_reqs"))
         self.req_title.setStyleSheet("font-size: 13px; font-weight: 700; color: #94a3b8;")
-        self.req_desc.setText(
-            "Analyse en cours des prérequis du mod et vérification des dépendances sur LoversLab...\n"
-            "Veuillez patienter pendant l'inspection des données."
-        )
+        self.req_desc.setText(tr("mod_detail.analyzing_reqs_desc"))
         self.req_desc.setStyleSheet("font-size: 11px; color: #64748b;")
         while self.deps_layout.count():
             it = self.deps_layout.takeAt(0)
@@ -228,7 +226,7 @@ class DetailRequirementsWidget(QWidget):
                     w.deleteLater()
 
         self.req_body.setVisible(True)
-        self.req_collapse_btn.setText("▲ Réduire")
+        self.req_collapse_btn.setText(tr("mod_detail.btn_collapse"))
 
         overrides = dict(data.get("requirements_overrides", {}) or {})
 
@@ -315,12 +313,9 @@ class DetailRequirementsWidget(QWidget):
                     }
                 """)
                 total_cnt = len(raw_deps) or len(unfound)
-                self.req_title.setText(f"⚠️ Dépendances requises ({total_cnt}) - Composants manquants")
+                self.req_title.setText(tr("mod_detail.missing_reqs_title", count=total_cnt))
                 self.req_title.setStyleSheet("font-size: 13px; font-weight: 700; color: #fde68a;")
-                self.req_desc.setText(
-                    "Ce mod nécessite des composants dont certains ne sont pas trouvés sur LoversLab. "
-                    "Vous pouvez marquer les faux positifs comme commentaires pour débloquer l'installation complète."
-                )
+                self.req_desc.setText(tr("mod_detail.missing_reqs_desc"))
                 self.req_desc.setStyleSheet("font-size: 11px; color: #fcd34d; margin-top: 2px;")
             else:
                 self.req_frame.setStyleSheet("""
@@ -331,12 +326,9 @@ class DetailRequirementsWidget(QWidget):
                         padding: 10px 14px;
                     }
                 """)
-                self.req_title.setText(f"🔗 Dépendances et DLCs identifiés ({len(raw_deps)}) :")
+                self.req_title.setText(tr("mod_detail.identified_reqs_title", count=len(raw_deps)))
                 self.req_title.setStyleSheet("font-size: 13px; font-weight: 700; color: #93c5fd;")
-                self.req_desc.setText(
-                    "Ce mod s'appuie sur les composants suivants. Les mods manquants seront automatiquement téléchargés, "
-                    "et les éventuels packs DLC officiels sont à vérifier dans votre jeu :"
-                )
+                self.req_desc.setText(tr("mod_detail.identified_reqs_desc"))
                 self.req_desc.setStyleSheet("font-size: 11px; color: #94a3b8; margin-top: 2px;")
 
             def _add_section_header(title: str, color: str):
@@ -347,61 +339,59 @@ class DetailRequirementsWidget(QWidget):
                 self.deps_layout.addWidget(lbl)
 
             if game_dlcs:
-                _add_section_header(f"🎮 Packs DLC Officiels Sims 4 ({len(game_dlcs)}) :", "#c084fc")
+                _add_section_header(tr("mod_detail.dlcs_header", count=len(game_dlcs)), "#c084fc")
                 for d in game_dlcs:
                     t = d.get("title") or d.get("dlc_name") or "DLC Sims 4"
                     is_detected = d.get("is_installed", False)
-                    badge_t = "✅ Détecté dans le jeu" if is_detected else "🎮 DLC Jeu (À vérifier)"
+                    badge_t = tr("dependencies.dlc_detected") if is_detected else tr("dependencies.dlc_check")
                     card = DependencyCardWidget(
                         t, badge_t, badge_variant="success" if is_detected else "purple", prefix="🎮"
                     )
                     self.deps_layout.addWidget(card)
 
             if to_install:
-                _add_section_header(f"📥 Dépendances trouvées à installer ({len(to_install)}) :", "#60a5fa")
+                _add_section_header(tr("mod_detail.to_install_header", count=len(to_install)), "#60a5fa")
                 for d in to_install:
                     t = d.get("title") or f"Mod #{d.get('remote_id')}"
-                    card = DependencyCardWidget(t, "📥 Sera installé automatiquement", badge_variant="info", prefix="•")
+                    card = DependencyCardWidget(t, "📥 " + tr("dependencies.badge_to_install"), badge_variant="info", prefix="•")
                     self.deps_layout.addWidget(card)
 
             if already_installed:
-                _add_section_header(f"✅ Dépendances déjà installées ({len(already_installed)}) :", "#4ade80")
+                _add_section_header(tr("mod_detail.installed_header", count=len(already_installed)), "#4ade80")
                 for d in already_installed:
                     t = d.get("title") or f"Mod #{d.get('remote_id')}"
-                    card = DependencyCardWidget(t, "✅ Déjà installé", badge_variant="success", prefix="✓")
+                    card = DependencyCardWidget(t, "✅ " + tr("dependencies.badge_installed"), badge_variant="success", prefix="✓")
                     self.deps_layout.addWidget(card)
 
             self._unfound_dep_names = []
             if unfound:
-                _add_section_header(f"⚠️ Dépendances introuvables ({len(unfound)}) :", "#f87171")
+                _add_section_header(tr("mod_detail.unfound_header", count=len(unfound)), "#f87171")
                 for d in unfound:
                     t = d.get("title") or f"Mod #{d.get('remote_id')}"
                     self._unfound_dep_names.append(t)
-                    btn_comm = QPushButton("💬 Marquer comme commentaire")
+                    btn_comm = QPushButton(tr("mod_detail.mark_as_comment"))
                     btn_comm.setCursor(Qt.CursorShape.PointingHandCursor)
                     btn_comm.setStyleSheet(Theme.subtle_toggle_button_style(is_active=False))
                     btn_comm.clicked.connect(lambda _, item=d: self.toggle_comment_requested.emit(item, True))
                     card = DependencyCardWidget(
-                        t, "⚠️ Introuvable sur LoversLab", badge_variant="danger", prefix="⚠️", action_btn=btn_comm
+                        t, "⚠️ " + tr("dependencies.unfound_badge"), badge_variant="danger", prefix="⚠️", action_btn=btn_comm
                     )
                     self.deps_layout.addWidget(card)
 
             if comments:
-                _add_section_header(f"💬 Notes & Commentaires identifiés ({len(comments)}) :", "#94a3b8")
-                comm_note = QLabel(
-                    "Ces éléments ont été marqués comme simples commentaires textuels et ne bloqueront pas l'installation :"
-                )
+                _add_section_header(tr("mod_detail.comments_header", count=len(comments)), "#94a3b8")
+                comm_note = QLabel(tr("mod_detail.comments_desc"))
                 comm_note.setStyleSheet("font-size: 11px; color: #64748b; margin-bottom: 2px;")
                 comm_note.setWordWrap(True)
                 self.deps_layout.addWidget(comm_note)
                 for d in comments:
                     t = d.get("title") or f"Mod #{d.get('remote_id')}"
-                    btn_mod = QPushButton("📦 Marquer comme vrai mod requis")
+                    btn_mod = QPushButton(tr("mod_detail.mark_as_mod"))
                     btn_mod.setCursor(Qt.CursorShape.PointingHandCursor)
                     btn_mod.setStyleSheet(Theme.subtle_toggle_button_style(is_active=True))
                     btn_mod.clicked.connect(lambda _, item=d: self.toggle_comment_requested.emit(item, False))
                     card = DependencyCardWidget(
-                        t, "💬 Commentaire / Note", badge_variant="neutral", prefix="💬", action_btn=btn_mod
+                        t, "💬 " + tr("dependencies.badge_comment"), badge_variant="neutral", prefix="💬", action_btn=btn_mod
                     )
                     self.deps_layout.addWidget(card)
 
@@ -423,7 +413,7 @@ class DetailRequirementsWidget(QWidget):
             if req_text and req_text.strip():
                 self.req_frame.setVisible(True)
                 self.req_collapse_btn.setVisible(True)
-                self.req_collapse_btn.setText("▲ Réduire")
+                self.req_collapse_btn.setText(tr("mod_detail.btn_collapse"))
                 self.req_body.setVisible(True)
                 self.req_frame.setStyleSheet("""
                     QFrame {
@@ -433,7 +423,7 @@ class DetailRequirementsWidget(QWidget):
                         padding: 10px 14px;
                     }
                 """)
-                self.req_title.setText("ℹ️ Notes de prérequis :")
+                self.req_title.setText(tr("mod_detail.notes_header"))
                 self.req_title.setStyleSheet("font-size: 13px; font-weight: 700; color: #cbd5e1;")
                 self.req_desc.setText(req_text)
             else:

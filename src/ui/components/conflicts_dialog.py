@@ -51,7 +51,7 @@ class ConflictCardWidget(QFrame):
         tgi = self.conflict.get("tgi", "")
         res_name = self.conflict.get("resource_type_name", "Resource")
 
-        badge = QLabel("🌐 TRADUCTION / STBL" if is_stbl else "⚠️ COLLISION TUNING")
+        badge = QLabel(tr("conflicts.badge_stbl") if is_stbl else tr("conflicts.badge_tuning"))
         badge.setStyleSheet(
             "background-color: #1e3a8a; color: #93c5fd; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700;"
             if is_stbl
@@ -119,7 +119,7 @@ class ConflictsDialog(QDialog):
         super().__init__(parent)
         self.report = initial_report
         self.api_client = api_client
-        self.setWindowTitle("Diagnostic et Résolution des Conflits DBPF")
+        self.setWindowTitle(tr("conflicts.window_title"))
         self.resize(780, 560)
         self.init_ui()
 
@@ -164,7 +164,7 @@ class ConflictsDialog(QDialog):
 
         # Bottom buttons
         bottom_layout = QHBoxLayout()
-        self.btn_refresh = QPushButton("🔄 Re-scanner les Conflits")
+        self.btn_refresh = QPushButton(tr("conflicts.btn_rescan"))
         self.btn_refresh.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_refresh.setStyleSheet("""
             QPushButton {
@@ -182,7 +182,7 @@ class ConflictsDialog(QDialog):
 
         bottom_layout.addStretch()
 
-        btn_close = QPushButton("Fermer")
+        btn_close = QPushButton(tr("conflicts.btn_close"))
         btn_close.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_close.setStyleSheet("""
             QPushButton {
@@ -209,16 +209,11 @@ class ConflictsDialog(QDialog):
         crit_count = count - trans_count
 
         if count == 0:
-            self.summary_title.setText("✅ Aucun conflit DBPF détecté !")
-            self.summary_desc.setText(
-                f"{scanned} fichiers .package analysés. Toutes les ressources sont uniques et compatibles."
-            )
+            self.summary_title.setText(tr("conflicts.no_conflicts_title"))
+            self.summary_desc.setText(tr("conflicts.no_conflicts_desc", scanned=scanned))
         else:
-            self.summary_title.setText(f"⚠️ {count} Collision(s) Détectée(s) parmi {scanned} Packages")
-            desc = f"{crit_count} collision(s) de tuning critique(s)"
-            if trans_count > 0:
-                desc += f" et {trans_count} remplacement(s) de traduction STBL"
-            self.summary_desc.setText(desc + ". Vous pouvez désactiver un package en conflit ci-dessous :")
+            self.summary_title.setText(tr("conflicts.conflicts_title", count=count, scanned=scanned))
+            self.summary_desc.setText(tr("conflicts.conflicts_desc", crit_count=crit_count, trans_count=trans_count))
 
         # Clear existing items
         while self.content_layout.count():
@@ -230,7 +225,7 @@ class ConflictsDialog(QDialog):
 
         conflicts = report.get("conflicts", [])
         if not conflicts:
-            no_conflicts_lbl = QLabel("Aucune collision restante. Vos mods sont désormais parfaitement compatibles !")
+            no_conflicts_lbl = QLabel(tr("conflicts.no_remaining"))
             no_conflicts_lbl.setStyleSheet("color: #4ade80; font-size: 13px; font-weight: 600; padding: 20px;")
             no_conflicts_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.content_layout.addWidget(no_conflicts_lbl)
@@ -244,19 +239,19 @@ class ConflictsDialog(QDialog):
 
     def _refresh_conflicts(self):
         self.btn_refresh.setEnabled(False)
-        self.btn_refresh.setText("⏳ Analyse...")
+        self.btn_refresh.setText(tr("conflicts.btn_scanning"))
 
         def _do_fetch():
             return self.api_client.get_mod_conflicts()
 
         def _on_fetched(new_report):
             self.btn_refresh.setEnabled(True)
-            self.btn_refresh.setText("🔄 Re-scanner les Conflits")
+            self.btn_refresh.setText(tr("conflicts.btn_rescan"))
             self._render_report(new_report)
 
         def _on_error(err):
             self.btn_refresh.setEnabled(True)
-            self.btn_refresh.setText("🔄 Re-scanner les Conflits")
-            QMessageBox.warning(self, "Erreur", f"Échec du re-scan des conflits : {err}")
+            self.btn_refresh.setText(tr("conflicts.btn_rescan"))
+            QMessageBox.warning(self, tr("dialogs.error_title"), tr("conflicts.rescan_error", error=str(err)))
 
         run_async_ui_task(_do_fetch, on_finished=_on_fetched, on_error=_on_error)

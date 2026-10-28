@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Signal
 from src.utils.mod_type_classifier import ModTypeClassifier
-from src.i18n import tr
+from src.i18n import I18nManager, tr
 
 
 class FilterBar(QWidget):
@@ -17,6 +17,7 @@ class FilterBar(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.init_ui()
+        I18nManager.instance().language_changed.connect(lambda _: self.retranslate_ui())
 
     def init_ui(self):
         """Exécute l'opération init ui."""
@@ -70,6 +71,7 @@ class FilterBar(QWidget):
         self.source_combo.addItem("LoversLab", "LoversLab")
         self.source_combo.addItem("NSFWMods", "NSFWMods")
         self.source_combo.addItem("CurseForge", "CurseForge")
+        self.source_combo.addItem("The Sims Resource", "The Sims Resource")
         self.source_combo.addItem("Patreon", "Patreon")
         idx = self.source_combo.findData(src_curr)
         if idx >= 0:

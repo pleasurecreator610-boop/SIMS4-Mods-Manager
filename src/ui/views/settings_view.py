@@ -358,12 +358,18 @@ class SettingsView(QWidget):
             backups_mb = backups_bytes / (1024 * 1024)
             cache_mb = cache_bytes / (1024 * 1024)
             downloads_mb = downloads_bytes / (1024 * 1024)
-            text = f"Stockage : {total_mb:.1f} Mo (Backups: {backups_mb:.1f} Mo, Cache: {cache_mb:.1f} Mo, Temp: {downloads_mb:.1f} Mo)"
+            text = tr(
+                "settings.storage_stats",
+                total=f"{total_mb:.1f}",
+                backups=f"{backups_mb:.1f}",
+                cache=f"{cache_mb:.1f}",
+                downloads=f"{downloads_mb:.1f}",
+            )
             self.storage_lbl.setText(text)
 
         def _on_error(err):
             logger.debug(f"Impossible de charger les statistiques de stockage : {err}")
-            self.storage_lbl.setText("Stockage : Indisponible")
+            self.storage_lbl.setText(tr("settings.storage_unavailable"))
 
         run_async_ui_task(_fetch, on_finished=_on_fetched, on_error=_on_error)
 
@@ -371,8 +377,8 @@ class SettingsView(QWidget):
         """Demande confirmation et nettoie le stockage temporaire sans bloquer l'UI."""
         reply = QMessageBox.question(
             self,
-            "Nettoyage de l'espace disque",
-            "Voulez-vous nettoyer les caches et téléchargements temporaires pour libérer de l'espace disque ?",
+            tr("settings.cleanup_confirm_title"),
+            tr("settings.cleanup_confirm_msg"),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
@@ -388,14 +394,14 @@ class SettingsView(QWidget):
                 deleted_files = res.get("deleted_files_count", 0)
                 QMessageBox.information(
                     self,
-                    "Nettoyage terminé",
-                    f"Espace disque libéré avec succès : {freed_mb:.1f} Mo\n({deleted_files} fichiers nettoyés)",
+                    tr("settings.cleanup_done_title"),
+                    tr("settings.cleanup_done_msg", freed=f"{freed_mb:.1f}", count=deleted_files),
                 )
                 self.load_storage_stats()
 
             def _on_error(err):
                 logger.error(f"Erreur lors du nettoyage de stockage : {err}")
-                QMessageBox.warning(self, tr("dialogs.error_title"), f"Erreur lors du nettoyage : {err}")
+                QMessageBox.warning(self, tr("dialogs.error_title"), tr("settings.cleanup_error", error=str(err)))
 
             run_async_ui_task(
                 _do_cleanup, on_finished=_on_cleaned, on_error=_on_error, disable_widgets=[btn] if btn else None

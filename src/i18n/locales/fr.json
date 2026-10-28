@@ -81,7 +81,16 @@
     "save_error_msg": "Échec de l'enregistrement des paramètres : {error}",
     "select_mods_dir": "Sélectionner le dossier Mods de Sims 4",
     "select_game_exe": "Sélectionner l'exécutable Sims 4",
-    "exe_filter": "Exécutables (*.exe)"
+    "exe_filter": "Exécutables (*.exe)",
+    "storage_loading": "Stockage : Analyse...",
+    "storage_unavailable": "Stockage : Indisponible",
+    "storage_stats": "Stockage : {total} Mo (Backups: {backups} Mo, Cache: {cache} Mo, Temp: {downloads} Mo)",
+    "cleanup_storage_btn": "🧹 Nettoyer l'espace disque",
+    "cleanup_confirm_title": "Nettoyage de l'espace disque",
+    "cleanup_confirm_msg": "Voulez-vous nettoyer les caches et téléchargements temporaires pour libérer de l'espace disque ?",
+    "cleanup_done_title": "Nettoyage terminé",
+    "cleanup_done_msg": "Espace disque libéré avec succès : {freed} Mo\n({count} fichiers nettoyés)",
+    "cleanup_error": "Erreur lors du nettoyage : {error}"
   },
   "catalog": {
     "title": "Catalogue Unifié des Mods",
@@ -153,7 +162,12 @@
     "delete_success_msg": "Le mod '{title}' a été supprimé avec succès.",
     "scan_finished_title": "Scan Terminé",
     "scan_error_title": "Erreur Scan",
-    "files_count": "📦 {count} fichier(s)"
+    "files_count": "📦 {count} fichier(s)",
+    "status_active": "🟢 Actif",
+    "status_inactive": "⏸️ Inactif",
+    "toggle_tooltip": "Cliquer pour activer ou désactiver ce mod sans le supprimer",
+    "restore_tooltip": "Restaurer la sauvegarde de la version précédente",
+    "subfolder_tooltip": "Sous-dossier : {folder}"
   },
   "updates": {
     "title": "Mises à jour des Mods",
@@ -213,6 +227,8 @@
     "nsfwmods_desc": "Permet l'accès complet au catalogue Sims Mods de NSFWMods.com, aux téléchargements directs et aux interactions forum.",
     "curseforge_title": "CurseForge (Catalogue Officiel Les Sims 4 & CDN)",
     "curseforge_desc": "Permet l'accès au catalogue officiel CurseForge Les Sims 4 et aux téléchargements directs d'archives via ForgeCDN.",
+    "thesimsresource_title": "The Sims Resource (Catalogue Sims 4 CC & Mods)",
+    "thesimsresource_desc": "Permet l'accès au catalogue The Sims Resource (TSR) Les Sims 4 et aux téléchargements directs de créations CC et Mods.",
     "patreon_title": "Patreon (Accès Créateurs & Niveaux d'Abonnement)",
     "patreon_desc": "Permet d'identifier si votre compte Patreon a débloqué les mods réservés aux abonnés / accès anticipé et de télécharger les pièces jointes.",
     "status_unconfigured": "Non configuré",
@@ -277,7 +293,23 @@
     "gallery_title": "📸 Galerie & Captures d'écran :",
     "gallery_hint": "(Cliquez sur une image pour l'agrandir en haute définition)",
     "back_to": "← Retour à {origin}",
-    "installing": "⏳ Installation en cours..."
+    "installing": "⏳ Installation en cours...",
+    "not_installed": "Non installé",
+    "analyzing_reqs": "🔄 Analyse des dépendances et prérequis...",
+    "analyzing_reqs_desc": "Analyse en cours des prérequis du mod et vérification des dépendances...\nVeuillez patienter pendant l'inspection des données.",
+    "missing_reqs_title": "⚠️ Dépendances requises ({count}) - Composants manquants",
+    "missing_reqs_desc": "Ce mod nécessite des composants dont certains ne sont pas trouvés. Vous pouvez marquer les faux positifs comme commentaires pour débloquer l'installation complète.",
+    "identified_reqs_title": "🔗 Dépendances et DLCs identifiés ({count}) :",
+    "identified_reqs_desc": "Ce mod s'appuie sur les composants suivants. Les mods manquants seront automatiquement téléchargés, et les éventuels packs DLC officiels sont à vérifier dans votre jeu :",
+    "dlcs_header": "🎮 Packs DLC Officiels Sims 4 ({count}) :",
+    "to_install_header": "📥 Dépendances trouvées à installer ({count}) :",
+    "installed_header": "✅ Dépendances déjà installées ({count}) :",
+    "unfound_header": "⚠️ Dépendances introuvables ({count}) :",
+    "comments_header": "💬 Notes & Commentaires identifiés ({count}) :",
+    "comments_desc": "Ces éléments ont été marqués comme simples commentaires textuels et ne bloqueront pas l'installation :",
+    "mark_as_comment": "💬 Marquer comme commentaire",
+    "mark_as_mod": "📦 Marquer comme vrai mod requis",
+    "notes_header": "ℹ️ Notes de prérequis :"
   },
   "drawer": {
     "btn_toggle_collapsed": "🛰️ Sites ◀",
@@ -327,7 +359,7 @@
     "info_full": "Ce mod nécessite d'autres composants pour fonctionner correctement dans Les Sims 4.\nVérifiez l'état des dépendances ci-dessous avant de procéder :",
     "dlc_header": "🎮 Packs / DLCs officiels Les Sims 4 requis ({count}) :",
     "dlc_notice": "ℹ️ Ces éléments sont des extensions officielles du jeu Les Sims 4 (EA / Steam) et non des mods à télécharger.\nVeuillez vérifier que vous possédez bien ces packs installés sur votre jeu :",
-    "dlc_detected": "✅ Détecté dans votre jeu",
+    "dlc_detected": "✅ Détecté dans le jeu",
     "dlc_check": "⚠️ À vérifier dans votre jeu",
     "unfound_header": "⚠️ Dépendances non trouvées / indisponibles ({count}) :",
     "unfound_badge": "Introuvable sur le site",
@@ -426,5 +458,33 @@
     "warning": "Avertissement",
     "info": "Information",
     "error": "Erreur"
+  },
+  "mod_types": {
+    "all": "Tous les types",
+    "animation": "Animations & Poses",
+    "clothing": "Vêtements & Tenues",
+    "hair": "Coiffures",
+    "body_skin": "Peaux, Corps & Presets",
+    "accessories_makeup": "Accessoires & Maquillage",
+    "gameplay_script": "Gameplay & Scripts",
+    "objects_lots": "Objets, Meubles & Terrains",
+    "translations": "Traductions",
+    "other": "Autres"
+  },
+  "conflicts": {
+    "window_title": "Diagnostic et Résolution des Conflits DBPF",
+    "badge_stbl": "🌐 TRADUCTION / STBL",
+    "badge_tuning": "⚠️ COLLISION TUNING",
+    "btn_rescan": "🔄 Re-scanner les Conflits",
+    "btn_scanning": "⏳ Analyse...",
+    "btn_close": "Fermer",
+    "no_conflicts_title": "✅ Aucun conflit DBPF détecté !",
+    "no_conflicts_desc": "{scanned} fichiers .package analysés. Toutes les ressources sont uniques et compatibles.",
+    "conflicts_title": "⚠️ {count} Collision(s) Détectée(s) parmi {scanned} Packages",
+    "conflicts_desc": "{crit_count} collision(s) de tuning critique(s) et {trans_count} remplacement(s) de traduction STBL. Vous pouvez désactiver un package en conflit ci-dessous :",
+    "no_remaining": "Aucune collision restante. Vos mods sont désormais parfaitement compatibles !",
+    "btn_disable": "⏸️ Désactiver ce package",
+    "btn_enable": "🟢 Réactiver",
+    "rescan_error": "Échec du re-scan des conflits : {error}"
   }
 }

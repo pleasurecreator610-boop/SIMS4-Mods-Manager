@@ -1401,6 +1401,24 @@ def test_cross_platform_shared_dependencies_and_non_collision_e2e(e2e_env, monke
                 }
             ],
         },
+        # Mod on The Sims Resource requiring XML Injector
+        {
+            "source": "thesimsresource",
+            "remote_id": "1736888",
+            "title": "Boho Functional Tea Set",
+            "author": "Syboulette",
+            "page_url": "https://www.thesimsresource.com/downloads/details/id/1736888",
+            "dl_url": "https://www.thesimsresource.com/ajax.php?c=downloads&a=initDownload&itemid=1736888&setItems=&format=zip",
+            "pkg": "Syboulette_BohoTeaSet.package",
+            "reqs": [
+                {
+                    "source": "curseforge",
+                    "remote_id": "xml-injector",
+                    "title": "XML Injector",
+                    "url": "https://www.curseforge.com/sims4/mods/xml-injector",
+                }
+            ],
+        },
         # Identical Mod on NSFWMods & LoversLab: Sims 4 Community Library
         {
             "source": "nsfwmods",
@@ -1420,6 +1438,27 @@ def test_cross_platform_shared_dependencies_and_non_collision_e2e(e2e_env, monke
             "page_url": "https://www.loverslab.com/files/file/25060-sims-4-community-library/",
             "dl_url": "https://www.loverslab.com/files/file/25060-sims-4-community-library/?do=download",
             "pkg": "s4cl.package",
+            "reqs": [],
+        },
+        # Identical Mod on The Sims Resource & CurseForge: Syboulette Boho Living Room
+        {
+            "source": "thesimsresource",
+            "remote_id": "1736999",
+            "title": "Syboulette Boho Living Room",
+            "author": "Syboulette",
+            "page_url": "https://www.thesimsresource.com/downloads/details/id/1736999",
+            "dl_url": "https://www.thesimsresource.com/ajax.php?c=downloads&a=initDownload&itemid=1736999&setItems=&format=zip",
+            "pkg": "Syboulette_BohoLiving.package",
+            "reqs": [],
+        },
+        {
+            "source": "curseforge",
+            "remote_id": "syboulette-boho-living-room",
+            "title": "Syboulette Boho Living Room v2",
+            "author": "Syboulette",
+            "page_url": "https://www.curseforge.com/sims4/build-buy/syboulette-boho-living-room",
+            "dl_url": "https://www.curseforge.com/api/v1/mods/800999/files/900999/download",
+            "pkg": "Syboulette_BohoLiving.package",
             "reqs": [],
         },
     ]
@@ -1444,7 +1483,14 @@ def test_cross_platform_shared_dependencies_and_non_collision_e2e(e2e_env, monke
     entries_by_url = {e["page_url"]: e for e in catalog_entries}
     entries_by_dl = {e["dl_url"]: e for e in catalog_entries}
     download_lock = threading.Lock()
-    download_counts = {"xml_injector": 0, "s4cl": 0, "social_activities": 0, "confidence_cascade": 0}
+    download_counts = {
+        "xml_injector": 0,
+        "s4cl": 0,
+        "social_activities": 0,
+        "confidence_cascade": 0,
+        "boho_tea_set": 0,
+        "boho_living": 0,
+    }
 
     def _make_provider(source_name: str):
         prov = MagicMock()
@@ -1474,6 +1520,10 @@ def test_cross_platform_shared_dependencies_and_non_collision_e2e(e2e_env, monke
                     download_counts["social_activities"] += 1
                 elif e["remote_id"] == "51444":
                     download_counts["confidence_cascade"] += 1
+                elif e["remote_id"] == "1736888":
+                    download_counts["boho_tea_set"] += 1
+                elif e["remote_id"] in ("1736999", "syboulette-boho-living-room"):
+                    download_counts["boho_living"] += 1
 
             buf = io.BytesIO()
             with zipfile.ZipFile(buf, "w") as zf:
@@ -1489,6 +1539,7 @@ def test_cross_platform_shared_dependencies_and_non_collision_e2e(e2e_env, monke
         "loverslab": _make_provider("loverslab"),
         "nsfwmods": _make_provider("nsfwmods"),
         "curseforge": _make_provider("curseforge"),
+        "thesimsresource": _make_provider("thesimsresource"),
     }
     monkeypatch.setattr(ProviderRegistry, "get_provider", classmethod(lambda cls, name: providers.get(name)))
 
@@ -1523,7 +1574,7 @@ def test_cross_platform_shared_dependencies_and_non_collision_e2e(e2e_env, monke
     assert len(chk_ll_data["missing_dependencies"]) == 0
     assert len(chk_ll_data["already_installed_dependencies"]) == 1
 
-    # 3. Install 'Confidence Cascade' on LoversLab -> XML Injector MUST NOT be downloaded or installed again!
+    # 3. Install 'Confidence Cascade' on LoversLab AND 'Boho Functional Tea Set' on TSR -> XML Injector MUST NOT be downloaded again!
     res_ll = client.post(
         "/api/catalog/install",
         json={
@@ -1539,6 +1590,22 @@ def test_cross_platform_shared_dependencies_and_non_collision_e2e(e2e_env, monke
     assert res_ll.json()["success"] is True
     assert download_counts["xml_injector"] == 1, "XML Injector was re-downloaded across platforms!"
     assert download_counts["confidence_cascade"] == 1
+
+    res_tsr_dep = client.post(
+        "/api/catalog/install",
+        json={
+            "catalog_mod_id": db_ids[("thesimsresource", "1736888")],
+            "source": "thesimsresource",
+            "remote_id": "1736888",
+            "title": "Boho Functional Tea Set",
+            "page_url": "https://www.thesimsresource.com/downloads/details/id/1736888",
+            "install_dependencies": True,
+        },
+    )
+    assert res_tsr_dep.status_code == 200
+    assert res_tsr_dep.json()["success"] is True
+    assert download_counts["xml_injector"] == 1, "XML Injector was re-downloaded during TSR mod install!"
+    assert download_counts["boho_tea_set"] == 1
 
     # 4. Attempt direct installation of 'XML Injector v4' from LoversLab when 'XML Injector' from CurseForge is installed
     res_dup_xml = client.post(
@@ -1557,6 +1624,7 @@ def test_cross_platform_shared_dependencies_and_non_collision_e2e(e2e_env, monke
     assert download_counts["xml_injector"] == 1, "Direct cross-platform duplicate install re-downloaded XML Injector!"
 
     # 5. Concurrent installation of the same mod ('Sims 4 Community Library') from NSFWMods (#742) and LoversLab (#25060)
+    #    AND concurrent installation of ('Syboulette Boho Living Room') from The Sims Resource (#1736999) and CurseForge
     req_s4cl_nm = CatalogInstallRequest(
         catalog_mod_id=db_ids[("nsfwmods", "742")],
         source="nsfwmods",
@@ -1573,19 +1641,299 @@ def test_cross_platform_shared_dependencies_and_non_collision_e2e(e2e_env, monke
         page_url="https://www.loverslab.com/files/file/25060-sims-4-community-library/",
         install_dependencies=False,
     )
+    req_boho_tsr = CatalogInstallRequest(
+        catalog_mod_id=db_ids[("thesimsresource", "1736999")],
+        source="thesimsresource",
+        remote_id="1736999",
+        title="Syboulette Boho Living Room",
+        page_url="https://www.thesimsresource.com/downloads/details/id/1736999",
+        install_dependencies=False,
+    )
+    req_boho_cf = CatalogInstallRequest(
+        catalog_mod_id=db_ids[("curseforge", "syboulette-boho-living-room")],
+        source="curseforge",
+        remote_id="syboulette-boho-living-room",
+        title="Syboulette Boho Living Room v2",
+        page_url="https://www.curseforge.com/sims4/build-buy/syboulette-boho-living-room",
+        install_dependencies=False,
+    )
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
         f1 = pool.submit(perform_mod_install, req_s4cl_nm)
         f2 = pool.submit(perform_mod_install, req_s4cl_ll)
-        r1, r2 = f1.result(), f2.result()
+        f3 = pool.submit(perform_mod_install, req_boho_tsr)
+        f4 = pool.submit(perform_mod_install, req_boho_cf)
+        r1, r2, r3, r4 = f1.result(), f2.result(), f3.result(), f4.result()
 
-    assert r1.success is True and r2.success is True
+    assert r1.success is True and r2.success is True and r3.success is True and r4.success is True
     assert download_counts["s4cl"] == 1, f"S4CL was downloaded {download_counts['s4cl']} times instead of 1!"
+    assert download_counts["boho_living"] == 1, f"Boho Living was downloaded {download_counts['boho_living']} times!"
 
-    # 6. Verify DB and physical folders: strictly 4 unique mods (XML Injector, Social Activities, Confidence Cascade, S4CL)
+    # 6. Verify DB and physical folders: strictly 6 unique mods
     with db.get_session() as s:
         all_installed = s.query(InstalledMod).all()
-        assert len(all_installed) == 4, f"Expected 4 unique installed mods, got {[m.title for m in all_installed]}"
+        assert len(all_installed) == 6, f"Expected 6 unique installed mods, got {[m.title for m in all_installed]}"
         physical_dirs = [p for p in mods_dir.iterdir() if p.is_dir()]
-        assert len(physical_dirs) == 4, f"Expected 4 folders on disk, got {[p.name for p in physical_dirs]}"
+        assert len(physical_dirs) == 6, f"Expected 6 folders on disk, got {[p.name for p in physical_dirs]}"
+
+
+def test_thesimsresource_provider_catalog_and_installation_e2e(e2e_env, monkeypatch):
+    """
+    Tests end-to-end catalog listing, filtering, details fetching, and installation
+    for a mod from The Sims Resource provider ('thesimsresource',
+    https://www.thesimsresource.com/downloads/browse/category/sims4/skipsetitems/1/).
+    """
+    from unittest.mock import MagicMock
+    from src.database.models import InstalledMod
+
+    client = e2e_env["client"]
+    db = e2e_env["db"]
+    mods_dir = e2e_env["mods_dir"]
+
+    with db.get_session() as s:
+        tsr_mod = CatalogMod(
+            source="thesimsresource",
+            remote_id="1736888",
+            title="Modern Boho Living Room Set",
+            author="Syboulette",
+            category="Objects (TSR)",
+            page_url="https://www.thesimsresource.com/downloads/details/id/1736888",
+            version_str="v2",
+            patreon_status="NONE",
+            requirements_status="NONE",
+        )
+        s.add(tsr_mod)
+        s.commit()
+        tsr_mod_id = tsr_mod.id
+
+    # 1. Verify catalog filtering by source="thesimsresource"
+    cat_resp = client.get("/api/catalog?source=thesimsresource")
+    assert cat_resp.status_code == 200
+    items = cat_resp.json()["items"]
+    assert len(items) == 1
+    assert items[0]["source"] == "thesimsresource"
+    assert items[0]["title"] == "Modern Boho Living Room Set"
+
+    # 2. Mock TSR provider download (returning a direct .package file via TSR ticket flow) and install
+    mock_tsr_provider = MagicMock()
+    mock_tsr_provider.provider_name = "thesimsresource"
+    mock_tsr_provider.get_mod_details.return_value = {
+        "description": "<div>Modern Boho Living Room Set for Sims 4</div>",
+        "download_urls": [
+            {
+                "name": "Téléchargement TSR (#1736888)",
+                "url": "https://www.thesimsresource.com/ajax.php?c=downloads&a=initDownload&itemid=1736888&setItems=&format=zip",
+                "size": 0,
+            }
+        ],
+        "requirements_mods": [],
+        "requirements_status": "NONE",
+        "version_str": "v2",
+    }
+
+    def mock_tsr_download(download_url=None, dest_path=None, progress_callback=None, **kwargs):
+        target = Path(dest_path or kwargs.get("dest_folder")).parent / "Syboulette_ModernBohoSet.package"
+        target.write_bytes(b"DBPF\x02\x00\x00\x00\x01\x00\x00\x00TSR_BOHO_PACKAGE")
+        return True, str(target)
+
+    mock_tsr_provider.download_mod_file = mock_tsr_download
+    orig_get = ProviderRegistry.get_provider
+    monkeypatch.setattr(
+        ProviderRegistry,
+        "get_provider",
+        classmethod(lambda cls, name: mock_tsr_provider if name == "thesimsresource" else orig_get(name)),
+    )
+
+    inst_resp = client.post(
+        "/api/catalog/install",
+        json={
+            "catalog_mod_id": tsr_mod_id,
+            "source": "thesimsresource",
+            "remote_id": "1736888",
+            "title": "Modern Boho Living Room Set",
+            "page_url": "https://www.thesimsresource.com/downloads/details/id/1736888",
+            "install_dependencies": False,
+        },
+    )
+    assert inst_resp.status_code == 200
+    assert inst_resp.json()["success"] is True
+
+    with db.get_session() as s:
+        installed = s.query(InstalledMod).filter_by(source="thesimsresource", remote_id="1736888").first()
+        assert installed is not None
+        assert (mods_dir / installed.folder_name / "Syboulette_ModernBohoSet.package").exists()
+
+
+def test_four_platforms_concurrent_installation_e2e(e2e_env, monkeypatch):
+    """
+    Tests simultaneous (concurrent) installation of 4 mods from all 4 platforms
+    (LoversLab, NSFWMods, CurseForge, The Sims Resource) at the exact same time using ThreadPoolExecutor.
+    """
+    import concurrent.futures
+    import io
+    import zipfile
+    from unittest.mock import MagicMock
+    from src.api.schemas.catalog import CatalogInstallRequest
+    from src.application.mods.active_installation_registry import ActiveInstallationRegistry
+    from src.application.mods.mod_install_orchestrator import perform_mod_install
+    from src.database.models import InstalledMod
+
+    ActiveInstallationRegistry.reset()
+    db = e2e_env["db"]
+    mods_dir = e2e_env["mods_dir"]
+
+    four_platform_mods = [
+        {
+            "source": "loverslab",
+            "remote_id": "3169",
+            "title": "WickedWhims",
+            "author": "TURBODRIVER",
+            "page_url": "https://www.loverslab.com/files/file/3169-wickedwhims/",
+            "dl_url": "https://www.loverslab.com/files/file/3169-wickedwhims/?do=download",
+            "pkg": "WickedWhims.package",
+        },
+        {
+            "source": "nsfwmods",
+            "remote_id": "424",
+            "title": "Sim Snatcher",
+            "author": "ColonolNutty",
+            "page_url": "https://nsfwmods.com/files/file/424-sim-snatcher/",
+            "dl_url": "https://nsfwmods.com/files/file/424-sim-snatcher/?do=download&csrfKey=123",
+            "pkg": "SimSnatcher.package",
+        },
+        {
+            "source": "curseforge",
+            "remote_id": "universal-venue-list",
+            "title": "Universal Venue List",
+            "author": "Basemental",
+            "page_url": "https://www.curseforge.com/sims4/mods/universal-venue-list",
+            "dl_url": "https://www.curseforge.com/api/v1/mods/710000/files/810000/download",
+            "pkg": "UniversalVenueList.package",
+        },
+        {
+            "source": "thesimsresource",
+            "remote_id": "1736888",
+            "title": "Modern Boho Living Room Set",
+            "author": "Syboulette",
+            "page_url": "https://www.thesimsresource.com/downloads/details/id/1736888",
+            "dl_url": "https://www.thesimsresource.com/ajax.php?c=downloads&a=initDownload&itemid=1736888&setItems=&format=zip",
+            "pkg": "ModernBohoSet.package",
+        },
+    ]
+
+    with db.get_session() as s:
+        for m in four_platform_mods:
+            cm = CatalogMod(
+                source=m["source"],
+                remote_id=m["remote_id"],
+                title=m["title"],
+                author=m["author"],
+                page_url=m["page_url"],
+                requirements_status="NONE",
+            )
+            s.add(cm)
+        s.commit()
+
+    providers_map = {}
+    for m in four_platform_mods:
+        prov = MagicMock()
+        prov.provider_name = m["source"]
+        prov.get_mod_details.return_value = {
+            "download_urls": [{"name": f"{m['remote_id']}.zip", "url": m["dl_url"]}],
+            "requirements_mods": [],
+            "requirements_status": "NONE",
+            "version_str": "1.0",
+        }
+
+        def make_dl(pkg_name, rid):
+            def _dl(download_url=None, dest_path=None, progress_callback=None, **kwargs):
+                target = Path(dest_path or kwargs.get("dest_folder"))
+                buf = io.BytesIO()
+                with zipfile.ZipFile(buf, "w") as zf:
+                    zf.writestr(pkg_name, f"DBPF_{rid}".encode("utf-8"))
+                target.write_bytes(buf.getvalue())
+                return True, str(target)
+
+            return _dl
+
+        prov.download_mod_file = make_dl(m["pkg"], m["remote_id"])
+        providers_map[m["source"]] = prov
+
+    monkeypatch.setattr(
+        ProviderRegistry,
+        "get_provider",
+        classmethod(lambda cls, name: providers_map.get(name)),
+    )
+
+    def _install_worker(mod_info):
+        req = CatalogInstallRequest(
+            source=mod_info["source"],
+            remote_id=mod_info["remote_id"],
+            title=mod_info["title"],
+            page_url=mod_info["page_url"],
+            install_dependencies=False,
+        )
+        return perform_mod_install(req)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+        futures = [pool.submit(_install_worker, m) for m in four_platform_mods]
+        results = [f.result() for f in futures]
+
+    assert all(r.success for r in results), f"Concurrent 4-platform install failed: {[r.message for r in results]}"
+
+    with db.get_session() as s:
+        installed = s.query(InstalledMod).all()
+        assert len(installed) == 4
+        assert {im.source for im in installed} == {"loverslab", "nsfwmods", "curseforge", "thesimsresource"}
+        for im in installed:
+            assert (mods_dir / im.folder_name).exists()
+
+
+def test_multilingual_i18n_fr_en_switching_e2e(e2e_env):
+    """
+    Tests end-to-end multilingual i18n switching between French ('fr') and English ('en'),
+    verifying API settings persistence, I18nManager dynamic translations, ModTypeClassifier
+    choices, and TSR/CurseForge/NSFWMods/LoversLab account & conflict strings.
+    """
+    from src.i18n import I18nManager, tr
+    from src.utils.mod_type_classifier import ModTypeClassifier
+
+    client = e2e_env["client"]
+    i18n = I18nManager.instance()
+
+    try:
+        # 1. Switch to English ('en') via API and I18nManager
+        resp_en = client.patch("/api/settings", json={"language": "en"})
+        assert resp_en.status_code == 200
+        assert resp_en.json()["language"] == "en"
+        assert i18n.set_language("en") is True
+        assert i18n.get_language() == "en"
+
+        assert tr("nav.catalog") == "📁  Unified Catalog"
+        assert tr("accounts.thesimsresource_title") == "The Sims Resource (Sims 4 CC & Mods Catalog)"
+        assert tr("conflicts.no_conflicts_title") == "✅ No DBPF conflicts detected!"
+        assert tr("installed.status_active") == "🟢 Active"
+
+        en_types = dict(ModTypeClassifier.get_type_choices())
+        assert "All Types" in en_types["all"]
+        assert "Clothing & Outfits" in en_types["clothing"]
+
+        # 2. Switch back to French ('fr') via API and I18nManager
+        resp_fr = client.patch("/api/settings", json={"language": "fr"})
+        assert resp_fr.status_code == 200
+        assert resp_fr.json()["language"] == "fr"
+        assert i18n.set_language("fr") is True
+        assert i18n.get_language() == "fr"
+
+        assert tr("nav.catalog") == "📁  Catalogue Unifié"
+        assert tr("accounts.thesimsresource_title") == "The Sims Resource (Catalogue Sims 4 CC & Mods)"
+        assert tr("conflicts.no_conflicts_title") == "✅ Aucun conflit DBPF détecté !"
+        assert tr("installed.status_active") == "🟢 Actif"
+
+        fr_types = dict(ModTypeClassifier.get_type_choices())
+        assert "Tous les types" in fr_types["all"]
+        assert "Vêtements & Tenues" in fr_types["clothing"]
+    finally:
+        i18n.set_language("fr")
+
 

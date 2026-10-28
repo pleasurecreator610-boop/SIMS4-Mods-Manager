@@ -25,12 +25,13 @@ PROVIDERS_LOGIN_URLS = {
     "loverslab": "https://www.loverslab.com/login/",
     "nsfwmods": "https://nsfwmods.com/login/",
     "curseforge": "https://www.curseforge.com/login",
+    "thesimsresource": "https://www.thesimsresource.com/account/login",
     "patreon": "https://www.patreon.com/login",
 }
 
 
 def _get_registered_provider_names() -> list[str]:
-    names = ["loverslab", "nsfwmods", "curseforge", "patreon"]
+    names = ["loverslab", "nsfwmods", "curseforge", "thesimsresource", "patreon"]
     for prov in ProviderRegistry.list_providers():
         pname = prov.provider_name.lower()
         if pname not in names:
