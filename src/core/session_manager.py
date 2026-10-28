@@ -254,6 +254,18 @@ class SessionManager:
                         f"Protection Cloudflare active sur CurseForge (Code {resp.status_code}). Veuillez ouvrir le navigateur.",
                     )
 
+            elif provider_name.lower() == "thesimsresource":
+                url = "https://www.thesimsresource.com/downloads/browse/category/sims4/skipsetitems/1/"
+                resp = session.get(url, timeout=12)
+                logger.info(f"Test de session The Sims Resource ({url}) -> Code HTTP {resp.status_code}")
+                if resp.status_code == 200:
+                    return True, "Accès à The Sims Resource Sims 4 vérifié avec succès."
+                if resp.status_code in [403, 503]:
+                    return (
+                        False,
+                        f"Protection anti-bot active sur The Sims Resource (Code {resp.status_code}). Veuillez ouvrir le navigateur.",
+                    )
+
             elif provider_name.lower() == "patreon":
                 url = "https://www.patreon.com/api/current_user"
                 resp = session.get(url, timeout=12)

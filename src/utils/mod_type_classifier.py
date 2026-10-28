@@ -6,6 +6,8 @@ Classifier and SQL filter generator for generic Sims 4 mod types across multiple
 from typing import Dict, List, Tuple, Any, Optional
 from sqlalchemy import or_
 
+from src.i18n import tr
+
 
 class ModTypeClassifier:
     """
@@ -225,7 +227,10 @@ class ModTypeClassifier:
     @classmethod
     def get_type_choices(cls) -> List[Tuple[str, str]]:
         """Returns list of (type_id, display_label) tuples for UI comboboxes."""
-        return [(t_id, f"{info['icon']} {info['label']}") for t_id, info in cls.TYPES_DEFINITIONS.items()]
+        return [
+            (t_id, f"{info['icon']} {tr(f'mod_types.{t_id}', default=info['label'])}")
+            for t_id, info in cls.TYPES_DEFINITIONS.items()
+        ]
 
     @classmethod
     def get_sql_filter(cls, mod_type: Optional[str], catalog_model):

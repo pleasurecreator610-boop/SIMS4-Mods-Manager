@@ -260,12 +260,12 @@ class PreferencesCardWidget(QFrame):
 
         storage_h = QHBoxLayout()
         storage_h.setSpacing(10)
-        self.storage_lbl = QLabel("Stockage : Analyse...")
+        self.storage_lbl = QLabel(tr("settings.storage_loading"))
         self.storage_lbl.setStyleSheet("font-size: 12px; color: #94a3b8;")
         self.storage_lbl.setWordWrap(True)
         storage_h.addWidget(self.storage_lbl, stretch=3)
 
-        self.cleanup_storage_btn = QPushButton("🧹 Nettoyer l'espace disque")
+        self.cleanup_storage_btn = QPushButton(tr("settings.cleanup_storage_btn"))
         self.cleanup_storage_btn.setStyleSheet(Theme.secondary_button_style())
         if on_cleanup_storage:
             self.cleanup_storage_btn.clicked.connect(on_cleanup_storage)
@@ -282,7 +282,7 @@ class PreferencesCardWidget(QFrame):
         self.backup_chk.setText(tr("settings.auto_backup"))
         self.adult_chk.setText(tr("settings.adult_content"))
         self.clear_cache_btn.setText(tr("settings.clear_cache"))
-        self.cleanup_storage_btn.setText("🧹 Nettoyer l'espace disque")
+        self.cleanup_storage_btn.setText(tr("settings.cleanup_storage_btn"))
         self.cache_lbl.setText(tr("settings.backups_path", path=backups_dir or "-"))
 
 

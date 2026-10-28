@@ -79,7 +79,7 @@ class InstalledCard(BaseModCard):
         layout.addLayout(badges_layout)
 
         # 3. Title
-        title_text = self.mod_data.get("title", "Mod sans titre")
+        title_text = self.mod_data.get("title", tr("common.untitled"))
         self.title_label = QLabel(title_text)
         self.title_label.setWordWrap(True)
         self.title_label.setFixedHeight(34)
@@ -102,7 +102,7 @@ class InstalledCard(BaseModCard):
         # 5. Folder Name
         folder_name = self.mod_data.get("folder_name", "")
         folder_lbl = QLabel(f"📁 {folder_name}")
-        folder_lbl.setToolTip(f"Sous-dossier: {folder_name}")
+        folder_lbl.setToolTip(tr("installed.subfolder_tooltip", folder=folder_name))
         folder_lbl.setStyleSheet("font-size: 10px; color: #475569;")
         layout.addWidget(folder_lbl)
 
@@ -120,10 +120,10 @@ class InstalledCard(BaseModCard):
 
         # Toggle Enable/Disable button
         is_enabled = self.mod_data.get("is_enabled", True)
-        self.btn_toggle = QPushButton("🟢 Actif" if is_enabled else "⏸️ Inactif")
+        self.btn_toggle = QPushButton(tr("installed.status_active") if is_enabled else tr("installed.status_inactive"))
         self.btn_toggle.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_toggle.setFixedHeight(30)
-        self.btn_toggle.setToolTip("Cliquer pour activer ou désactiver ce mod sans le supprimer")
+        self.btn_toggle.setToolTip(tr("installed.toggle_tooltip"))
         if is_enabled:
             self.btn_toggle.setStyleSheet("""
                 QPushButton {
@@ -208,7 +208,7 @@ class InstalledCard(BaseModCard):
         backup_path = self.mod_data.get("backup_path")
         if backup_path:
             self.btn_restore = QPushButton("↺")
-            self.btn_restore.setToolTip("Restaurer la sauvegarde de la version précédente")
+            self.btn_restore.setToolTip(tr("installed.restore_tooltip"))
             self.btn_restore.setCursor(Qt.CursorShape.PointingHandCursor)
             self.btn_restore.setFixedSize(30, 30)
             self.btn_restore.setStyleSheet("""

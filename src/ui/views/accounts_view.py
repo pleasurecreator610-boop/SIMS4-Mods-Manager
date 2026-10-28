@@ -88,7 +88,19 @@ class AccountsView(QWidget):
         self.curseforge_card.login_requested.connect(self.open_login_window)
         self.cards_layout.addWidget(self.curseforge_card)
 
-        # 4. Patreon Card
+        # 4. The Sims Resource Card
+        self.tsr_card = AccountCardWidget(
+            provider_name="thesimsresource",
+            title_key="accounts.thesimsresource_title",
+            desc_key="accounts.thesimsresource_desc",
+            parent=self,
+        )
+        self.tsr_card.clear_requested.connect(self._on_clear_clicked)
+        self.tsr_card.test_requested.connect(self._on_test_clicked)
+        self.tsr_card.login_requested.connect(self.open_login_window)
+        self.cards_layout.addWidget(self.tsr_card)
+
+        # 5. Patreon Card
         self.patreon_card = AccountCardWidget(
             provider_name="patreon",
             title_key="accounts.patreon_title",
@@ -104,6 +116,7 @@ class AccountsView(QWidget):
             "loverslab": self.loverslab_card,
             "nsfwmods": self.nsfwmods_card,
             "curseforge": self.curseforge_card,
+            "thesimsresource": self.tsr_card,
             "patreon": self.patreon_card,
         }
 
@@ -111,7 +124,13 @@ class AccountsView(QWidget):
         layout.addStretch()
 
         # Backward compatibility dictionary for card_widgets
-        for card in [self.loverslab_card, self.nsfwmods_card, self.curseforge_card, self.patreon_card]:
+        for card in [
+            self.loverslab_card,
+            self.nsfwmods_card,
+            self.curseforge_card,
+            self.tsr_card,
+            self.patreon_card,
+        ]:
             self.card_widgets[card.provider_name] = {
                 "title_lbl": card.title_lbl,
                 "title_key": card.title_key,

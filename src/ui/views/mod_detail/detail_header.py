@@ -58,7 +58,7 @@ class DetailHeaderWidget(QWidget):
         title_block = QVBoxLayout()
         title_block.setSpacing(2)
 
-        self.lbl_title = QLabel("Titre du Mod")
+        self.lbl_title = QLabel(tr("mod_detail.title_default"))
         self.lbl_title.setStyleSheet("font-size: 20px; font-weight: 800; color: #f8fafc;")
         self.lbl_title.setWordWrap(True)
         title_block.addWidget(self.lbl_title)
@@ -66,11 +66,11 @@ class DetailHeaderWidget(QWidget):
         author_row = QHBoxLayout()
         author_row.setSpacing(8)
 
-        self.lbl_author = QLabel("par Auteur")
+        self.lbl_author = QLabel(tr("mod_detail.meta_author", author="-"))
         self.lbl_author.setStyleSheet("font-size: 12px; color: #94a3b8; font-weight: 500;")
         author_row.addWidget(self.lbl_author)
 
-        self.badge_access = QLabel("Accès Direct")
+        self.badge_access = QLabel(tr("common.direct"))
         self.badge_access.setStyleSheet(Theme.badge_style(variant="info", padding="2px 8px"))
         author_row.addWidget(self.badge_access)
         author_row.addStretch()
@@ -89,7 +89,7 @@ class DetailHeaderWidget(QWidget):
         self.btn_open_folder.setVisible(False)
         actions_layout.addWidget(self.btn_open_folder)
 
-        self.btn_open_web = QPushButton("🌐 Page Officielle")
+        self.btn_open_web = QPushButton(tr("mod_detail.btn_official_page"))
         self.btn_open_web.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_open_web.setStyleSheet(Theme.action_button_style(variant="subtle", padding="8px 14px"))
         self.btn_open_web.clicked.connect(self.open_web_requested.emit)
@@ -298,9 +298,9 @@ class DetailHeaderWidget(QWidget):
                 self.btn_install.setText(tr("catalog.btn_already_installed"))
                 self.btn_install.setStyleSheet(Theme.action_button_style(variant="subtle", padding="8px 20px"))
         else:
-            self._installed_badge.setText("Non installé")
+            self._installed_badge.setText(tr("mod_detail.not_installed"))
             self.btn_open_folder.setVisible(False)
-            self.btn_install.setText("📥 Installer le mod")
+            self.btn_install.setText("📥 " + tr("mod_detail.install_now"))
             self.btn_install.setStyleSheet(Theme.action_button_style(variant="primary", padding="8px 20px"))
 
     def retranslate_ui(self):

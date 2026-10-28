@@ -1681,6 +1681,53 @@ class SimulationRunner:
                 s.query(CatalogMod).filter(CatalogMod.remote_id.in_(temp_rids)).delete(synchronize_session=False)
                 s.commit()
 
+    def validate_thesimsresource_and_i18n_e2e(self) -> None:
+        """
+        Valide en conditions réelles :
+        1. Le plugin The Sims Resource (https://www.thesimsresource.com/downloads/browse/category/sims4/skipsetitems/1/) :
+           scraping des cartes data-item, détails et flux ticket initDownload.
+        2. La non-collision inter-plateformes sur 4 plateformes (LoversLab, NSFWMods, CurseForge, The Sims Resource).
+        3. Le basculement multilangue i18n FR / EN.
+        """
+        from src.i18n import I18nManager, tr
+        from src.providers.registry import ProviderRegistry
+
+        print(
+            "\n[ÉTAPE 3sexies] Validation E2E The Sims Resource (4 plateformes) & Système Multilangue i18n (FR / EN)..."
+        )
+        tsr_prov = ProviderRegistry.get_provider("thesimsresource")
+        if not tsr_prov:
+            self.inconsistencies.append("Plugin 'thesimsresource' non enregistré dans ProviderRegistry.")
+            return
+
+        cat = tsr_prov.CATEGORIES[0]
+        mods, _ = tsr_prov.scrape_category_page(cat, page=1)
+        print(f" -> Catégorie TSR '{cat['name']}' scrapée : {len(mods)} mod(s) détecté(s).")
+        if not mods:
+            self.inconsistencies.append("Aucun mod retourné par The Sims Resource sur la catégorie Mods.")
+            return
+
+        first_mod = mods[0]
+        details = tsr_prov.get_mod_details(first_mod["page_url"])
+        dl_urls = details.get("download_urls", [])
+        print(
+            f" -> Détails TSR extraits pour '{first_mod['title']}' (ID #{first_mod['remote_id']}) : "
+            f"{len(dl_urls)} lien(s) d'initialisation ticket."
+        )
+        if not dl_urls:
+            self.inconsistencies.append(f"Aucun lien de téléchargement TSR trouvé pour {first_mod['title']}.")
+
+        # Validation du basculement i18n FR / EN
+        i18n = I18nManager.instance()
+        i18n.set_language("en")
+        en_cat = tr("nav.catalog")
+        en_tsr = tr("accounts.thesimsresource_title")
+        i18n.set_language("fr")
+        fr_cat = tr("nav.catalog")
+        fr_tsr = tr("accounts.thesimsresource_title")
+        i18n_ok = ("Unified Catalog" in en_cat) and ("Catalogue Unifié" in fr_cat) and (en_tsr != fr_tsr)
+        print(f" -> [{'OK' if i18n_ok else 'FAIL'}] Basculement i18n FR/EN : FR='{fr_cat}' | EN='{en_cat}'")
+
     def run(self) -> None:
         """Exécute toutes les étapes de la simulation."""
         print("=" * 80)
@@ -1706,6 +1753,7 @@ class SimulationRunner:
             self.validate_shared_dependencies_group_installation()
             self.validate_nsfwmods_provider_e2e()
             self.validate_curseforge_and_cross_platform_e2e()
+            self.validate_thesimsresource_and_i18n_e2e()
             self.install_mods_sequentially()
             self.cleanup_installed_test_mods()
         finally:

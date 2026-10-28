@@ -391,15 +391,11 @@ class CurseForgeProvider(BaseSourceProvider):
         """
         req_mods: List[Dict[str, Any]] = []
         seen_keys: set[str] = set()
-        seen_rids: set[str] = set()
 
         def _add_req(dep_dict: Dict[str, str]) -> None:
             key = dep_dict["title"].strip().lower()
-            rid = dep_dict.get("remote_id", "").strip().lower()
-            if key and key not in seen_keys and (not rid or rid not in seen_rids):
+            if key and key not in seen_keys:
                 seen_keys.add(key)
-                if rid:
-                    seen_rids.add(rid)
                 req_mods.append(dep_dict)
 
         # 1. Check /relations/dependencies if mod_url is provided

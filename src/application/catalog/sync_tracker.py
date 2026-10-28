@@ -42,6 +42,7 @@ class SyncTracker:
         "loverslab": "OK",
         "nsfwmods": "OK",
         "curseforge": "OK",
+        "thesimsresource": "OK",
         "patreon": "OK",
     }
     _cached_db_count: int = 0
@@ -288,6 +289,7 @@ class SyncTracker:
                 "loverslab": "OK",
                 "nsfwmods": "OK",
                 "curseforge": "OK",
+                "thesimsresource": "OK",
                 "patreon": "OK",
             }
 

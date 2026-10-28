@@ -2,16 +2,17 @@
 Sidebar navigation widget with branding, navigation buttons, game detection status, and quick launch button.
 """
 
-from typing import List
+from typing import Dict, List
 from PySide6.QtWidgets import (
     QFrame,
     QVBoxLayout,
+    QHBoxLayout,
     QLabel,
     QPushButton,
 )
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 
-from src.i18n import tr
+from src.i18n import I18nManager, tr
 
 
 class SidebarNavWidget(QFrame):
@@ -25,7 +26,10 @@ class SidebarNavWidget(QFrame):
         self.setObjectName("Sidebar")
         self.setFixedWidth(240)
         self.nav_buttons: List[QPushButton] = []
+        self.quick_lang_buttons: Dict[str, QPushButton] = {}
+        self.i18n = I18nManager.instance()
         self._init_ui()
+        self.i18n.language_changed.connect(self._on_language_changed)
 
     def _init_ui(self):
         sidebar_layout = QVBoxLayout(self)
@@ -66,9 +70,43 @@ class SidebarNavWidget(QFrame):
 
         sidebar_layout.addStretch()
 
-        # Quick Launch Game in Sidebar Footer
+        # Quick Language Switcher (FR / EN) & Game Launch in Sidebar Footer
         footer_layout = QVBoxLayout()
         footer_layout.setSpacing(6)
+
+        lang_row = QHBoxLayout()
+        lang_row.setSpacing(6)
+        current_lang = self.i18n.get_language()
+        for code, label in [("fr", "🇫🇷 FR"), ("en", "🇬🇧 EN")]:
+            btn_lang = QPushButton(label)
+            btn_lang.setCheckable(True)
+            btn_lang.setChecked(code == current_lang)
+            btn_lang.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn_lang.setFixedHeight(26)
+            btn_lang.setStyleSheet("""
+                QPushButton {
+                    background-color: #1e293b;
+                    color: #94a3b8;
+                    border: 1px solid #334155;
+                    border-radius: 6px;
+                    font-size: 11px;
+                    font-weight: 700;
+                    padding: 2px 8px;
+                }
+                QPushButton:hover {
+                    background-color: #334155;
+                    color: #f8fafc;
+                }
+                QPushButton:checked {
+                    background-color: #312e81;
+                    color: #ffffff;
+                    border-color: #6366f1;
+                }
+            """)
+            btn_lang.clicked.connect(lambda checked, c=code: self._on_quick_lang_clicked(c))
+            self.quick_lang_buttons[code] = btn_lang
+            lang_row.addWidget(btn_lang)
+        footer_layout.addLayout(lang_row)
 
         self.game_status = QLabel(tr("nav.game_checking"))
         self.game_status.setStyleSheet("font-size: 11px; color: #94a3b8; font-weight: 600; padding: 4px 0;")
@@ -148,8 +186,32 @@ class SidebarNavWidget(QFrame):
         else:
             self.btn_downloads.setText(tr("nav.downloads"))
 
+    def _on_quick_lang_clicked(self, lang_code: str):
+        """Switches UI language directly from the sidebar quick toggle."""
+        if self.i18n.get_language() != lang_code:
+            self.i18n.set_language(lang_code)
+            try:
+                from src.api.client import get_api_client
+                from src.ui.workers.generic_runnable import run_async_ui_task
+
+                api_client = get_api_client()
+                run_async_ui_task(lambda: api_client.update_settings({"language": lang_code}))
+            except Exception:
+                pass
+        else:
+            for c, b in self.quick_lang_buttons.items():
+                b.setChecked(c == lang_code)
+
+    def _on_language_changed(self, lang_code: str):
+        for c, b in self.quick_lang_buttons.items():
+            b.setChecked(c == lang_code)
+        self.retranslate_ui()
+
     def retranslate_ui(self):
         """Exécute l'opération retranslate ui."""
+        current_lang = self.i18n.get_language()
+        for c, b in self.quick_lang_buttons.items():
+            b.setChecked(c == current_lang)
         self.btn_accounts.setText(tr("nav.accounts"))
         self.btn_catalog.setText(tr("nav.catalog"))
         self.btn_installed.setText(tr("nav.installed"))
