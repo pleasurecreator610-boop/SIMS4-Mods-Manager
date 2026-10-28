@@ -54,6 +54,36 @@ KNOWN_MOD_ALIASES: Dict[str, Dict[str, str]] = {
         "title": "Nisa's Wicked Perversions",
         "url": "https://www.loverslab.com/files/file/9443-nisas-wicked-perversions/",
     },
+    "sims 4 community library": {
+        "source": "nsfwmods",
+        "remote_id": "742",
+        "title": "Sims 4 Community Library",
+        "url": "https://nsfwmods.com/files/file/742-sims-4-community-library/",
+    },
+    "the sims 4 community library": {
+        "source": "nsfwmods",
+        "remote_id": "742",
+        "title": "Sims 4 Community Library",
+        "url": "https://nsfwmods.com/files/file/742-sims-4-community-library/",
+    },
+    "s4cl": {
+        "source": "nsfwmods",
+        "remote_id": "742",
+        "title": "Sims 4 Community Library",
+        "url": "https://nsfwmods.com/files/file/742-sims-4-community-library/",
+    },
+    "deviant core": {
+        "source": "nsfwmods",
+        "remote_id": "743",
+        "title": "Deviant Core",
+        "url": "https://nsfwmods.com/files/file/743-deviant-core/",
+    },
+    "lot 51 core library": {
+        "source": "curseforge",
+        "remote_id": "lot-51-core-library",
+        "title": "Lot 51 Core Library",
+        "url": "https://www.curseforge.com/sims4/mods/lot-51-core-library",
+    },
 }
 
 HEADER_RE = re.compile(r"(?i)^(requirements?|pr[ée]requis|prerequisites?|needs?|required\s*mods?)\s*:?$")
@@ -78,10 +108,25 @@ def extract_loverslab_requirements(
             req_item = li
             break
 
-    if not req_item:
-        return None, "NONE", []
+    data_el = None
+    if req_item:
+        data_el = req_item.select_one(".cFileInfoData, .ipsDataItem_generic:not(.ipsDataItem_size3)")
 
-    data_el = req_item.select_one(".cFileInfoData, .ipsDataItem_generic:not(.ipsDataItem_size3)")
+    # Fallback for IPS4 pages (e.g. NSFWMods) where Requirements are inside article richText spoilers
+    if not data_el:
+        rich_el = soup.select_one("article div.ipsType_richText, .cFileView_content div.ipsType_richText, .ipsType_richText")
+        if rich_el and "require" in rich_el.get_text().lower():
+            for heading in rich_el.find_all(["p", "strong", "h1", "h2", "h3", "h4", "span", "div"]):
+                txt_h = heading.get_text(strip=True).lower()
+                if txt_h in {"requirements:", "requirements", "prérequis:", "prérequis"}:
+                    nxt = heading.find_next_sibling() or heading.parent.find_next_sibling() if heading.parent else None
+                    if nxt and nxt.find("a", href=re.compile(r"/files/file/\d+")):
+                        data_el = nxt
+                        break
+                    if heading.parent and heading.parent.find("a", href=re.compile(r"/files/file/\d+")):
+                        data_el = heading.parent
+                        break
+
     if not data_el:
         return None, "NONE", []
 
@@ -117,7 +162,21 @@ def extract_loverslab_requirements(
             slug = m.group(2)
             if r_id not in seen_ids:
                 seen_ids.add(r_id)
-                t_name = a.get_text(strip=True) or urllib.parse.unquote(slug).replace("-", " ").title()
+                raw_link_txt = a.get_text(strip=True)
+                if not raw_link_txt or raw_link_txt.lower() in {
+                    "nsfwmods",
+                    "loverslab",
+                    "curseforge",
+                    "here",
+                    "link",
+                    "download",
+                    "site",
+                }:
+                    t_name = urllib.parse.unquote(slug).replace("-", " ").title()
+                else:
+                    t_name = raw_link_txt
+                if t_name.lower() == "the sims 4 community library":
+                    t_name = "Sims 4 Community Library"
                 seen_titles.add(t_name.lower())
                 clean_slug = urllib.parse.unquote(slug)
                 is_nsfwmods = "nsfwmods.com" in href.lower()

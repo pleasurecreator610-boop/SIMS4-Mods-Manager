@@ -39,6 +39,7 @@ class ActiveInstallationRegistry:
         self._active_by_key: Dict[Tuple[str, str], ActiveInstallEntry] = {}
         self._active_by_title: Dict[str, ActiveInstallEntry] = {}
         self._completed_cache: Dict[Tuple[str, str], Tuple[bool, str]] = {}
+        self._completed_by_title: Dict[str, Tuple[bool, str]] = {}
 
     @classmethod
     def get_instance(cls) -> ActiveInstallationRegistry:
@@ -60,6 +61,7 @@ class ActiveInstallationRegistry:
                     cls._instance._active_by_key.clear()
                     cls._instance._active_by_title.clear()
                     cls._instance._completed_cache.clear()
+                    cls._instance._completed_by_title.clear()
                     if hasattr(cls._instance, "_locked_folders"):
                         cls._instance._locked_folders.clear()
             cls._instance = None
@@ -83,7 +85,14 @@ class ActiveInstallationRegistry:
                 self._locked_folders.discard(clean)
 
     def _normalize_title(self, title: str) -> str:
-        return title.strip().lower() if title else ""
+        if not title:
+            return ""
+        import re
+        from src.utils.mod_matcher import ModMatcher
+
+        stripped = re.sub(r"(?i)^the\s+", "", title.strip())
+        cleaned = ModMatcher.clean_mod_title(stripped) or stripped
+        return ModMatcher.canonical_fingerprint(cleaned) or stripped.lower()
 
     def register_install(
         self,
@@ -181,6 +190,8 @@ class ActiveInstallationRegistry:
                 event = entry.event
             elif key in self._completed_cache:
                 return self._completed_cache[key]
+            elif norm_title and norm_title in self._completed_by_title:
+                return self._completed_by_title[norm_title]
 
         if not event or not entry:
             logger.debug(f"[ActiveRegistry] Aucune installation active trouvée à attendre pour {key} ('{title}').")
@@ -256,8 +267,14 @@ class ActiveInstallationRegistry:
                 entry.event.set()
                 if key[1]:
                     self._completed_cache[key] = (success, message)
+                if entry_norm_title:
+                    self._completed_by_title[entry_norm_title] = (success, message)
+                if norm_title:
+                    self._completed_by_title[norm_title] = (success, message)
                 logger.debug(f"[ActiveRegistry] Complétion signalée pour {key} ('{title}'): succès={success}")
             else:
                 if key[1]:
                     self._completed_cache[key] = (success, message)
+                if norm_title:
+                    self._completed_by_title[norm_title] = (success, message)
                 logger.debug(f"[ActiveRegistry] Complétion pour clé non répertoriée {key}")

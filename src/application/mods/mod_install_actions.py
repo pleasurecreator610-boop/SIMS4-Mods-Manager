@@ -289,6 +289,19 @@ class ModInstallActions:
             existing = session.query(InstalledMod).filter_by(remote_id=remote_id, source=source).first()
         if not existing:
             existing = session.query(InstalledMod).filter_by(title=title, source=source).first()
+        if not existing and title:
+            import re
+            from src.utils.mod_matcher import ModMatcher
+
+            stripped_t = re.sub(r"(?i)^the\s+", "", title.strip())
+            t_fp = ModMatcher.canonical_fingerprint(ModMatcher.clean_mod_title(stripped_t) or stripped_t)
+            if t_fp:
+                for im in session.query(InstalledMod).all():
+                    if im.title:
+                        im_s = re.sub(r"(?i)^the\s+", "", im.title.strip())
+                        if ModMatcher.canonical_fingerprint(ModMatcher.clean_mod_title(im_s) or im_s) == t_fp:
+                            existing = im
+                            break
 
         effective_enabled = is_enabled if is_enabled is not None else (existing.is_enabled if existing else True)
 
