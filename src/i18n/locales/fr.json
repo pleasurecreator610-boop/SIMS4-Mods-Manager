@@ -209,6 +209,8 @@
     "subtitle": "Connectez vos comptes pour contourner les protections anti-bot (Cloudflare, consentement adulte LoversLab) et vérifier vos accès abonnés sur Patreon.",
     "loverslab_title": "LoversLab (Forum IPS & Téléchargements The Sims 4)",
     "loverslab_desc": "Permet le passage automatique de Cloudflare, la validation de l'avertissement adulte (+18 ans) et l'accès aux téléchargements directs.",
+    "nsfwmods_title": "NSFWMods (Catalogue Sims Mods & Forum IPS)",
+    "nsfwmods_desc": "Permet l'accès complet au catalogue Sims Mods de NSFWMods.com, aux téléchargements directs et aux interactions forum.",
     "patreon_title": "Patreon (Accès Créateurs & Niveaux d'Abonnement)",
     "patreon_desc": "Permet d'identifier si votre compte Patreon a débloqué les mods réservés aux abonnés / accès anticipé et de télécharger les pièces jointes.",
     "status_unconfigured": "Non configuré",

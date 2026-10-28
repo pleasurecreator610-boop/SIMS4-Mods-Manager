@@ -155,8 +155,11 @@ def start_sync(payload: CatalogSyncRequest, background_tasks: BackgroundTasks):
         return resp
 
     providers = ProviderRegistry.list_providers()
-    ll_provider = next((p for p in providers if getattr(p, "provider_name", "") == "loverslab"), None)
-    categories = getattr(ll_provider, "CATEGORIES", [])
+    categories = []
+    for p in providers:
+        p_cats = getattr(p, "CATEGORIES", [])
+        if p_cats:
+            categories.extend(p_cats)
     initial_pages = (
         sum(c.get("default_pages", 1) for c in categories)
         if payload.max_pages <= 0

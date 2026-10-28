@@ -68,6 +68,7 @@ class FilterBar(QWidget):
         self.source_combo.clear()
         self.source_combo.addItem(tr("catalog.filter_provider_all"), "all")
         self.source_combo.addItem("LoversLab", "LoversLab")
+        self.source_combo.addItem("NSFWMods", "NSFWMods")
         self.source_combo.addItem("Patreon", "Patreon")
         idx = self.source_combo.findData(src_curr)
         if idx >= 0:

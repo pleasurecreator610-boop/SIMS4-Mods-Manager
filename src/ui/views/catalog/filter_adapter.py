@@ -16,6 +16,8 @@ def build_catalog_api_params(
     source_param: Optional[str] = None
     if filter_state.get("source") == "LoversLab":
         source_param = "loverslab"
+    elif filter_state.get("source") == "NSFWMods":
+        source_param = "nsfwmods"
     elif filter_state.get("source") == "Patreon":
         source_param = "patreon"
 

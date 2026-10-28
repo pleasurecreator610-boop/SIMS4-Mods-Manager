@@ -41,25 +41,26 @@ class CatalogSyncOrchestrator:
         4. Closes sync lifecycle gracefully.
         """
         providers = ProviderRegistry.list_providers()
-        ll_provider = None
-        for p in providers:
-            if getattr(p, "provider_name", "") == "loverslab":
-                ll_provider = p
-                break
-
-        categories = getattr(ll_provider, "CATEGORIES", []) if ll_provider else []
-        if not categories:
+        sync_providers = [p for p in providers if getattr(p, "CATEGORIES", None)]
+        if not sync_providers:
             SyncTracker.finish(0)
             return
 
         try:
-            total_new = self.coordinator.sync_all_categories(
-                categories=categories,
-                provider=ll_provider,
-                max_pages=max_pages,
-                tracker=SyncTracker,
-                max_workers=8,
-            )
+            total_new = 0
+            for prov in sync_providers:
+                if SyncTracker.stop_requested or ShutdownManager.is_shutting_down():
+                    break
+                categories = getattr(prov, "CATEGORIES", [])
+                if not categories:
+                    continue
+                total_new += self.coordinator.sync_all_categories(
+                    categories=categories,
+                    provider=prov,
+                    max_pages=max_pages,
+                    tracker=SyncTracker,
+                    max_workers=8,
+                )
 
             if not SyncTracker.stop_requested and not ShutdownManager.is_shutting_down():
                 SyncTracker.finish(total_new)
