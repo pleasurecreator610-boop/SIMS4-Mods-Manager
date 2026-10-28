@@ -1,0 +1,138 @@
+"""Routes API REST pour les mods installés (Front -> Back).
+
+Délègue l'intégralité des opérations au service applicatif InstalledModsService
+sans accès direct aux sessions de base de données.
+"""
+
+from __future__ import annotations
+
+from typing import Optional
+from fastapi import APIRouter, HTTPException
+
+from src.api.schemas.installed import (
+    InstalledListResponse,
+    InstalledOpenFolderRequest,
+    InstalledOpenFolderResponse,
+    InstalledRestoreResponse,
+    InstalledScanResponse,
+    InstalledToggleRequest,
+    InstalledToggleResponse,
+    InstalledUninstallResponse,
+    ModDependentsResponse,
+    DbpfConflictItem,
+    DbpfConflictReportResponse,
+    ResolveConflictRequest,
+    ResolveConflictResponse,
+)
+from src.application.mods.installed_mods_service import InstalledModsService
+from src.application.mods.conflict_detector_service import ConflictDetectorService
+from src.application.game.game_detector import GameDetector
+
+router = APIRouter(prefix="/installed", tags=["Installed Mods"])
+_installed_service = InstalledModsService()
+_conflict_detector = ConflictDetectorService()
+
+
+@router.get("", response_model=InstalledListResponse)
+def get_installed_mods(search: Optional[str] = None) -> InstalledListResponse:
+    """Liste tous les mods installés avec statut, comptage de fichiers et mises à jour disponibles."""
+    return _installed_service.list_installed_mods(search=search)
+
+
+@router.post("/{mod_id}/toggle", response_model=InstalledToggleResponse)
+def toggle_mod(mod_id: int, payload: InstalledToggleRequest = InstalledToggleRequest()) -> InstalledToggleResponse:
+    """Active ou désactive un mod en renommant ses extensions."""
+    res = _installed_service.toggle_mod(mod_id, target_state=payload.enabled)
+    if not res.success:
+        raise HTTPException(status_code=400, detail=res.message)
+    return res
+
+
+@router.get("/{mod_id}/dependents", response_model=ModDependentsResponse)
+def get_mod_dependents(mod_id: int) -> ModDependentsResponse:
+    """Retourne la liste des mods installés qui dépendent de ce mod."""
+    res = _installed_service.get_dependents(mod_id)
+    if not res.mod_title:
+        raise HTTPException(status_code=404, detail="Mod introuvable dans la base de données.")
+    return res
+
+
+@router.delete("/{mod_id}", response_model=InstalledUninstallResponse)
+def uninstall_mod(mod_id: int) -> InstalledUninstallResponse:
+    """Supprime le dossier du mod du disque et nettoie la base de données."""
+    res = _installed_service.uninstall_mod(mod_id)
+    if not res.success:
+        raise HTTPException(status_code=400, detail=res.message)
+    return res
+
+
+@router.post("/scan", response_model=InstalledScanResponse)
+def scan_mods_folder() -> InstalledScanResponse:
+    """Scanne le répertoire Mods pour indexer les ajouts manuels."""
+    return _installed_service.scan_mods()
+
+
+@router.post("/open-folder", response_model=InstalledOpenFolderResponse)
+def open_folder(payload: InstalledOpenFolderRequest = InstalledOpenFolderRequest()) -> InstalledOpenFolderResponse:
+    """Ouvre le dossier Mods ou le dossier d'un mod dans l'explorateur."""
+    res = _installed_service.open_mod_folder(payload.folder_name)
+    if not res.success:
+        status = 404 if "introuvable" in res.message or "n'existe pas" in res.message else 500
+        raise HTTPException(status_code=status, detail=res.message)
+    return res
+
+
+@router.get("/conflicts", response_model=DbpfConflictReportResponse)
+def get_mod_conflicts() -> DbpfConflictReportResponse:
+    """Analyse les fichiers .package installés pour détecter les collisions de ressources TGI."""
+    mods_dir = GameDetector.detect_mods_dir()
+    if not mods_dir or not mods_dir.exists():
+        return DbpfConflictReportResponse(
+            total_packages_scanned=0,
+            total_resources_indexed=0,
+            conflict_count=0,
+            translation_override_count=0,
+            conflicts=[],
+        )
+    report = _conflict_detector.detect_conflicts(mods_dir)
+
+    return DbpfConflictReportResponse(
+        total_packages_scanned=report.total_packages_scanned,
+        total_resources_indexed=report.total_resources_indexed,
+        conflict_count=report.conflict_count,
+        translation_override_count=report.translation_override_count,
+        conflicts=[
+            DbpfConflictItem(
+                tgi=c.tgi,
+                resource_type_name=c.resource_type_name,
+                conflicting_packages=c.conflicting_packages,
+                is_translation_override=c.is_translation_override,
+            )
+            for c in report.conflicts
+        ],
+    )
+
+
+@router.post("/{mod_id}/restore-backup", response_model=InstalledRestoreResponse)
+def restore_mod_backup(mod_id: int) -> InstalledRestoreResponse:
+    """Restaure la sauvegarde ZIP précédente d'un mod."""
+    res = _installed_service.restore_backup(mod_id)
+    if not res.success:
+        raise HTTPException(status_code=400, detail=res.message)
+    return res
+
+
+@router.post("/conflicts/resolve", response_model=ResolveConflictResponse)
+def resolve_conflict(payload: ResolveConflictRequest) -> ResolveConflictResponse:
+    """Active ou désactive un fichier .package pour résoudre un conflit DBPF."""
+    mods_dir = GameDetector.detect_mods_dir()
+    if not mods_dir or not mods_dir.exists():
+        raise HTTPException(status_code=400, detail="Dossier Mods introuvable.")
+    ok, msg, new_path = _conflict_detector.resolve_conflict(
+        mods_dir=mods_dir,
+        package_rel_path=payload.package_path,
+        action=payload.action,
+    )
+    if not ok:
+        raise HTTPException(status_code=400, detail=msg)
+    return ResolveConflictResponse(success=True, message=msg, new_path=new_path)

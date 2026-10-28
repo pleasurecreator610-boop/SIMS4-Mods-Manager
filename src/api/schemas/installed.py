@@ -1,0 +1,142 @@
+from datetime import datetime
+from typing import Optional, List, Dict, Any
+from pydantic import BaseModel
+from src.api.schemas.catalog import DependencyItem
+
+
+class InstalledModItem(BaseModel):
+    """Classe InstalledModItem : assure la gestion et l'orchestration de Installedmoditem."""
+
+    id: int
+    catalog_mod_id: Optional[int] = None
+    source: str
+    remote_id: str
+    title: str
+    author: str = ""
+    folder_name: str
+    thumbnail_url: str = ""
+    page_url: str = ""
+    requirements_text: Optional[str] = None
+    requirements_status: str = "NONE"
+    dependencies: List[DependencyItem] = []
+    screenshots: List[str] = []
+    is_enabled: bool
+    installed_date: Optional[datetime] = None
+    version_date: Optional[datetime] = None
+    version_str: str = ""
+    files_count: int = 0
+    files_list: List[str] = []
+    backup_path: Optional[str] = None
+    has_update: bool = False
+
+
+class InstalledListResponse(BaseModel):
+    """Classe InstalledListResponse : assure la gestion et l'orchestration de Installedlistresponse."""
+
+    total: int
+    enabled_count: int
+    disabled_count: int
+    items: List[InstalledModItem]
+
+
+class InstalledToggleRequest(BaseModel):
+    """Classe InstalledToggleRequest : assure la gestion et l'orchestration de Installedtogglerequest."""
+
+    enabled: Optional[bool] = None
+
+
+class InstalledToggleResponse(BaseModel):
+    """Classe InstalledToggleResponse : assure la gestion et l'orchestration de Installedtoggleresponse."""
+
+    success: bool
+    message: str
+    is_enabled: bool
+
+
+class InstalledUninstallResponse(BaseModel):
+    """Classe InstalledUninstallResponse : assure la gestion et l'orchestration de Installeduninstallresponse."""
+
+    success: bool
+    message: str
+
+
+class InstalledScanResponse(BaseModel):
+    """Classe InstalledScanResponse : assure la gestion et l'orchestration de Installedscanresponse."""
+
+    success: bool
+    message: str
+    count: int
+    found: List[Dict[str, Any]] = []
+
+
+class InstalledOpenFolderRequest(BaseModel):
+    """Classe InstalledOpenFolderRequest : assure la gestion et l'orchestration de Installedopenfolderrequest."""
+
+    folder_name: Optional[str] = None
+
+
+class InstalledOpenFolderResponse(BaseModel):
+    """Classe InstalledOpenFolderResponse : assure la gestion et l'orchestration de Installedopenfolderresponse."""
+
+    success: bool
+    message: str
+
+
+class ModDependentItem(BaseModel):
+    """Classe ModDependentItem : assure la gestion et l'orchestration de Moddependentitem."""
+
+    id: int
+    title: str
+    folder_name: str
+
+
+class ModDependentsResponse(BaseModel):
+    """Classe ModDependentsResponse : assure la gestion et l'orchestration de Moddependentsresponse."""
+
+    mod_id: int
+    mod_title: str
+    has_dependents: bool
+    count: int
+    dependents: List[ModDependentItem]
+
+
+class DbpfConflictItem(BaseModel):
+    """Représente une ressource en collision entre plusieurs fichiers .package."""
+
+    tgi: str
+    resource_type_name: str
+    conflicting_packages: List[str]
+    is_translation_override: bool = False
+
+
+class DbpfConflictReportResponse(BaseModel):
+    """Rapport d'analyse des conflits DBPF pour l'API REST."""
+
+    total_packages_scanned: int
+    total_resources_indexed: int
+    conflict_count: int
+    translation_override_count: int = 0
+    conflicts: List[DbpfConflictItem]
+
+
+class InstalledRestoreResponse(BaseModel):
+    """Réponse suite à la restauration de la sauvegarde d'un mod."""
+
+    success: bool
+    message: str
+    restored_files_count: int = 0
+
+
+class ResolveConflictRequest(BaseModel):
+    """Requête de résolution d'un conflit de package."""
+
+    package_path: str
+    action: str = "disable"  # "disable" ou "enable"
+
+
+class ResolveConflictResponse(BaseModel):
+    """Réponse suite à la résolution d'un conflit."""
+
+    success: bool
+    message: str
+    new_path: Optional[str] = None
