@@ -75,7 +75,7 @@ class DependencyActions:
             .filter((CatalogMod.title.ilike(title)) | (CatalogMod.remote_id == title))
             .first()
         )
-        if cat_match:
+        if cat_match and isinstance(getattr(cat_match, "remote_id", None), str):
             return cat_match.remote_id, cat_match.page_url, cat_match.title or title, cat_match.source or source
 
         return None, None, title, source
@@ -95,10 +95,17 @@ class DependencyActions:
             return True
 
         installed_list = list(installed_by_remote.values()) + list(installed_by_title.values())
-        t_fp = ModMatcher.canonical_fingerprint(title)
+        import re
+
+        title_str = title if isinstance(title, str) else str(title or "")
+        stripped_t = re.sub(r"(?i)^the\s+", "", title_str.strip())
+        t_fp = ModMatcher.canonical_fingerprint(ModMatcher.clean_mod_title(stripped_t) or stripped_t)
         for im in installed_list:
-            if im.title and ModMatcher.canonical_fingerprint(im.title) == t_fp:
-                return True
+            if getattr(im, "title", None) and isinstance(im.title, str):
+                im_s = re.sub(r"(?i)^the\s+", "", im.title.strip())
+                im_fp = ModMatcher.canonical_fingerprint(ModMatcher.clean_mod_title(im_s) or im_s)
+                if im_fp and im_fp == t_fp:
+                    return True
 
         im_match = ModMatcher.find_best_installed_match(title, installed_list, min_threshold=0.85)
         return bool(im_match)

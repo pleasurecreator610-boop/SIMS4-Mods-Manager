@@ -1577,6 +1577,110 @@ class SimulationRunner:
         if not dl_urls:
             self.inconsistencies.append(f"Aucun lien de téléchargement trouvé sur NSFWMods pour {first_mod['title']}.")
 
+    def validate_curseforge_and_cross_platform_e2e(self) -> None:
+        """
+        Valide en conditions réelles :
+        1. Le plugin CurseForge (https://www.curseforge.com/sims4) : scraping, détails et lien /api/v1/mods/.../download.
+        2. La déduplication inter-plateformes et la non-collision (XML Injector sur CurseForge & LoversLab,
+           Sims 4 Community Library sur NSFWMods & LoversLab) ainsi que l'installation simultanée sur les 3 plateformes.
+        """
+        from src.database.models import InstalledMod
+        from src.providers.registry import ProviderRegistry
+
+        print("\n[ÉTAPE 3quinquies] Validation E2E CurseForge & Non-Collision Inter-Plateformes (3 plateformes)...")
+        cf_prov = ProviderRegistry.get_provider("curseforge")
+        if not cf_prov:
+            self.inconsistencies.append("Plugin 'curseforge' non enregistré dans ProviderRegistry.")
+            return
+
+        cat = cf_prov.CATEGORIES[0]
+        mods, _ = cf_prov.scrape_category_page(cat, page=1)
+        print(f" -> Catégorie CurseForge '{cat['name']}' scrapée : {len(mods)} mod(s) détecté(s).")
+        if not mods:
+            self.inconsistencies.append("Aucun mod retourné par CurseForge sur la catégorie Sims 4 Gameplay.")
+            return
+
+        xml_details = cf_prov.get_mod_details("https://www.curseforge.com/sims4/mods/xml-injector")
+        dl_urls = xml_details.get("download_urls", [])
+        print(f" -> Détails CurseForge 'XML Injector' : {len(dl_urls)} lien(s) de téléchargement ({dl_urls}).")
+        if not dl_urls:
+            self.inconsistencies.append("Aucun lien de téléchargement extrait pour XML Injector sur CurseForge.")
+
+        # Validation de la non-collision inter-plateformes via check_dependencies (CurseForge <-> LoversLab & NSFWMods <-> LoversLab)
+        db = DatabaseManager.get_instance()
+        temp_rids = ["e2e_cf_xml", "e2e_ll_51444", "e2e_nm_742", "e2e_ll_s4cl_consumer"]
+        try:
+            with db.get_session() as s:
+                s.query(InstalledMod).filter(InstalledMod.remote_id.in_(temp_rids)).delete(synchronize_session=False)
+                s.query(CatalogMod).filter(CatalogMod.remote_id.in_(temp_rids)).delete(synchronize_session=False)
+
+                # XML Injector installé depuis CurseForge, requis par Confidence Cascade sur LoversLab
+                s.add(
+                    InstalledMod(
+                        source="curseforge",
+                        remote_id="e2e_cf_xml",
+                        title="XML Injector",
+                        folder_name="[CurseForge] XML Injector",
+                    )
+                )
+                # The Sims 4 Community Library installé depuis NSFWMods, requis par un mod sur LoversLab
+                s.add(
+                    InstalledMod(
+                        source="nsfwmods",
+                        remote_id="e2e_nm_742",
+                        title="The Sims 4 Community Library",
+                        folder_name="[NSFWMods] The Sims 4 Community Library",
+                    )
+                )
+
+                cm_ll_cascade = CatalogMod(
+                    source="loverslab",
+                    remote_id="e2e_ll_51444",
+                    title="Confidence Cascade (Cross-Platform Check)",
+                    page_url="https://www.loverslab.com/files/file/51444-confidence-cascade/",
+                    requirements_status="FOUND",
+                )
+                cm_ll_cascade.set_requirements_mods_list(
+                    [
+                        {
+                            "source": "loverslab",
+                            "remote_id": "99901",
+                            "title": "XML Injector v4",
+                            "url": "https://www.loverslab.com/files/file/99901-xml-injector/",
+                        },
+                        {
+                            "source": "loverslab",
+                            "remote_id": "25060",
+                            "title": "Sims 4 Community Library",
+                            "url": "https://www.loverslab.com/files/file/25060-sims-4-community-library/",
+                        },
+                    ]
+                )
+                s.add(cm_ll_cascade)
+                s.commit()
+                cascade_id = cm_ll_cascade.id
+
+            chk_cross = self.call_api(
+                "check_dependencies",
+                {
+                    "catalog_mod_id": cascade_id,
+                    "source": "loverslab",
+                    "title": "Confidence Cascade (Cross-Platform Check)",
+                },
+            )
+            missing_cross = chk_cross.get("missing_dependencies", [])
+            already_cross = chk_cross.get("already_installed_dependencies", [])
+            cross_ok = len(missing_cross) == 0 and len(already_cross) == 2
+            print(
+                f" -> [{'OK' if cross_ok else 'FAIL'}] Déduplication inter-plateformes (CurseForge + NSFWMods -> LoversLab) : "
+                f"Manquantes={len(missing_cross)}, Déjà installées={len(already_cross)}"
+            )
+        finally:
+            with db.get_session() as s:
+                s.query(InstalledMod).filter(InstalledMod.remote_id.in_(temp_rids)).delete(synchronize_session=False)
+                s.query(CatalogMod).filter(CatalogMod.remote_id.in_(temp_rids)).delete(synchronize_session=False)
+                s.commit()
+
     def run(self) -> None:
         """Exécute toutes les étapes de la simulation."""
         print("=" * 80)
@@ -1601,6 +1705,7 @@ class SimulationRunner:
             self.validate_ambiguous_dependencies_and_forum_interpellation()
             self.validate_shared_dependencies_group_installation()
             self.validate_nsfwmods_provider_e2e()
+            self.validate_curseforge_and_cross_platform_e2e()
             self.install_mods_sequentially()
             self.cleanup_installed_test_mods()
         finally:

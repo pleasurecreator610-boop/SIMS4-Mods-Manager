@@ -170,7 +170,37 @@ class ModInstallOrchestrator:
                         installed_dependencies=installed_dependencies,
                     )
 
-            # 2. Main Mod Download & Installation
+            # 2. Main Mod Download & Installation (with Cross-Platform Deduplication Check)
+            import re
+            from src.utils.mod_matcher import ModMatcher
+
+            stripped_t = re.sub(r"(?i)^the\s+", "", mod_title.strip())
+            target_fp = ModMatcher.canonical_fingerprint(ModMatcher.clean_mod_title(stripped_t) or stripped_t)
+            if target_fp:
+                config = AppConfig.load()
+                mods_dir = GameDetector.detect_mods_dir(config.custom_mods_dir)
+                with self.db.get_session() as s:
+                    for im in s.query(InstalledMod).all():
+                        if (im.source or "").lower() != source.lower() and im.title:
+                            im_stripped = re.sub(r"(?i)^the\s+", "", im.title.strip())
+                            im_fp = ModMatcher.canonical_fingerprint(
+                                ModMatcher.clean_mod_title(im_stripped) or im_stripped
+                            )
+                            if im_fp == target_fp and im.folder_name and mods_dir:
+                                disk_dir = mods_dir / im.folder_name
+                                if disk_dir.exists():
+                                    install_ok = True
+                                    install_msg = (
+                                        f"Mod '{mod_title}' déjà installé via '{im.source}' "
+                                        f"dans '{im.folder_name}' (non-collision inter-plateformes)."
+                                    )
+                                    logger.info(f"[INSTALL-MAIN] {install_msg}")
+                                    return CatalogInstallResponse(
+                                        success=True,
+                                        message=install_msg,
+                                        installed_dependencies=installed_dependencies,
+                                    )
+
             provider = ProviderRegistry.get_provider(source)
             if not provider:
                 install_msg = f"Fournisseur source '{source}' non supporté."

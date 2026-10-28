@@ -211,6 +211,8 @@
     "loverslab_desc": "Enables automatic Cloudflare bypass, +18 adult consent validation, and direct download access.",
     "nsfwmods_title": "NSFWMods (Sims Mods Catalog & IPS Forum)",
     "nsfwmods_desc": "Enables full access to the NSFWMods.com Sims Mods catalog, direct downloads, and forum interactions.",
+    "curseforge_title": "CurseForge (Official The Sims 4 Catalog & CDN)",
+    "curseforge_desc": "Enables access to the official CurseForge The Sims 4 catalog and direct archive downloads via ForgeCDN.",
     "patreon_title": "Patreon (Creator Access & Tier Tiers)",
     "patreon_desc": "Identifies if your Patreon account has unlocked subscriber-only / early access mods and downloads attachments.",
     "status_unconfigured": "Not configured",

@@ -1107,3 +1107,485 @@ def test_nsfwmods_provider_catalog_and_installation_e2e(e2e_env, monkeypatch):
         installed = s.query(InstalledMod).filter_by(source="nsfwmods", remote_id="424").first()
         assert installed is not None
         assert (mods_dir / installed.folder_name).exists()
+
+
+def test_curseforge_provider_catalog_and_installation_e2e(e2e_env, monkeypatch):
+    """
+    Tests end-to-end catalog listing, filtering, details fetching, and installation
+    for a mod from the CurseForge provider ('curseforge', https://www.curseforge.com/sims4).
+    """
+    import io
+    import zipfile
+    from unittest.mock import MagicMock
+    from src.database.models import InstalledMod
+
+    client = e2e_env["client"]
+    db = e2e_env["db"]
+    mods_dir = e2e_env["mods_dir"]
+
+    with db.get_session() as s:
+        cf_mod = CatalogMod(
+            source="curseforge",
+            remote_id="xml-injector",
+            title="XML Injector",
+            author="ScumbumboMods",
+            category="Mods - Utilities (CurseForge)",
+            page_url="https://www.curseforge.com/sims4/mods/xml-injector",
+            version_str="4.2",
+            patreon_status="NONE",
+            requirements_status="NONE",
+        )
+        s.add(cf_mod)
+        s.commit()
+        cf_mod_id = cf_mod.id
+
+    # 1. Verify catalog filtering by source="curseforge"
+    cat_resp = client.get("/api/catalog?source=curseforge")
+    assert cat_resp.status_code == 200
+    items = cat_resp.json()["items"]
+    assert len(items) == 1
+    assert items[0]["source"] == "curseforge"
+    assert items[0]["title"] == "XML Injector"
+
+    # 2. Mock CurseForge provider download and install the mod
+    mock_cf_provider = MagicMock()
+    mock_cf_provider.provider_name = "curseforge"
+    mock_cf_provider.get_mod_details.return_value = {
+        "description": "<div>XML Injector v4.2 for The Sims 4</div>",
+        "download_urls": [
+            {
+                "name": "XmlInjector_Script_v4.2.zip",
+                "url": "https://www.curseforge.com/api/v1/mods/694283/files/7021809/download",
+                "size": 28199,
+            }
+        ],
+        "requirements_mods": [],
+        "requirements_status": "NONE",
+        "version_str": "4.2",
+    }
+
+    def mock_cf_download(download_url=None, dest_path=None, progress_callback=None, **kwargs):
+        target = Path(dest_path or kwargs.get("dest_folder"))
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            zf.writestr("XmlInjector_Script_v4.2.ts4script", b"PK\x03\x04\x14\x00\x00\x00")
+            zf.writestr("XmlInjector_Test_v4.package", b"DBPF_XML_INJECTOR_CF")
+        target.write_bytes(buf.getvalue())
+        return True, str(target)
+
+    mock_cf_provider.download_mod_file = mock_cf_download
+    orig_get = ProviderRegistry.get_provider
+    monkeypatch.setattr(
+        ProviderRegistry,
+        "get_provider",
+        classmethod(lambda cls, name: mock_cf_provider if name == "curseforge" else orig_get(name)),
+    )
+
+    inst_resp = client.post(
+        "/api/catalog/install",
+        json={
+            "catalog_mod_id": cf_mod_id,
+            "source": "curseforge",
+            "remote_id": "xml-injector",
+            "title": "XML Injector",
+            "page_url": "https://www.curseforge.com/sims4/mods/xml-injector",
+            "install_dependencies": False,
+        },
+    )
+    assert inst_resp.status_code == 200
+    assert inst_resp.json()["success"] is True
+
+    with db.get_session() as s:
+        installed = s.query(InstalledMod).filter_by(source="curseforge", remote_id="xml-injector").first()
+        assert installed is not None
+        assert (mods_dir / installed.folder_name).exists()
+
+
+def test_three_platforms_concurrent_installation_e2e(e2e_env, monkeypatch):
+    """
+    Tests simultaneous (concurrent) installation of 3 mods from the 3 platforms
+    (LoversLab, NSFWMods, CurseForge) at the exact same time using ThreadPoolExecutor.
+    """
+    import concurrent.futures
+    import io
+    import zipfile
+    from unittest.mock import MagicMock
+    from src.api.schemas.catalog import CatalogInstallRequest
+    from src.application.mods.mod_install_orchestrator import perform_mod_install
+    from src.database.models import InstalledMod
+
+    db = e2e_env["db"]
+    mods_dir = e2e_env["mods_dir"]
+
+    three_platform_mods = [
+        {
+            "source": "loverslab",
+            "remote_id": "3169",
+            "title": "WickedWhims",
+            "author": "TURBODRIVER",
+            "page_url": "https://www.loverslab.com/files/file/3169-wickedwhims/",
+            "dl_url": "https://www.loverslab.com/files/file/3169-wickedwhims/?do=download",
+            "pkg": "WickedWhims.package",
+        },
+        {
+            "source": "nsfwmods",
+            "remote_id": "424",
+            "title": "Sim Snatcher",
+            "author": "ColonolNutty",
+            "page_url": "https://nsfwmods.com/files/file/424-sim-snatcher/",
+            "dl_url": "https://nsfwmods.com/files/file/424-sim-snatcher/?do=download&csrfKey=123",
+            "pkg": "SimSnatcher.package",
+        },
+        {
+            "source": "curseforge",
+            "remote_id": "universal-venue-list",
+            "title": "Universal Venue List",
+            "author": "Basemental",
+            "page_url": "https://www.curseforge.com/sims4/mods/universal-venue-list",
+            "dl_url": "https://www.curseforge.com/api/v1/mods/710000/files/810000/download",
+            "pkg": "UniversalVenueList.package",
+        },
+    ]
+
+    with db.get_session() as s:
+        for m in three_platform_mods:
+            cm = CatalogMod(
+                source=m["source"],
+                remote_id=m["remote_id"],
+                title=m["title"],
+                author=m["author"],
+                page_url=m["page_url"],
+                requirements_status="NONE",
+            )
+            s.add(cm)
+        s.commit()
+
+    providers_map = {}
+    for m in three_platform_mods:
+        prov = MagicMock()
+        prov.provider_name = m["source"]
+        prov.get_mod_details.return_value = {
+            "download_urls": [{"name": f"{m['remote_id']}.zip", "url": m["dl_url"]}],
+            "requirements_mods": [],
+            "requirements_status": "NONE",
+            "version_str": "1.0",
+        }
+
+        def make_dl(pkg_name, rid):
+            def _dl(download_url=None, dest_path=None, progress_callback=None, **kwargs):
+                target = Path(dest_path or kwargs.get("dest_folder"))
+                buf = io.BytesIO()
+                with zipfile.ZipFile(buf, "w") as zf:
+                    zf.writestr(pkg_name, f"DBPF_{rid}".encode("utf-8"))
+                target.write_bytes(buf.getvalue())
+                return True, str(target)
+
+            return _dl
+
+        prov.download_mod_file = make_dl(m["pkg"], m["remote_id"])
+        providers_map[m["source"]] = prov
+
+    monkeypatch.setattr(
+        ProviderRegistry,
+        "get_provider",
+        classmethod(lambda cls, name: providers_map.get(name)),
+    )
+
+    def _install_worker(mod_info):
+        req = CatalogInstallRequest(
+            source=mod_info["source"],
+            remote_id=mod_info["remote_id"],
+            title=mod_info["title"],
+            page_url=mod_info["page_url"],
+            install_dependencies=False,
+        )
+        return perform_mod_install(req)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
+        futures = [pool.submit(_install_worker, m) for m in three_platform_mods]
+        results = [f.result() for f in futures]
+
+    assert all(r.success for r in results), f"Concurrent 3-platform install failed: {[r.message for r in results]}"
+
+    with db.get_session() as s:
+        installed = s.query(InstalledMod).all()
+        assert len(installed) == 3
+        assert {im.source for im in installed} == {"loverslab", "nsfwmods", "curseforge"}
+        for im in installed:
+            assert (mods_dir / im.folder_name).exists()
+
+
+def test_cross_platform_shared_dependencies_and_non_collision_e2e(e2e_env, monkeypatch):
+    """
+    Tests real-world cross-platform non-collision and shared dependencies across LoversLab, NSFWMods, and CurseForge:
+    1. Cross-Platform Shared Dependencies:
+       - 'Social Activities (Visit Friends, Family and more)' on CurseForge requires 'XML Injector' (CurseForge).
+       - 'Confidence Cascade' on LoversLab requires 'XML Injector v4' (LoversLab).
+       -> Installing 'Social Activities' installs 'XML Injector' once; subsequent installation of 'Confidence Cascade'
+          recognizes 'XML Injector' as already installed across platforms and does NOT re-download or create a second folder.
+    2. Cross-Platform Identical Mod Non-Collision (Sequential & Concurrent):
+       - 'The Sims 4 Community Library' on NSFWMods (#742) vs 'Sims 4 Community Library' on LoversLab (#25060)
+         installed concurrently across threads.
+       -> Only 1 download occurs, only 1 physical folder on disk is created, and 1 InstalledMod record exists.
+    """
+    import concurrent.futures
+    import io
+    import threading
+    import zipfile
+    from unittest.mock import MagicMock
+    from src.api.schemas.catalog import CatalogInstallRequest
+    from src.application.mods.active_installation_registry import ActiveInstallationRegistry
+    from src.application.mods.mod_install_orchestrator import perform_mod_install
+    from src.database.models import InstalledMod
+
+    ActiveInstallationRegistry.reset()
+    client = e2e_env["client"]
+    db = e2e_env["db"]
+    mods_dir = e2e_env["mods_dir"]
+
+    catalog_entries = [
+        # Shared Dependency 1: XML Injector on CurseForge & LoversLab
+        {
+            "source": "curseforge",
+            "remote_id": "xml-injector",
+            "title": "XML Injector",
+            "author": "ScumbumboMods",
+            "page_url": "https://www.curseforge.com/sims4/mods/xml-injector",
+            "dl_url": "https://www.curseforge.com/api/v1/mods/694283/files/7021809/download",
+            "pkg": "XmlInjector_v4.package",
+            "reqs": [],
+        },
+        {
+            "source": "loverslab",
+            "remote_id": "99901",
+            "title": "XML Injector v4",
+            "author": "Scumbumbo",
+            "page_url": "https://www.loverslab.com/files/file/99901-xml-injector/",
+            "dl_url": "https://www.loverslab.com/files/file/99901-xml-injector/?do=download",
+            "pkg": "XmlInjector_v4.package",
+            "reqs": [],
+        },
+        # Mod on CurseForge requiring XML Injector
+        {
+            "source": "curseforge",
+            "remote_id": "social-activities-visit-friends-family-and-more",
+            "title": "Social Activities (Visit Friends, Family and more)",
+            "author": "LittleMsSam",
+            "page_url": "https://www.curseforge.com/sims4/mods/social-activities-visit-friends-family-and-more",
+            "dl_url": "https://www.curseforge.com/api/v1/mods/700100/files/800100/download",
+            "pkg": "LittleMsSam_SocialActivities.package",
+            "reqs": [
+                {
+                    "source": "curseforge",
+                    "remote_id": "xml-injector",
+                    "title": "XML Injector",
+                    "url": "https://www.curseforge.com/sims4/mods/xml-injector",
+                }
+            ],
+        },
+        # Mod on LoversLab requiring XML Injector v4
+        {
+            "source": "loverslab",
+            "remote_id": "51444",
+            "title": "Confidence Cascade",
+            "author": "BlackBoxMods",
+            "page_url": "https://www.loverslab.com/files/file/51444-confidence-cascade/",
+            "dl_url": "https://www.loverslab.com/files/file/51444-confidence-cascade/?do=download",
+            "pkg": "ConfidenceCascade.package",
+            "reqs": [
+                {
+                    "source": "loverslab",
+                    "remote_id": "99901",
+                    "title": "XML Injector v4",
+                    "url": "https://www.loverslab.com/files/file/99901-xml-injector/",
+                }
+            ],
+        },
+        # Identical Mod on NSFWMods & LoversLab: Sims 4 Community Library
+        {
+            "source": "nsfwmods",
+            "remote_id": "742",
+            "title": "The Sims 4 Community Library",
+            "author": "ColonolNutty",
+            "page_url": "https://nsfwmods.com/files/file/742-sims-4-community-library/",
+            "dl_url": "https://nsfwmods.com/files/file/742-sims-4-community-library/?do=download&csrfKey=s4cl",
+            "pkg": "s4cl.package",
+            "reqs": [],
+        },
+        {
+            "source": "loverslab",
+            "remote_id": "25060",
+            "title": "Sims 4 Community Library",
+            "author": "ColonolNutty",
+            "page_url": "https://www.loverslab.com/files/file/25060-sims-4-community-library/",
+            "dl_url": "https://www.loverslab.com/files/file/25060-sims-4-community-library/?do=download",
+            "pkg": "s4cl.package",
+            "reqs": [],
+        },
+    ]
+
+    db_ids: dict[tuple[str, str], int] = {}
+    with db.get_session() as s:
+        for entry in catalog_entries:
+            cm = CatalogMod(
+                source=entry["source"],
+                remote_id=entry["remote_id"],
+                title=entry["title"],
+                author=entry["author"],
+                page_url=entry["page_url"],
+                requirements_status="FOUND" if entry["reqs"] else "NONE",
+            )
+            cm.set_requirements_mods_list(entry["reqs"])
+            s.add(cm)
+            s.flush()
+            db_ids[(entry["source"], entry["remote_id"])] = cm.id
+        s.commit()
+
+    entries_by_url = {e["page_url"]: e for e in catalog_entries}
+    entries_by_dl = {e["dl_url"]: e for e in catalog_entries}
+    download_lock = threading.Lock()
+    download_counts = {"xml_injector": 0, "s4cl": 0, "social_activities": 0, "confidence_cascade": 0}
+
+    def _make_provider(source_name: str):
+        prov = MagicMock()
+        prov.provider_name = source_name
+
+        def _get_details(page_url):
+            e = entries_by_url.get(page_url)
+            if not e:
+                return {"download_urls": [], "requirements_mods": [], "requirements_status": "NONE"}
+            return {
+                "download_urls": [{"name": f"{e['remote_id']}.zip", "url": e["dl_url"]}],
+                "requirements_mods": e["reqs"],
+                "requirements_status": "FOUND" if e["reqs"] else "NONE",
+                "version_str": "1.0",
+            }
+
+        def _download(download_url=None, dest_path=None, progress_callback=None, **kwargs):
+            target = Path(dest_path or kwargs.get("dest_folder"))
+            e = entries_by_dl.get(download_url) or entries_by_url.get(download_url)
+            assert e is not None, f"Unexpected download URL: {download_url}"
+            with download_lock:
+                if e["remote_id"] in ("xml-injector", "99901"):
+                    download_counts["xml_injector"] += 1
+                elif e["remote_id"] in ("742", "25060"):
+                    download_counts["s4cl"] += 1
+                elif e["remote_id"] == "social-activities-visit-friends-family-and-more":
+                    download_counts["social_activities"] += 1
+                elif e["remote_id"] == "51444":
+                    download_counts["confidence_cascade"] += 1
+
+            buf = io.BytesIO()
+            with zipfile.ZipFile(buf, "w") as zf:
+                zf.writestr(e["pkg"], f"DBPF_{e['remote_id']}".encode("utf-8"))
+            target.write_bytes(buf.getvalue())
+            return True, str(target)
+
+        prov.get_mod_details.side_effect = _get_details
+        prov.download_mod_file = _download
+        return prov
+
+    providers = {
+        "loverslab": _make_provider("loverslab"),
+        "nsfwmods": _make_provider("nsfwmods"),
+        "curseforge": _make_provider("curseforge"),
+    }
+    monkeypatch.setattr(ProviderRegistry, "get_provider", classmethod(lambda cls, name: providers.get(name)))
+
+    # 1. Install 'Social Activities' on CurseForge -> installs 'XML Injector' (from CurseForge)
+    res_cf = client.post(
+        "/api/catalog/install",
+        json={
+            "catalog_mod_id": db_ids[("curseforge", "social-activities-visit-friends-family-and-more")],
+            "source": "curseforge",
+            "remote_id": "social-activities-visit-friends-family-and-more",
+            "title": "Social Activities (Visit Friends, Family and more)",
+            "page_url": "https://www.curseforge.com/sims4/mods/social-activities-visit-friends-family-and-more",
+            "install_dependencies": True,
+        },
+    )
+    assert res_cf.status_code == 200
+    assert res_cf.json()["success"] is True
+    assert download_counts["xml_injector"] == 1
+    assert download_counts["social_activities"] == 1
+
+    # 2. Check dependencies of 'Confidence Cascade' on LoversLab -> 'XML Injector v4' must be seen as ALREADY INSTALLED!
+    chk_ll = client.post(
+        "/api/catalog/check-dependencies",
+        json={
+            "catalog_mod_id": db_ids[("loverslab", "51444")],
+            "source": "loverslab",
+            "title": "Confidence Cascade",
+        },
+    )
+    assert chk_ll.status_code == 200
+    chk_ll_data = chk_ll.json()
+    assert len(chk_ll_data["missing_dependencies"]) == 0
+    assert len(chk_ll_data["already_installed_dependencies"]) == 1
+
+    # 3. Install 'Confidence Cascade' on LoversLab -> XML Injector MUST NOT be downloaded or installed again!
+    res_ll = client.post(
+        "/api/catalog/install",
+        json={
+            "catalog_mod_id": db_ids[("loverslab", "51444")],
+            "source": "loverslab",
+            "remote_id": "51444",
+            "title": "Confidence Cascade",
+            "page_url": "https://www.loverslab.com/files/file/51444-confidence-cascade/",
+            "install_dependencies": True,
+        },
+    )
+    assert res_ll.status_code == 200
+    assert res_ll.json()["success"] is True
+    assert download_counts["xml_injector"] == 1, "XML Injector was re-downloaded across platforms!"
+    assert download_counts["confidence_cascade"] == 1
+
+    # 4. Attempt direct installation of 'XML Injector v4' from LoversLab when 'XML Injector' from CurseForge is installed
+    res_dup_xml = client.post(
+        "/api/catalog/install",
+        json={
+            "catalog_mod_id": db_ids[("loverslab", "99901")],
+            "source": "loverslab",
+            "remote_id": "99901",
+            "title": "XML Injector v4",
+            "page_url": "https://www.loverslab.com/files/file/99901-xml-injector/",
+            "install_dependencies": False,
+        },
+    )
+    assert res_dup_xml.status_code == 200
+    assert res_dup_xml.json()["success"] is True
+    assert download_counts["xml_injector"] == 1, "Direct cross-platform duplicate install re-downloaded XML Injector!"
+
+    # 5. Concurrent installation of the same mod ('Sims 4 Community Library') from NSFWMods (#742) and LoversLab (#25060)
+    req_s4cl_nm = CatalogInstallRequest(
+        catalog_mod_id=db_ids[("nsfwmods", "742")],
+        source="nsfwmods",
+        remote_id="742",
+        title="The Sims 4 Community Library",
+        page_url="https://nsfwmods.com/files/file/742-sims-4-community-library/",
+        install_dependencies=False,
+    )
+    req_s4cl_ll = CatalogInstallRequest(
+        catalog_mod_id=db_ids[("loverslab", "25060")],
+        source="loverslab",
+        remote_id="25060",
+        title="Sims 4 Community Library",
+        page_url="https://www.loverslab.com/files/file/25060-sims-4-community-library/",
+        install_dependencies=False,
+    )
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+        f1 = pool.submit(perform_mod_install, req_s4cl_nm)
+        f2 = pool.submit(perform_mod_install, req_s4cl_ll)
+        r1, r2 = f1.result(), f2.result()
+
+    assert r1.success is True and r2.success is True
+    assert download_counts["s4cl"] == 1, f"S4CL was downloaded {download_counts['s4cl']} times instead of 1!"
+
+    # 6. Verify DB and physical folders: strictly 4 unique mods (XML Injector, Social Activities, Confidence Cascade, S4CL)
+    with db.get_session() as s:
+        all_installed = s.query(InstalledMod).all()
+        assert len(all_installed) == 4, f"Expected 4 unique installed mods, got {[m.title for m in all_installed]}"
+        physical_dirs = [p for p in mods_dir.iterdir() if p.is_dir()]
+        assert len(physical_dirs) == 4, f"Expected 4 folders on disk, got {[p.name for p in physical_dirs]}"
+

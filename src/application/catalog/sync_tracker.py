@@ -38,7 +38,12 @@ class SyncTracker:
     page1_ready: bool = False
     last_completed_at: Optional[str] = None
     categories: Dict[str, Dict[str, Any]] = {}
-    providers_status: Dict[str, str] = {"loverslab": "OK", "nsfwmods": "OK", "patreon": "OK"}
+    providers_status: Dict[str, str] = {
+        "loverslab": "OK",
+        "nsfwmods": "OK",
+        "curseforge": "OK",
+        "patreon": "OK",
+    }
     _cached_db_count: int = 0
     _last_count_time: float = 0.0
 
@@ -279,7 +284,12 @@ class SyncTracker:
             cls.error_message = None
             cls.page1_ready = False
             cls.categories.clear()
-            cls.providers_status = {"loverslab": "OK", "patreon": "OK"}
+            cls.providers_status = {
+                "loverslab": "OK",
+                "nsfwmods": "OK",
+                "curseforge": "OK",
+                "patreon": "OK",
+            }
 
     @classmethod
     def to_response(cls) -> CatalogSyncStatusResponse:

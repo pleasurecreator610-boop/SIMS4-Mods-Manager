@@ -82,6 +82,19 @@ class ModInstallCoordinator:
                 )
             if not existing_installed:
                 existing_installed = session.query(InstalledMod).filter_by(title=title, source=source_name).first()
+            if not existing_installed and title:
+                import re
+                from src.utils.mod_matcher import ModMatcher
+
+                stripped_t = re.sub(r"(?i)^the\s+", "", title.strip())
+                t_fp = ModMatcher.canonical_fingerprint(ModMatcher.clean_mod_title(stripped_t) or stripped_t)
+                if t_fp:
+                    for im in session.query(InstalledMod).all():
+                        if im.title:
+                            im_s = re.sub(r"(?i)^the\s+", "", im.title.strip())
+                            if ModMatcher.canonical_fingerprint(ModMatcher.clean_mod_title(im_s) or im_s) == t_fp:
+                                existing_installed = im
+                                break
 
             # Detect if previously installed mod was in disabled state
             is_mod_previously_disabled = False
@@ -293,6 +306,19 @@ class ModInstallCoordinator:
                     already = s.query(InstalledMod).filter_by(remote_id=dep_remote_id, source=dep_source).first()
                 if not already and dep_title:
                     already = s.query(InstalledMod).filter_by(title=dep_title).first()
+                if not already and dep_title:
+                    import re
+                    from src.utils.mod_matcher import ModMatcher
+
+                    dep_s = re.sub(r"(?i)^the\s+", "", dep_title.strip())
+                    dep_fp = ModMatcher.canonical_fingerprint(ModMatcher.clean_mod_title(dep_s) or dep_s)
+                    if dep_fp:
+                        for im in s.query(InstalledMod).all():
+                            if im.title:
+                                im_s = re.sub(r"(?i)^the\s+", "", im.title.strip())
+                                if ModMatcher.canonical_fingerprint(ModMatcher.clean_mod_title(im_s) or im_s) == dep_fp:
+                                    already = im
+                                    break
                 if already:
                     logger.info(f"[INSTALL-DEP] Dépendance '{dep_title}' déjà installée en base, passage.")
                     installed_deps.append(dep_title)
