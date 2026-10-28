@@ -101,9 +101,7 @@ class CatalogSyncActions:
         session.commit()
         return new_count, updated_count
 
-    def update_mod_scraped_details(
-        self, session: Session, cat_mod: CatalogMod, det_dict: Dict[str, Any]
-    ) -> None:
+    def update_mod_scraped_details(self, session: Session, cat_mod: CatalogMod, det_dict: Dict[str, Any]) -> None:
         """
         Atomic action: updates catalog mod with freshly scraped details from provider.
         """

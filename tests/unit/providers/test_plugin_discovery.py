@@ -50,6 +50,7 @@ def test_provider_registry_builtins():
 
 def test_provider_registry_decorator_registration():
     """Vérifie l'enregistrement dynamique d'un plugin via décorateur."""
+
     @ProviderRegistry.register_provider("custom_test")
     class DecoratedPlugin(MockCustomPlugin):
         provider_name = "custom_test"

@@ -73,7 +73,9 @@ class ConflictCardWidget(QFrame):
             pkg_lbl.setWordWrap(True)
             pkg_row.addWidget(pkg_lbl, stretch=1)
 
-            btn_action = QPushButton(tr("conflicts.btn_disable") if not pkg.endswith(".disabled") else tr("conflicts.btn_enable"))
+            btn_action = QPushButton(
+                tr("conflicts.btn_disable") if not pkg.endswith(".disabled") else tr("conflicts.btn_enable")
+            )
             btn_action.setCursor(Qt.CursorShape.PointingHandCursor)
             btn_action.setFixedHeight(26)
             is_disabled = pkg.endswith(".disabled")
@@ -208,7 +210,9 @@ class ConflictsDialog(QDialog):
 
         if count == 0:
             self.summary_title.setText("✅ Aucun conflit DBPF détecté !")
-            self.summary_desc.setText(f"{scanned} fichiers .package analysés. Toutes les ressources sont uniques et compatibles.")
+            self.summary_desc.setText(
+                f"{scanned} fichiers .package analysés. Toutes les ressources sont uniques et compatibles."
+            )
         else:
             self.summary_title.setText(f"⚠️ {count} Collision(s) Détectée(s) parmi {scanned} Packages")
             desc = f"{crit_count} collision(s) de tuning critique(s)"

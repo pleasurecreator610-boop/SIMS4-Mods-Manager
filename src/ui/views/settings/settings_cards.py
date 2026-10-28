@@ -286,7 +286,6 @@ class PreferencesCardWidget(QFrame):
         self.cache_lbl.setText(tr("settings.backups_path", path=backups_dir or "-"))
 
 
-
 class DatabaseCardWidget(QFrame):
     """Card widget for database maintenance, stats, and catalog purge."""
 

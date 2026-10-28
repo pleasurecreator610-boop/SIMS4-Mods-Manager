@@ -104,5 +104,3 @@ class StorageCleanupResponse(BaseModel):
     @property
     def freed_size_mb(self) -> float:
         return self.freed_bytes / (1024 * 1024)
-
-

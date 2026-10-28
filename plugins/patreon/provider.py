@@ -12,7 +12,6 @@ from src.utils.network import stream_download
 
 @ProviderRegistry.register_provider("patreon")
 class PatreonProvider(BaseSourceProvider):
-
     """Provider for checking Patreon posts, pledge access status, and extracting download links."""
 
     provider_name = "patreon"

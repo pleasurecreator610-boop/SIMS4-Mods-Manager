@@ -34,14 +34,10 @@ class ModUpdateOrchestrator:
         """Checks if a newer version exists in catalog."""
         return self.actions.compare_update_availability(installed_mod, catalog_mod)
 
-    def resolve_catalog_entry(
-        self, installed_mod: InstalledModEntity
-    ) -> Optional[CatalogModEntity]:
+    def resolve_catalog_entry(self, installed_mod: InstalledModEntity) -> Optional[CatalogModEntity]:
         """Resolves catalog entity via repository interfaces."""
         return self.actions.resolve_catalog_entry(installed_mod)
 
-    def resolve_catalog_mod_session(
-        self, session, installed_mod: InstalledMod
-    ) -> Optional[CatalogMod]:
+    def resolve_catalog_mod_session(self, session, installed_mod: InstalledMod) -> Optional[CatalogMod]:
         """Resolves catalog mod using active SQLAlchemy session."""
         return self.actions.resolve_catalog_mod_session(session, installed_mod)

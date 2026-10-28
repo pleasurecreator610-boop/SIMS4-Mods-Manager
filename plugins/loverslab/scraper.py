@@ -22,10 +22,8 @@ from src.providers.registry import ProviderRegistry
 from src.utils.logger import logger
 
 
-
 @ProviderRegistry.register_provider("loverslab")
 class LoversLabProvider(BaseSourceProvider):
-
     """
     Provider for scraping LoversLab The Sims 4 files category (161),
     extracting attachments, adult content handling, and identifying external/Patreon links.
@@ -430,7 +428,9 @@ class LoversLabProvider(BaseSourceProvider):
         except Exception as e:
             err_str = str(e).lower()
             if "timed out" in err_str or "timeout" in err_str or "28" in err_str:
-                logger.warning(f"Timeout lors de l'extraction des détails pour {mod_url} (serveur LoversLab indisponible ou lent)")
+                logger.warning(
+                    f"Timeout lors de l'extraction des détails pour {mod_url} (serveur LoversLab indisponible ou lent)"
+                )
             else:
                 logger.error(f"Error extracting details for {mod_url}: {e}", exc_info=True)
 
@@ -559,6 +559,10 @@ class LoversLabProvider(BaseSourceProvider):
             Résultat de l'opération post_mod_comment.
         """
         return LoversLabForumService.post_mod_comment(page_url, message)
+
+    def delete_mod_comment(self, page_url: str, required_keywords: Optional[List[str]] = None) -> Tuple[bool, str]:
+        """Supprime un commentaire publié par l'utilisateur sur le forum LoversLab."""
+        return LoversLabForumService.delete_user_comment(page_url, required_keywords)
 
     def get_creator_info(self, page_url: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """Récupère les informations du créateur (ID, nom, URL du profil)."""

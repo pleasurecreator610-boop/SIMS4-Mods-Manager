@@ -87,9 +87,7 @@ class CatalogSyncCoordinator:
                         )
                         time.sleep(delay)
                     else:
-                        logger.error(
-                            f"Erreur définitive worker LoversLab [{cat_name}] page {p}: {e}", exc_info=True
-                        )
+                        logger.error(f"Erreur définitive worker LoversLab [{cat_name}] page {p}: {e}", exc_info=True)
 
             tracker.wait_if_paused()
             if tracker.stop_requested or ShutdownManager.is_shutting_down():
@@ -126,9 +124,7 @@ class CatalogSyncCoordinator:
             time.sleep(0.3)
 
         if tracker.stop_requested or ShutdownManager.is_shutting_down():
-            tracker.update_category(
-                cat_id, min(p, target_cat_pages), target_cat_pages, cat_mods_count, "STOPPED"
-            )
+            tracker.update_category(cat_id, min(p, target_cat_pages), target_cat_pages, cat_mods_count, "STOPPED")
         else:
             tracker.update_category(cat_id, target_cat_pages, target_cat_pages, cat_mods_count, "COMPLETED")
 

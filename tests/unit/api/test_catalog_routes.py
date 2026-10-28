@@ -207,4 +207,3 @@ def test_catalog_matches_manual_mod_by_title(client):
     matched = next((m for m in data["items"] if m["title"] == manual_title), None)
     assert matched is not None
     assert matched["is_installed"] is True
-

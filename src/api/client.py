@@ -64,7 +64,6 @@ class ApiClient:
         resp.raise_for_status()
         return resp.json().get("accounts", [])
 
-
     def test_account(self, provider_name: str) -> Dict[str, Any]:
         """Exécute l'opération test account.
 
@@ -215,7 +214,6 @@ class ApiClient:
         resp.raise_for_status()
         return resp.json()
 
-
     def install_mod(
         self,
         catalog_mod_id: Optional[int] = None,
@@ -304,6 +302,19 @@ class ApiClient:
         resp.raise_for_status()
         return resp.json()
 
+    def delete_missing_report(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Exécute l'opération delete missing report.
+
+        Args:
+            payload: Paramètre payload.
+
+        Returns:
+            Résultat de l'opération delete_missing_report.
+        """
+        resp = self._client.post("/api/catalog/delete-missing-report", json=payload)
+        resp.raise_for_status()
+        return resp.json()
+
     def save_requirements_override(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Exécute l'opération save requirements override.
 
@@ -372,7 +383,9 @@ class ApiClient:
         Returns:
             Résultat de l'opération toggle_mod.
         """
-        resp = self._client.post(f"/api/installed/{mod_id}/toggle", json={"enabled": enabled}, timeout=self.FAST_TIMEOUT)
+        resp = self._client.post(
+            f"/api/installed/{mod_id}/toggle", json={"enabled": enabled}, timeout=self.FAST_TIMEOUT
+        )
         resp.raise_for_status()
         return resp.json()
 
@@ -421,10 +434,11 @@ class ApiClient:
         Returns:
             Résultat de l'opération open_folder.
         """
-        resp = self._client.post("/api/installed/open-folder", json={"folder_name": folder_name}, timeout=self.FAST_TIMEOUT)
+        resp = self._client.post(
+            "/api/installed/open-folder", json={"folder_name": folder_name}, timeout=self.FAST_TIMEOUT
+        )
         resp.raise_for_status()
         return resp.json()
-
 
     # --- Updates ---
     def get_updates(self) -> Dict[str, Any]:
@@ -581,8 +595,6 @@ class ApiClient:
         resp = self._client.post("/api/settings/storage/cleanup", timeout=60.0)
         resp.raise_for_status()
         return resp.json()
-
-
 
     # --- Logs ---
     def get_logs(self, level: Optional[str] = None, search: Optional[str] = None, limit: int = 200) -> Dict[str, Any]:

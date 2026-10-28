@@ -564,3 +564,168 @@ class LoversLabForumService:
         except Exception as e:
             logger.error(f"Erreur lors de l'envoi du MP sur LoversLab: {e}", exc_info=True)
             return False, f"Exception lors de l'envoi du message: {e}"
+
+    @staticmethod
+    def delete_user_comment(page_url: str, required_keywords: Optional[List[str]] = None) -> Tuple[bool, str]:
+        """
+        Finds and deletes (or hides/clears) the authenticated user's requirements report comment
+        on the LoversLab file page or linked support topic.
+        Returns (success: bool, message: str).
+        """
+        if not page_url:
+            return False, "URL du mod invalide ou manquante."
+
+        acc = SessionManager.get_saved_session("loverslab")
+        if not acc or not SessionManager.is_member_authenticated("loverslab"):
+            return False, "Utilisateur non authentifié avec un compte membre LoversLab."
+
+        cookies = acc.get_cookies_dict()
+        member_id = str(cookies.get("ips4_member_id") or "").strip()
+        user_display = (acc.user_display_name or "").strip().lower()
+        session = SessionManager.get_http_session("loverslab")
+
+        def _find_matching_comment_node(page_soup: BeautifulSoup) -> Optional[Tag]:
+            comment_nodes = page_soup.select(
+                "article.ipsComment, article.cPost, div[id^='comment-'], div[id^='elComment_']"
+            )
+            for node in reversed(comment_nodes):
+                node_author_id = str(node.get("data-memberid") or node.get("data-member-id") or "").strip()
+                author_link = node.select_one("a[href*='/profile/']")
+                author_href = author_link.get("href", "") if author_link else ""
+                author_text = author_link.get_text(strip=True).lower() if author_link else ""
+
+                is_user = False
+                if member_id and member_id != "0":
+                    if node_author_id == member_id or f"/profile/{member_id}-" in author_href:
+                        is_user = True
+                if not is_user and user_display and user_display in author_text:
+                    is_user = True
+                if not is_user:
+                    continue
+
+                content_node = (
+                    node.select_one("[data-role='commentContent']") or node.select_one(".ipsType_richText") or node
+                )
+                content_text = content_node.get_text(separator=" ", strip=True).lower()
+                has_signature = (
+                    "requirement" in content_text or "not identified" in content_text or "not found" in content_text
+                )
+                if not has_signature:
+                    continue
+
+                if required_keywords:
+                    kw_matched = any(kw.lower().strip() in content_text for kw in required_keywords if kw)
+                    if not kw_matched:
+                        continue
+
+                return node
+            return None
+
+        def _extract_comment_id(node: Tag) -> Optional[str]:
+            for attr in ("data-commentid", "data-comment-id"):
+                val = node.get(attr)
+                if val and str(val).isdigit():
+                    return str(val)
+            node_id = str(node.get("id") or "")
+            m = re.search(r"(?:elComment_|comment-)(\d+)", node_id)
+            if m:
+                return m.group(1)
+            for a in node.find_all("a", href=True):
+                m_href = re.search(r"[?&]comment=(\d+)", a["href"])
+                if m_href:
+                    return m_href.group(1)
+            return None
+
+        try:
+            resp = session.get(page_url, timeout=15)
+            if resp.status_code != 200:
+                return False, f"Impossible de charger la page du mod (HTTP {resp.status_code})."
+
+            active_url = page_url
+            active_html = resp.text
+            active_soup = BeautifulSoup(active_html, "html.parser")
+            target_node = _find_matching_comment_node(active_soup)
+
+            if not target_node:
+                topic_url = LoversLabForumService.find_support_topic_url(active_soup, page_url)
+                if topic_url:
+                    topic_resp = session.get(topic_url, timeout=15)
+                    if topic_resp.status_code == 200:
+                        active_url = topic_url
+                        active_html = topic_resp.text
+                        active_soup = BeautifulSoup(active_html, "html.parser")
+                        target_node = _find_matching_comment_node(active_soup)
+
+                        if not target_node:
+                            last_page_link = active_soup.select_one(".ipsPagination_last a, li[data-page] a")
+                            if last_page_link and last_page_link.get("href"):
+                                last_url = urllib.parse.urljoin(topic_url, last_page_link["href"])
+                                if last_url != topic_url:
+                                    last_resp = session.get(last_url, timeout=15)
+                                    if last_resp.status_code == 200:
+                                        active_url = last_url
+                                        active_html = last_resp.text
+                                        active_soup = BeautifulSoup(active_html, "html.parser")
+                                        target_node = _find_matching_comment_node(active_soup)
+
+            if not target_node:
+                return False, "Aucun commentaire correspondant de l'utilisateur trouvé sur le forum."
+
+            comment_id = _extract_comment_id(target_node)
+            csrf_key = LoversLabForumService._extract_csrf(active_soup, active_html)
+            if not comment_id or not csrf_key:
+                return False, "Impossible d'extraire l'identifiant du commentaire ou le jeton CSRF."
+
+            base_clean_url = active_url.split("?")[0].rstrip("/") + "/"
+            headers = {
+                "Referer": active_url,
+                "Origin": "https://www.loverslab.com",
+                "X-Requested-With": "XMLHttpRequest",
+            }
+
+            # 1. Try direct deleteComment or hideComment link from DOM or standard IPS4 endpoint
+            delete_href = None
+            for a in target_node.find_all("a", href=True):
+                if "do=deleteComment" in a["href"] or "do=hideComment" in a["href"]:
+                    delete_href = urllib.parse.urljoin(active_url, a["href"])
+                    break
+
+            candidate_urls = []
+            if delete_href:
+                candidate_urls.append(delete_href)
+            candidate_urls.append(f"{base_clean_url}?do=deleteComment&comment={comment_id}&csrfKey={csrf_key}")
+            candidate_urls.append(f"{base_clean_url}?do=hideComment&comment={comment_id}&csrfKey={csrf_key}")
+
+            for del_url in candidate_urls:
+                del_resp = session.post(
+                    del_url,
+                    data={"csrfKey": csrf_key, "hide_reason": "Test automated cleanup", "form_submitted": "1"},
+                    headers=headers,
+                    timeout=15,
+                )
+                if del_resp.status_code in [200, 302, 303]:
+                    already_there, _ = LoversLabForumService.check_user_already_commented(
+                        page_url, required_keywords or []
+                    )
+                    if not already_there:
+                        logger.info(f"Commentaire #{comment_id} supprimé avec succès sur LoversLab ({base_clean_url}).")
+                        return True, f"Commentaire #{comment_id} supprimé avec succès du forum."
+
+            # 2. Fallback: editComment to sanitize content if hard-delete is restricted on the board
+            edit_url = f"{base_clean_url}?do=editComment&comment={comment_id}"
+            edit_data = {
+                "csrfKey": csrf_key,
+                "form_submitted": "1",
+                "comment_value": "[Deleted]",
+                f"comment_value_{comment_id}": "<p>[Deleted]</p>",
+                f"topic_comment_{comment_id}": "<p>[Deleted]</p>",
+            }
+            edit_resp = session.post(edit_url, data=edit_data, headers=headers, timeout=15)
+            if edit_resp.status_code in [200, 302, 303]:
+                logger.info(f"Commentaire #{comment_id} nettoyé/supprimé via édition sur LoversLab ({base_clean_url}).")
+                return True, f"Commentaire #{comment_id} supprimé/nettoyé avec succès."
+
+            return False, f"Échec de la suppression du commentaire #{comment_id}."
+        except Exception as e:
+            logger.error(f"Erreur lors de la suppression du commentaire sur {page_url}: {e}", exc_info=True)
+            return False, f"Exception lors de la suppression du commentaire: {e}"

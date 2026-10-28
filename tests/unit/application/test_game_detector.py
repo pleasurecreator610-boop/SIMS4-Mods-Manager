@@ -69,7 +69,9 @@ def test_game_launcher_ea_app_and_steam_fallbacks(monkeypatch):
 
     called_uris = []
     monkeypatch.setattr(GameLauncher, "detect_game_executable", classmethod(lambda cls, custom_exe=None: None))
-    monkeypatch.setattr(GameLauncher, "open_system_uri", classmethod(lambda cls, uri: (called_uris.append(uri) or True)))
+    monkeypatch.setattr(
+        GameLauncher, "open_system_uri", classmethod(lambda cls, uri: (called_uris.append(uri) or True))
+    )
 
     ok = GameLauncher.launch_game()
     assert ok is True
@@ -113,4 +115,3 @@ def test_detect_mods_dir_honors_app_config_custom_mods_dir(tmp_path, monkeypatch
     res = GameDetector.detect_mods_dir()
     assert res == custom_mods
     assert (custom_mods / "Resource.cfg").exists()
-

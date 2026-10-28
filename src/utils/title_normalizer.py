@@ -2,6 +2,7 @@
 Title normalization rules, regex extractors, accent strippers, and token utilities for Sims 4 mod titles.
 """
 
+import functools
 import re
 import unicodedata
 from typing import Optional, List, Tuple
@@ -160,6 +161,7 @@ class TitleNormalizer:
         return re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", s)
 
     @classmethod
+    @functools.lru_cache(maxsize=4096)
     def canonical_fingerprint(cls, text: str) -> str:
         """Generates a normalized alphanumeric fingerprint for comparison."""
         if not text:
@@ -168,12 +170,14 @@ class TitleNormalizer:
         return re.sub(r"[^a-z0-9]", "", s)
 
     @classmethod
+    @functools.lru_cache(maxsize=4096)
     def strip_accents(cls, text: str) -> str:
         """Removes diacritical marks/accents from text."""
         nfkd = unicodedata.normalize("NFKD", text)
         return "".join(c for c in nfkd if not unicodedata.combining(c))
 
     @classmethod
+    @functools.lru_cache(maxsize=4096)
     def extract_author_and_version(cls, title: str) -> Tuple[Optional[str], Optional[str]]:
         """Attempts to extract creator name and version from bracketed or prefixed patterns."""
         if not title:
@@ -206,6 +210,7 @@ class TitleNormalizer:
         return author, version
 
     @classmethod
+    @functools.lru_cache(maxsize=4096)
     def clean_mod_title(cls, title: str) -> str:
         """Extracts the essential core name of a mod by stripping creator tags, version, and dates."""
         if not title:

@@ -58,12 +58,16 @@ class ModInstallOrchestrator:
             if payload.catalog_mod_id:
                 cat_mod = session.query(CatalogMod).filter_by(id=payload.catalog_mod_id).first()
             elif payload.source and payload.remote_id:
-                cat_mod = session.query(CatalogMod).filter_by(source=payload.source, remote_id=payload.remote_id).first()
+                cat_mod = (
+                    session.query(CatalogMod).filter_by(source=payload.source, remote_id=payload.remote_id).first()
+                )
 
         source: str = str((cat_mod.source if cat_mod and cat_mod.source else None) or (payload.source or "loverslab"))
         page_url = cat_mod.page_url if cat_mod else payload.page_url
         mod_title: str = str((cat_mod.title if cat_mod and cat_mod.title else None) or (payload.title or "Mod"))
-        remote_id: str = str((cat_mod.remote_id if cat_mod and cat_mod.remote_id else None) or (payload.remote_id or "unknown"))
+        remote_id: str = str(
+            (cat_mod.remote_id if cat_mod and cat_mod.remote_id else None) or (payload.remote_id or "unknown")
+        )
         version_date = cat_mod.updated_date if cat_mod else payload.updated_date
 
         if not page_url:
@@ -95,10 +99,14 @@ class ModInstallOrchestrator:
                     try:
                         provider = ProviderRegistry.get_provider(source)
                         if provider:
-                            logger.info(f"[INSTALL-DEP] Analyse préalable des dépendances pour '{mod_title}' ({page_url})...")
+                            logger.info(
+                                f"[INSTALL-DEP] Analyse préalable des dépendances pour '{mod_title}' ({page_url})..."
+                            )
                             det = provider.get_mod_details(page_url)
                             det_dict: dict[str, Any] = (
-                                det.model_dump() if hasattr(det, "model_dump") else (det if isinstance(det, dict) else {})
+                                det.model_dump()
+                                if hasattr(det, "model_dump")
+                                else (det if isinstance(det, dict) else {})
                             )
                             req_mods = det_dict.get("requirements_mods", [])
                             req_status = det_dict.get("requirements_status", "NONE")
@@ -115,7 +123,9 @@ class ModInstallOrchestrator:
 
                 with self.db.get_session() as session:
                     all_inst = session.query(InstalledMod).all()
-                    installed_by_remote = {(im.source or "unknown", im.remote_id): im for im in all_inst if im.remote_id}
+                    installed_by_remote = {
+                        (im.source or "unknown", im.remote_id): im for im in all_inst if im.remote_id
+                    }
                     installed_by_title = {im.title.lower(): im for im in all_inst if im.title}
 
                     resolved_deps = resolve_mod_dependencies(
@@ -136,7 +146,9 @@ class ModInstallOrchestrator:
                     and d.status not in ["COMMENT_NOISE", "COMMENT"]
                     and not is_likely_comment_or_noise(d.title)
                 ]
-                not_detected_deps = [d for d in missing_dependencies if d.status == "NOT_DETECTED_FINISHED" or not d.remote_id]
+                not_detected_deps = [
+                    d for d in missing_dependencies if d.status == "NOT_DETECTED_FINISHED" or not d.remote_id
+                ]
                 if not_detected_deps:
                     missing_dependencies = [d for d in missing_dependencies if d not in not_detected_deps]
 
@@ -169,16 +181,16 @@ class ModInstallOrchestrator:
 
             details = provider.get_mod_details(page_url)
             details_dict: dict[str, Any] = (
-                details.model_dump() if hasattr(details, "model_dump") else (details if isinstance(details, dict) else {})
+                details.model_dump()
+                if hasattr(details, "model_dump")
+                else (details if isinstance(details, dict) else {})
             )
             download_urls = details_dict.get("download_urls", [])
             if not download_urls:
                 ext_links = details_dict.get("external_links", [])
                 if ext_links:
                     install_msg = f"Téléchargement externe requis : {', '.join(ext_links[:2])}"
-                    return CatalogInstallResponse(
-                        success=False, message=install_msg
-                    )
+                    return CatalogInstallResponse(success=False, message=install_msg)
                 install_msg = "Aucun lien de téléchargement trouvé pour ce mod."
                 return CatalogInstallResponse(success=False, message=install_msg)
 
@@ -216,9 +228,7 @@ class ModInstallOrchestrator:
             mods_dir = GameDetector.detect_mods_dir(config.custom_mods_dir)
             if not mods_dir:
                 install_msg = "Dossier Mods de Sims 4 introuvable. Veuillez vérifier vos paramètres."
-                return CatalogInstallResponse(
-                    success=False, message=install_msg
-                )
+                return CatalogInstallResponse(success=False, message=install_msg)
 
             from src.application.mods.mod_installer_service import ModInstaller
 

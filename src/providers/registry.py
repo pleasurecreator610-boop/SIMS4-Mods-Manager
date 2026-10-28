@@ -10,7 +10,6 @@ from src.providers.base import BaseSourceProvider
 from src.utils.logger import logger
 
 
-
 class ProviderRegistry:
     """Registre dynamique et extensible pour les fournisseurs de mods (LoversLab, Patreon, plugins tiers)."""
 

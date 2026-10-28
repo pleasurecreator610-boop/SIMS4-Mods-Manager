@@ -245,7 +245,9 @@ class InstalledCard(BaseModCard):
                 (hasattr(self, "btn_folder") and (child == self.btn_folder or self.btn_folder.isAncestorOf(child)))
                 or (hasattr(self, "btn_delete") and (child == self.btn_delete or self.btn_delete.isAncestorOf(child)))
                 or (hasattr(self, "btn_toggle") and (child == self.btn_toggle or self.btn_toggle.isAncestorOf(child)))
-                or (hasattr(self, "btn_restore") and (child == self.btn_restore or self.btn_restore.isAncestorOf(child)))
+                or (
+                    hasattr(self, "btn_restore") and (child == self.btn_restore or self.btn_restore.isAncestorOf(child))
+                )
             ):
                 super().mousePressEvent(event)
                 return

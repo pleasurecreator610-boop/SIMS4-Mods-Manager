@@ -23,7 +23,9 @@ def test_live_simulation_pipeline(tmp_path):
     Requires internet connectivity and is only executed when running pytest with '-m live'.
     """
     if os.environ.get("RUN_LIVE_TESTS") != "1" and not os.environ.get("CI_LIVE"):
-        pytest.skip("Test live E2E ignoré par défaut. Exécuter avec 'uv run pytest tests/e2e/test_live_simulation_e2e.py -m live -s' pour lancer la simulation réelle.")
+        pytest.skip(
+            "Test live E2E ignoré par défaut. Exécuter avec 'uv run pytest tests/e2e/test_live_simulation_e2e.py -m live -s' pour lancer la simulation réelle."
+        )
 
     runner = SimulationRunner(
         api_url="http://127.0.0.1:8000",

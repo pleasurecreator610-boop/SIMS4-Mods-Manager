@@ -89,14 +89,20 @@ class InstalledModsService:
         return self._toggle_manager or ModToggleManager(self.installed_repo)
 
     def list_installed_mods(self, search: Optional[str] = None) -> InstalledListResponse:
-        """Liste les mods installés avec détection des mises à jour et statistiques."""
+        """Liste les mods installés avec détection des mises à jour et statistiques sans charger tout le catalogue."""
         all_mods = self.installed_repo.get_all()
 
         if search:
             s_clean = search.strip().lower()
             all_mods = [m for m in all_mods if s_clean in m.title.lower() or s_clean in m.folder_name.lower()]
 
-        all_catalog = self.catalog_repo.get_all()
+        cat_ids = [m.catalog_mod_id for m in all_mods if m.catalog_mod_id is not None]
+        rem_ids = [m.remote_id for m in all_mods if m.remote_id]
+        if hasattr(self.catalog_repo, "get_by_ids_or_remote_ids"):
+            all_catalog = self.catalog_repo.get_by_ids_or_remote_ids(cat_ids, rem_ids)
+        else:
+            all_catalog = self.catalog_repo.get_all()
+
         catalog_by_id = {cm.id: cm for cm in all_catalog if cm.id is not None}
         catalog_by_key = {(cm.source, cm.remote_id): cm for cm in all_catalog if cm.remote_id}
 
@@ -137,7 +143,10 @@ class InstalledModsService:
                     str(img)
                     for img in (cat_mod.external_links or [])
                     if isinstance(img, str)
-                    and any(img.lower().endswith(ext) or ext in img.lower() for ext in [".png", ".jpg", ".jpeg", ".webp", ".gif"])
+                    and any(
+                        img.lower().endswith(ext) or ext in img.lower()
+                        for ext in [".png", ".jpg", ".jpeg", ".webp", ".gif"]
+                    )
                 ]
 
             items.append(
@@ -248,10 +257,14 @@ class InstalledModsService:
             if not target_path.exists():
                 alt_clean = folder_clean[:-9] if folder_clean.endswith(".disabled") else f"{folder_clean}.disabled"
                 alt_resolved = (mods_dir / alt_clean).resolve()
-                if (alt_resolved == mods_dir.resolve() or mods_dir.resolve() in alt_resolved.parents) and alt_resolved.exists():
+                if (
+                    alt_resolved == mods_dir.resolve() or mods_dir.resolve() in alt_resolved.parents
+                ) and alt_resolved.exists():
                     target_path = alt_resolved
                 else:
-                    return InstalledOpenFolderResponse(success=False, message=f"Sous-dossier '{folder_name}' introuvable.")
+                    return InstalledOpenFolderResponse(
+                        success=False, message=f"Sous-dossier '{folder_name}' introuvable."
+                    )
 
         try:
             if os.name == "nt":
@@ -316,8 +329,7 @@ class InstalledModsService:
             # Mettre à jour l'enregistrement InstalledMod
             mod.installed_files = installed_rel_files
             mod.is_enabled = not (
-                target_dir.name.endswith(".disabled")
-                or any(f.endswith(".disabled") for f in installed_rel_files)
+                target_dir.name.endswith(".disabled") or any(f.endswith(".disabled") for f in installed_rel_files)
             )
             self.installed_repo.save(mod)
 
@@ -328,4 +340,3 @@ class InstalledModsService:
             )
         except Exception as e:
             return InstalledRestoreResponse(success=False, message=f"Erreur lors de la restauration: {e}")
-

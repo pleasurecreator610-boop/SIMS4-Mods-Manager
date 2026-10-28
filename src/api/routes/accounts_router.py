@@ -117,7 +117,9 @@ def login_account(provider_name: str, payload: AccountLoginRequest = AccountLogi
     p_lower = provider_name.lower()
     login_url = _get_login_url(p_lower)
     if not login_url:
-        raise HTTPException(status_code=400, detail=f"Fournisseur non reconnu ou sans URL de connexion: {provider_name}")
+        raise HTTPException(
+            status_code=400, detail=f"Fournisseur non reconnu ou sans URL de connexion: {provider_name}"
+        )
 
     ok, msg, cookies = SessionManager.launch_interactive_login(
         provider_name=p_lower,

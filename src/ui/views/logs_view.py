@@ -19,7 +19,6 @@ from src.i18n import tr
 from src.utils.logger import get_qt_log_handler, logger
 
 
-
 class LogsView(QWidget):
     """Modern real-time logs inspection view with filtering and 1-click clipboard copy via API."""
 
@@ -134,6 +133,7 @@ class LogsView(QWidget):
 
     def load_initial_history(self):
         """Loads logs through API /api/logs asynchronously."""
+
         def _fetch():
             return self.api_client.get_logs(limit=500)
 
@@ -204,6 +204,7 @@ class LogsView(QWidget):
 
     def clear_logs(self):
         """Exécute l'opération clear logs sans bloquer la GUI."""
+
         def _do_clear():
             self.api_client.clear_logs()
 
@@ -219,6 +220,7 @@ class LogsView(QWidget):
 
     def open_logs_folder(self):
         """Exécute l'opération open logs folder sans bloquer la GUI."""
+
         def _on_err(err: str) -> None:
             QMessageBox.warning(self, tr("common.error"), f"{err}")
 
@@ -226,7 +228,6 @@ class LogsView(QWidget):
             self.api_client.open_logs_folder,
             on_error=_on_err,
         )
-
 
     def _populate_level_combo(self):
         current_data = self.level_combo.currentData()

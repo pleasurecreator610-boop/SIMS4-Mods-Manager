@@ -132,6 +132,7 @@ class DetailHeaderWidget(QWidget):
         else:
             self.set_installing(True)
             from PySide6.QtWidgets import QApplication
+
             QApplication.processEvents()
             self.install_requested.emit()
 

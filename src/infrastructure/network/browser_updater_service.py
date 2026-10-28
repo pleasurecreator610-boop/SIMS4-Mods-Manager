@@ -75,11 +75,8 @@ class BrowserUpdaterService:
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                text=True,
                 bufsize=1,
                 creationflags=creation_flags,
-                encoding="utf-8",
-                errors="replace",
             )
 
             last_percent = 0
@@ -95,8 +92,9 @@ class BrowserUpdaterService:
                     logger.info("Installation de Chromium annulée par l'utilisateur.")
                     return False, "Téléchargement annulé par l'utilisateur."
 
-                line = proc.stdout.readline() if proc.stdout else ""
-                if line:
+                raw_line = proc.stdout.readline() if proc.stdout else ""
+                if raw_line:
+                    line = raw_line.decode("utf-8", errors="replace") if isinstance(raw_line, bytes) else str(raw_line)
                     line_clean = line.strip()
                     logger.debug(f"[Playwright Install]: {line_clean}")
 

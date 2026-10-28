@@ -13,6 +13,7 @@ from src.core.config import AppConfig
 from src.application.game.game_detector import GameDetector
 from src.infrastructure.filesystem.archive_extractor import ZipArchiveHandler
 
+
 def test_sanitize_filename():
     assert sanitize_filename('Mod: "Super/Best*Mod?"') == "Mod_SuperBestMod"
 
@@ -381,6 +382,7 @@ def test_zip_slip_rejected(tmp_path):
 def test_update_previously_disabled_mod_maintains_disabled_state_and_configs(tmp_path, monkeypatch):
     """Vérifie que la mise à jour d'un mod déjà désactivé conserve son état désactivé et ses configs utilisateur."""
     from src.application.mods.mod_install_coordinator import ModInstallCoordinator
+
     mods_dir = tmp_path / "The Sims 4" / "Mods"
     mods_dir.mkdir(parents=True)
 
@@ -398,13 +400,15 @@ def test_update_previously_disabled_mod_maintains_disabled_state_and_configs(tmp
     (old_disabled_folder / "settings.ini").write_text("user_custom_setting=true")
 
     with db_mgr.get_session() as session:
-        session.add(InstalledMod(
-            title="My Mod",
-            folder_name="loverslab_MyMod_123.disabled",
-            source="loverslab",
-            remote_id="123",
-            is_enabled=False,
-        ))
+        session.add(
+            InstalledMod(
+                title="My Mod",
+                folder_name="loverslab_MyMod_123.disabled",
+                source="loverslab",
+                remote_id="123",
+                is_enabled=False,
+            )
+        )
         session.commit()
 
     # Nouvelle version en archive zip
@@ -455,6 +459,7 @@ def test_open_mod_folder_resolves_disabled_folder(tmp_path, monkeypatch):
     # Intercepter os.startfile
     opened_paths = []
     import os
+
     monkeypatch.setattr(os, "startfile", lambda p: opened_paths.append(str(p)))
 
     service = InstalledModsService()
@@ -463,4 +468,3 @@ def test_open_mod_folder_resolves_disabled_folder(tmp_path, monkeypatch):
     assert res.success is True
     assert len(opened_paths) == 1
     assert "MyMod.disabled" in opened_paths[0]
-

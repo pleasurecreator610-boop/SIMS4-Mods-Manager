@@ -5,6 +5,7 @@ and handles Resource.cfg and background path updates.
 
 import os
 import re
+
 try:
     import winreg
 except ImportError:
@@ -233,7 +234,6 @@ class GameDetector:
     def get_game_exe_path(cls, custom_exe: Optional[str] = None) -> Optional[Path]:
         """Alias retournant le chemin de l'exécutable Sims 4."""
         return cls.detect_game_executable(custom_exe)
-
 
     @classmethod
     def launch_game(cls, exe_path: Optional[Path] = None) -> bool:

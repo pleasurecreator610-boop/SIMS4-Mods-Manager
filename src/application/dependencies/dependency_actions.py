@@ -5,7 +5,7 @@ comment classification, special case lookup, and atomic database lookups.
 """
 
 from typing import Any, Dict, Optional, Set, Tuple
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, defer
 
 from src.application.dependencies.dependency_normalizer import (
     clean_dependency_title,
@@ -27,9 +27,7 @@ class DependencyActions:
         """Cleans and standardizes raw dependency title string."""
         return clean_dependency_title(title or "")
 
-    def is_comment_override(
-        self, title: str, clean_t: str, requirements_overrides: Optional[Dict[str, str]]
-    ) -> bool:
+    def is_comment_override(self, title: str, clean_t: str, requirements_overrides: Optional[Dict[str, str]]) -> bool:
         """Checks if a dependency title has been explicitly overridden as a comment/noise."""
         if not requirements_overrides:
             return False
@@ -73,6 +71,7 @@ class DependencyActions:
 
         cat_match = (
             session.query(CatalogMod)
+            .options(defer(CatalogMod.description), defer(CatalogMod.requirements_text))
             .filter((CatalogMod.title.ilike(title)) | (CatalogMod.remote_id == title))
             .first()
         )

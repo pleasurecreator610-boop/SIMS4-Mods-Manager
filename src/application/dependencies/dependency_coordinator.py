@@ -73,7 +73,11 @@ class DependencyCoordinator:
                 is_comment=False,
             )
 
-        is_dlc = dep.get("is_game_dlc", False) or dep.get("status") == "GAME_DLC" or (not is_base and clean_t and is_detected_dlc)
+        is_dlc = (
+            dep.get("is_game_dlc", False)
+            or dep.get("status") == "GAME_DLC"
+            or (not is_base and clean_t and is_detected_dlc)
+        )
         dlc_name = dep.get("dlc_name") or det_dlc_name or title
         dlc_code = dep.get("dlc_code") or det_dlc_code
 
@@ -230,9 +234,7 @@ class DependencyCoordinator:
 
         return deduped
 
-    def find_dependent_installed_mods(
-        self, installed_mod_id: int, session: Session
-    ) -> List[Dict[str, Any]]:
+    def find_dependent_installed_mods(self, installed_mod_id: int, session: Session) -> List[Dict[str, Any]]:
         """Identifies installed mods that declare a dependency on installed_mod_id."""
         target = session.query(InstalledMod).filter_by(id=installed_mod_id).first()
         if not target:

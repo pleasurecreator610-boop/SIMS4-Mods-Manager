@@ -33,7 +33,6 @@ _installed_service = InstalledModsService()
 _conflict_detector = ConflictDetectorService()
 
 
-
 @router.get("", response_model=InstalledListResponse)
 def get_installed_mods(search: Optional[str] = None) -> InstalledListResponse:
     """Liste tous les mods installés avec statut, comptage de fichiers et mises à jour disponibles."""
@@ -137,5 +136,3 @@ def resolve_conflict(payload: ResolveConflictRequest) -> ResolveConflictResponse
     if not ok:
         raise HTTPException(status_code=400, detail=msg)
     return ResolveConflictResponse(success=True, message=msg, new_path=new_path)
-
-

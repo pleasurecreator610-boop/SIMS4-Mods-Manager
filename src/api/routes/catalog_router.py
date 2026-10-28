@@ -1,7 +1,6 @@
 import re
 from typing import Optional, Any
 from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, Depends
-from sqlalchemy import or_
 from sqlalchemy.orm import Session, defer
 
 from src.api.schemas.catalog import (
@@ -67,26 +66,13 @@ def get_catalog(
         .all()
     )
 
-    page_remote_ids = [m.remote_id for m in paginated_mods if m.remote_id]
-    page_cat_ids = [m.id for m in paginated_mods if m.id]
-    page_titles = [m.title for m in paginated_mods if m.title]
-
-    conditions = []
-    if page_remote_ids:
-        conditions.append(InstalledMod.remote_id.in_(page_remote_ids))
-    if page_cat_ids:
-        conditions.append(InstalledMod.catalog_mod_id.in_(page_cat_ids))
-    if page_titles:
-        conditions.append(InstalledMod.title.in_(page_titles))
-
-    relevant_installed = session.query(InstalledMod).filter(or_(*conditions)).all() if conditions else []
+    # Load all installed mods once (small table) so both parent status AND dependency status resolve accurately
+    all_installed = session.query(InstalledMod).options(defer(InstalledMod.installed_files)).all()
     installed_by_remote = {
-        ((im.source or "unknown").lower(), str(im.remote_id)): im
-        for im in relevant_installed
-        if im.remote_id
+        ((im.source or "unknown").lower(), str(im.remote_id)): im for im in all_installed if im.remote_id
     }
-    installed_by_title = {im.title.strip().lower(): im for im in relevant_installed if im.title}
-    installed_by_id = {im.catalog_mod_id: im for im in relevant_installed if im.catalog_mod_id and not im.remote_id}
+    installed_by_title = {im.title.strip().lower(): im for im in all_installed if im.title}
+    installed_by_id = {im.catalog_mod_id: im for im in all_installed if im.catalog_mod_id and not im.remote_id}
 
     # Pre-collect all requirement remote_ids for batch lookup (eliminates N+1 queries)
     needed_remote_ids = set()
@@ -126,6 +112,7 @@ def get_catalog(
             installed_by_title,
             is_syncing=SyncTracker.is_running,
             catalog_remote_ids=catalog_remote_ids,
+            requirements_overrides=m.get_requirements_overrides(),
         )
 
         paginated_items.append(
@@ -262,7 +249,7 @@ def get_catalog_mod_details(mod_id: int, force_refresh: bool = False, session: S
         except Exception as e:
             logger.debug(f"Erreur extraction détails/requirements pour {m.title}: {e}")
 
-    all_inst = session.query(InstalledMod).all()
+    all_inst = session.query(InstalledMod).options(defer(InstalledMod.installed_files)).all()
     installed_by_remote = {(im.source or "unknown", im.remote_id): im for im in all_inst if im.remote_id}
     installed_by_title = {im.title.lower(): im for im in all_inst if im.title}
     dep_items = resolve_mod_dependencies(
@@ -271,6 +258,7 @@ def get_catalog_mod_details(mod_id: int, force_refresh: bool = False, session: S
         installed_by_remote,
         installed_by_title,
         is_syncing=SyncTracker.is_running,
+        requirements_overrides=m.get_requirements_overrides(),
     )
 
     screenshots = details_dict.get("screenshots", [])

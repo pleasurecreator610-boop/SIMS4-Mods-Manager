@@ -31,6 +31,7 @@ def create_db_engine(db_path: Optional[str] = None) -> Engine:
         cursor.execute("PRAGMA busy_timeout=15000")
         cursor.execute("PRAGMA cache_size=-64000")
         cursor.execute("PRAGMA temp_store=MEMORY")
+        cursor.execute("PRAGMA mmap_size=268435456")
         cursor.close()
 
     return engine

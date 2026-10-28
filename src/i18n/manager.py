@@ -20,7 +20,6 @@ else:
             return None
 
 
-
 SUPPORTED_LANGUAGES = {
     "fr": {"name": "Français", "flag": "🇫🇷", "code": "fr"},
     "en": {"name": "English", "flag": "🇬🇧", "code": "en"},

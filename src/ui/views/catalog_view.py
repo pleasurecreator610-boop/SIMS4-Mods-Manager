@@ -318,7 +318,7 @@ class CatalogView(QWidget):
         run_async_ui_task(
             _do_pause,
             on_finished=lambda _: self._check_sync_status(),
-            on_error=lambda e: logger.error(f"Erreur mise en pause {provider}: {e}")
+            on_error=lambda e: logger.error(f"Erreur mise en pause {provider}: {e}"),
         )
 
     def _on_resume_sync(self, provider: str = "loverslab"):
@@ -328,7 +328,7 @@ class CatalogView(QWidget):
         run_async_ui_task(
             _do_resume,
             on_finished=lambda _: self._check_sync_status(),
-            on_error=lambda e: logger.error(f"Erreur reprise {provider}: {e}")
+            on_error=lambda e: logger.error(f"Erreur reprise {provider}: {e}"),
         )
 
     def _on_stop_sync(self, provider: str = "loverslab"):
@@ -338,7 +338,7 @@ class CatalogView(QWidget):
         run_async_ui_task(
             _do_stop,
             on_finished=lambda _: self._check_sync_status(),
-            on_error=lambda e: logger.error(f"Erreur arrêt {provider}: {e}")
+            on_error=lambda e: logger.error(f"Erreur arrêt {provider}: {e}"),
         )
 
     def start_sync(self, max_pages: int = 0):
@@ -424,7 +424,6 @@ class CatalogView(QWidget):
             logger.debug(f"Erreur vérification statut sync: {err}")
 
         run_async_ui_task(_fetch, on_finished=_on_fetched, on_error=_on_error)
-
 
     def install_mod(self, mod_data: dict) -> bool:
         """Exécute l'opération install mod de façon non-bloquante avec protection anti-doublon."""
@@ -563,4 +562,3 @@ class CatalogView(QWidget):
         """Interrompt les tâches asynchrones lors de la fermeture."""
         self.cleanup()
         super().closeEvent(event)
-

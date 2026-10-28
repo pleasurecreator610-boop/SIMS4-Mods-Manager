@@ -498,3 +498,521 @@ def test_fast_mod_with_wickedwhims_dependency_installation_e2e(e2e_env, monkeypa
         assert (ww_folder / "WickedWhims_Scripts.ts4script").exists()
         assert (ww_folder / "WickedWhims_Tuning.package").exists()
         assert (cas_folder / "ConfidenceCascade.package").exists()
+
+
+def test_ambiguous_dependencies_comment_and_forum_interpellation_e2e(e2e_env, monkeypatch):
+    """
+    Scenario: E2E test for the group of 3 mods with ambiguous dependencies (including Confidence Cascade):
+    1. Validates delimiter splitting ('&' and '-') and comment vs unfound mod qualification:
+       - Mod 1: Confidence Cascade
+         * Comments: 'Game Options -> Script Mods Enabled', 'Bad decisions. Better stories'
+         * Missing Mods: 'Lumpinou - Relationship & Pregnancy Overhaul' -> split into 'Lumpinou' and 'Relationship & Pregnancy Overhaul'
+       - Mod 2: Wicked Traits Unleashed
+         * Comments: 'Script-only mod - no .package file required'
+         * Missing Mods: 'Scumbumbo - XML Injector v4' -> split by '-' into 'Scumbumbo' and 'XML Injector v4'
+       - Mod 3: Private Night (TS4 WW)
+         * Comments: 'Make sure you have the latest patch and restart the game'
+         * Missing Mods: 'Kuttoe - Mini Mod Framework' -> split by '-' into 'Kuttoe' and 'Mini Mod Framework'
+    2. Validates author interpellation in the forum:
+       - Verifies formatted_message strictly separates Missing Mods ('📦 Unresolved / Missing Dependencies:')
+         and Comments ('🧹 Notes / Instructions to clean from Requirements:').
+       - Posts the forum comment via /api/catalog/report-missing-requirements.
+       - Verifies /api/catalog/check-missing-report detects already_reported=True.
+       - Deletes the forum comment via /api/catalog/delete-missing-report once validated,
+         and verifies already_reported=False.
+    """
+    from bs4 import BeautifulSoup
+    from plugins.loverslab.requirements_extractor import extract_loverslab_requirements
+    from src.core.session_manager import SessionManager
+
+    client = e2e_env["client"]
+    db = e2e_env["db"]
+
+    # Simulated forum state: page_url -> list of posted comment strings
+    forum_comments_store: dict[str, list[str]] = {}
+
+    mock_provider = MagicMock()
+    mock_provider.provider_name = "loverslab"
+    mock_provider.get_creator_info.side_effect = lambda url: (
+        "99001",
+        "BlackBoxMods",
+        "https://www.loverslab.com/profile/99001-blackboxmods/",
+    )
+
+    def mock_check_already_commented(page_url: str, required_keywords: list[str]):
+        comments = forum_comments_store.get(page_url, [])
+        for msg in comments:
+            msg_low = msg.lower()
+            if not required_keywords or any(kw.lower() in msg_low for kw in required_keywords if kw):
+                return True, "28/10/2026 à 07:15"
+        return False, None
+
+    def mock_post_comment(page_url: str, message: str):
+        forum_comments_store.setdefault(page_url, []).append(message)
+        return True, "Message publié avec succès sur le forum LoversLab."
+
+    def mock_delete_comment(page_url: str, required_keywords: list[str] | None = None):
+        comments = forum_comments_store.get(page_url, [])
+        if not comments:
+            return False, "Aucun commentaire correspondant trouvé."
+        forum_comments_store[page_url] = []
+        return True, "Commentaire supprimé avec succès du forum."
+
+    mock_provider.check_user_already_commented.side_effect = mock_check_already_commented
+    mock_provider.post_mod_comment.side_effect = mock_post_comment
+    mock_provider.delete_mod_comment.side_effect = mock_delete_comment
+
+    monkeypatch.setattr(ProviderRegistry, "get_provider", classmethod(lambda cls, name: mock_provider))
+    monkeypatch.setattr(SessionManager, "is_member_authenticated", classmethod(lambda cls, src: True))
+
+    test_cases = [
+        {
+            "remote_id": "51444",
+            "title": "Confidence Cascade",
+            "author": "BlackBoxMods",
+            "page_url": "https://www.loverslab.com/files/file/51444-confidence-cascade/",
+            "raw_html": (
+                '<ul class="cFileInfo"><li><strong>Requirements</strong><div class="cFileInfoData">'
+                "Game Options -&gt; Script Mods Enabled<br>"
+                "Bad decisions. Better stories.<br>"
+                "Lumpinou - Relationship &amp; Pregnancy Overhaul"
+                "</div></li></ul>"
+            ),
+            "expected_comments": [
+                "Game Options -> Script Mods Enabled",
+                "Bad decisions. Better stories",
+            ],
+            "expected_unfound_mods": [
+                "Lumpinou",
+                "Relationship & Pregnancy Overhaul",
+            ],
+        },
+        {
+            "remote_id": "51834",
+            "title": "Wicked Traits Unleashed",
+            "author": "WickedCreator",
+            "page_url": "https://www.loverslab.com/files/file/51834-wicked-traits-unleashed/",
+            "raw_html": (
+                '<ul class="cFileInfo"><li><strong>Requirements</strong><div class="cFileInfoData">'
+                "Script-only mod - no .package file required<br>"
+                "Scumbumbo - XML Injector v4"
+                "</div></li></ul>"
+            ),
+            "expected_comments": [
+                "Script-only mod - no .package file required",
+            ],
+            "expected_unfound_mods": [
+                "Scumbumbo",
+                "XML Injector v4",
+            ],
+        },
+        {
+            "remote_id": "52204",
+            "title": "Private Night (TS4 WW)",
+            "author": "BlackBoxMods",
+            "page_url": "https://www.loverslab.com/files/file/52204-private-night/",
+            "raw_html": (
+                '<ul class="cFileInfo"><li><strong>Requirements</strong><div class="cFileInfoData">'
+                "Make sure you have the latest patch and restart the game<br>"
+                "Kuttoe - Mini Mod Framework"
+                "</div></li></ul>"
+            ),
+            "expected_comments": [
+                "Make sure you have the latest patch and restart the game",
+            ],
+            "expected_unfound_mods": [
+                "Kuttoe",
+                "Mini Mod Framework",
+            ],
+        },
+    ]
+
+    for case in test_cases:
+        soup = BeautifulSoup(case["raw_html"], "html.parser")
+        req_text, req_status, extracted_mods = extract_loverslab_requirements(soup)
+        extracted_titles = [m["title"] for m in extracted_mods]
+
+        # 1. Verify delimiter splitting and extraction accuracy
+        for exp_c in case["expected_comments"]:
+            assert exp_c in extracted_titles, f"Expected comment '{exp_c}' not in extracted {extracted_titles}"
+        for exp_m in case["expected_unfound_mods"]:
+            assert exp_m in extracted_titles, f"Expected split mod '{exp_m}' not in extracted {extracted_titles}"
+
+        # 2. Seed mod in catalog DB
+        with db.get_session() as s:
+            cm = CatalogMod(
+                source="loverslab",
+                remote_id=case["remote_id"],
+                title=case["title"],
+                author=case["author"],
+                page_url=case["page_url"],
+                requirements_text=req_text,
+                requirements_status=req_status,
+            )
+            cm.set_requirements_mods_list(extracted_mods)
+            s.add(cm)
+            s.commit()
+            mod_id = cm.id
+
+        # 3. Apply explicit user qualification overrides via API (/api/catalog/requirements-override)
+        overrides_map = {c: "COMMENT" for c in case["expected_comments"]}
+        overrides_map.update({m: "MOD" for m in case["expected_unfound_mods"]})
+
+        ov_resp = client.post(
+            "/api/catalog/requirements-override",
+            json={
+                "catalog_mod_id": mod_id,
+                "source": "loverslab",
+                "remote_id": case["remote_id"],
+                "overrides": overrides_map,
+            },
+        )
+        assert ov_resp.status_code == 200
+        assert ov_resp.json()["success"] is True
+
+        # 4. Check dependencies via API (/api/catalog/check-dependencies)
+        chk_resp = client.post(
+            "/api/catalog/check-dependencies",
+            json={"catalog_mod_id": mod_id, "source": "loverslab", "title": case["title"]},
+        )
+        assert chk_resp.status_code == 200
+        chk_data = chk_resp.json()
+        assert chk_data["can_install"] is True
+
+        comment_titles = [d["title"] for d in chk_data["comment_dependencies"]]
+        unfound_titles = [d["title"] for d in chk_data["unfound_dependencies"]]
+
+        assert set(comment_titles) == set(case["expected_comments"])
+        assert set(unfound_titles) == set(case["expected_unfound_mods"])
+
+        # 5. Check missing report & verify formatted forum message separation
+        rep_chk1 = client.post(
+            "/api/catalog/check-missing-report",
+            json={
+                "catalog_mod_id": mod_id,
+                "missing_modules": unfound_titles,
+                "unnecessary_modules": comment_titles,
+            },
+        )
+        assert rep_chk1.status_code == 200
+        rep_data1 = rep_chk1.json()
+        assert rep_data1["can_report"] is True
+        assert rep_data1["already_reported"] is False
+
+        formatted_msg = rep_data1["formatted_message"]
+        assert "📦 Unresolved / Missing Dependencies:" in formatted_msg
+        assert "🧹 Notes / Instructions to clean from Requirements:" in formatted_msg
+
+        missing_section, notes_section = formatted_msg.split("🧹 Notes / Instructions to clean from Requirements:", 1)
+        for m_title in case["expected_unfound_mods"]:
+            assert f"- {m_title}" in missing_section
+            assert f"- {m_title}" not in notes_section
+        for c_title in case["expected_comments"]:
+            assert f"- {c_title}" in notes_section
+            assert f"- {c_title}" not in missing_section
+
+        # 6. Post author interpellation message to the forum (send_as_pm=False)
+        sub_resp = client.post(
+            "/api/catalog/report-missing-requirements",
+            json={
+                "catalog_mod_id": mod_id,
+                "missing_modules": unfound_titles,
+                "unnecessary_modules": comment_titles,
+                "send_as_pm": False,
+            },
+        )
+        assert sub_resp.status_code == 200
+        sub_data = sub_resp.json()
+        assert sub_data["success"] is True
+        assert sub_data["already_reported"] is True
+        assert len(forum_comments_store.get(case["page_url"], [])) == 1
+
+        # 7. Verify check-missing-report now detects the comment on the forum
+        rep_chk2 = client.post(
+            "/api/catalog/check-missing-report",
+            json={
+                "catalog_mod_id": mod_id,
+                "missing_modules": unfound_titles,
+                "unnecessary_modules": comment_titles,
+            },
+        )
+        assert rep_chk2.status_code == 200
+        assert rep_chk2.json()["already_reported"] is True
+        assert rep_chk2.json()["can_report"] is False
+
+        # 8. Delete the forum comment once validated & confirm clean state
+        del_resp = client.post(
+            "/api/catalog/delete-missing-report",
+            json={
+                "catalog_mod_id": mod_id,
+                "missing_modules": unfound_titles,
+                "unnecessary_modules": comment_titles,
+            },
+        )
+        assert del_resp.status_code == 200
+        assert del_resp.json()["success"] is True
+
+        rep_chk3 = client.post(
+            "/api/catalog/check-missing-report",
+            json={
+                "catalog_mod_id": mod_id,
+                "missing_modules": unfound_titles,
+                "unnecessary_modules": comment_titles,
+            },
+        )
+        assert rep_chk3.status_code == 200
+        assert rep_chk3.json()["already_reported"] is False
+        assert rep_chk3.json()["can_report"] is True
+
+
+def test_multi_mods_shared_dependencies_non_reinstallation_e2e(e2e_env, monkeypatch):
+    """
+    Scenario: Sequential installation of a group of 4 mods sharing 2 common dependencies
+    (WickedWhims + XML Injector).
+    Validates:
+    - Installing Mod 1 (Confidence Cascade) with install_dependencies=True downloads and installs
+      both shared dependencies (WickedWhims and XML Injector) + Mod 1.
+    - Directly installing Mod 2 (Exciting Animations Pack), Mod 3 (Wicked Traits Unleashed),
+      and Mod 4 (Private Night (TS4 WW)) detects that WickedWhims and XML Injector are already
+      installed and does NOT re-download or reinstall them.
+    """
+    import io
+    import zipfile
+    from src.database.models import InstalledMod
+
+    client = e2e_env["client"]
+    db = e2e_env["db"]
+    mods_dir = e2e_env["mods_dir"]
+
+    shared_deps_defs = [
+        {
+            "remote_id": "3169",
+            "title": "WickedWhims",
+            "author": "TURBODRIVER",
+            "page_url": "https://www.loverslab.com/files/file/3169-wickedwhims/",
+            "dl_url": "https://example.com/dl/3169",
+            "pkg_name": "WickedWhims_Tuning.package",
+        },
+        {
+            "remote_id": "99901",
+            "title": "XML Injector",
+            "author": "Scumbumbo",
+            "page_url": "https://www.loverslab.com/files/file/99901-xml-injector/",
+            "dl_url": "https://example.com/dl/99901",
+            "pkg_name": "XMLInjector_v4.package",
+        },
+    ]
+
+    shared_reqs_list = [
+        {
+            "source": "loverslab",
+            "remote_id": "3169",
+            "title": "WickedWhims",
+            "url": "https://www.loverslab.com/files/file/3169-wickedwhims/",
+        },
+        {
+            "source": "loverslab",
+            "remote_id": "99901",
+            "title": "XML Injector",
+            "url": "https://www.loverslab.com/files/file/99901-xml-injector/",
+        },
+    ]
+
+    group_of_4_mods = [
+        {
+            "remote_id": "51444",
+            "title": "Confidence Cascade",
+            "author": "BlackBoxMods",
+            "page_url": "https://www.loverslab.com/files/file/51444-confidence-cascade/",
+            "dl_url": "https://example.com/dl/51444",
+            "pkg_name": "ConfidenceCascade.package",
+        },
+        {
+            "remote_id": "5001",
+            "title": "Exciting Animations Pack",
+            "author": "AnimatorX",
+            "page_url": "https://www.loverslab.com/files/file/5001-exciting-animations/",
+            "dl_url": "https://example.com/dl/5001",
+            "pkg_name": "ExcitingAnimations.package",
+        },
+        {
+            "remote_id": "51834",
+            "title": "Wicked Traits Unleashed",
+            "author": "WickedCreator",
+            "page_url": "https://www.loverslab.com/files/file/51834-wicked-traits/",
+            "dl_url": "https://example.com/dl/51834",
+            "pkg_name": "WickedTraitsUnleashed.package",
+        },
+        {
+            "remote_id": "52204",
+            "title": "Private Night (TS4 WW)",
+            "author": "BlackBoxMods",
+            "page_url": "https://www.loverslab.com/files/file/52204-private-night/",
+            "dl_url": "https://example.com/dl/52204",
+            "pkg_name": "PrivateNight.package",
+        },
+    ]
+
+    mod_db_ids: dict[str, int] = {}
+    with db.get_session() as s:
+        for dep_def in shared_deps_defs:
+            cm = CatalogMod(
+                source="loverslab",
+                remote_id=dep_def["remote_id"],
+                title=dep_def["title"],
+                author=dep_def["author"],
+                page_url=dep_def["page_url"],
+                requirements_status="NONE",
+            )
+            cm.set_requirements_mods_list([])
+            cm.set_download_urls_list([{"name": f"{dep_def['remote_id']}.zip", "url": dep_def["dl_url"]}])
+            s.add(cm)
+            s.flush()
+            mod_db_ids[dep_def["remote_id"]] = cm.id
+
+        for mod_def in group_of_4_mods:
+            cm = CatalogMod(
+                source="loverslab",
+                remote_id=mod_def["remote_id"],
+                title=mod_def["title"],
+                author=mod_def["author"],
+                page_url=mod_def["page_url"],
+                requirements_status="RESOLVED",
+            )
+            cm.set_requirements_mods_list(shared_reqs_list)
+            cm.set_download_urls_list([{"name": f"{mod_def['remote_id']}.zip", "url": mod_def["dl_url"]}])
+            s.add(cm)
+            s.flush()
+            mod_db_ids[mod_def["remote_id"]] = cm.id
+
+        s.commit()
+
+    all_defs_by_id = {d["remote_id"]: d for d in (shared_deps_defs + group_of_4_mods)}
+    download_call_counts: dict[str, int] = {rid: 0 for rid in all_defs_by_id}
+
+    mock_provider = MagicMock()
+    mock_provider.provider_name = "loverslab"
+
+    def mock_get_details(url):
+        for rid, d in all_defs_by_id.items():
+            if rid in str(url):
+                is_dep = rid in ("3169", "99901")
+                return {
+                    "download_urls": [{"name": f"{rid}.zip", "url": d["dl_url"]}],
+                    "requirements_mods": [] if is_dep else shared_reqs_list,
+                    "requirements_status": "NONE" if is_dep else "RESOLVED",
+                    "external_links": [],
+                    "screenshots": [],
+                }
+        return {"download_urls": [], "requirements_mods": [], "requirements_status": "NONE"}
+
+    def mock_download(url, dest_path, progress_callback=None):
+        dest_path = Path(dest_path)
+        matched_rid = next((rid for rid in all_defs_by_id if rid in str(url)), None)
+        assert matched_rid is not None, f"Unexpected download URL: {url}"
+        download_call_counts[matched_rid] += 1
+
+        pkg_name = all_defs_by_id[matched_rid]["pkg_name"]
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            zf.writestr(pkg_name, f"DBPF_CONTENT_{matched_rid}".encode("utf-8"))
+        dest_path.write_bytes(buf.getvalue())
+        return True, str(dest_path)
+
+    mock_provider.get_mod_details.side_effect = mock_get_details
+    mock_provider.download_mod_file = mock_download
+    monkeypatch.setattr(ProviderRegistry, "get_provider", classmethod(lambda cls, name: mock_provider))
+
+    # 1. Before any install, Mod 1 (Confidence Cascade) reports 2 missing dependencies
+    first_mod = group_of_4_mods[0]
+    chk1 = client.post(
+        "/api/catalog/check-dependencies",
+        json={
+            "catalog_mod_id": mod_db_ids[first_mod["remote_id"]],
+            "source": "loverslab",
+            "title": first_mod["title"],
+        },
+    )
+    assert chk1.status_code == 200
+    chk1_data = chk1.json()
+    assert len(chk1_data["missing_dependencies"]) == 2
+    assert len(chk1_data["already_installed_dependencies"]) == 0
+
+    # 2. Install Mod 1 (Confidence Cascade) with install_dependencies=True
+    inst1 = client.post(
+        "/api/catalog/install",
+        json={
+            "catalog_mod_id": mod_db_ids[first_mod["remote_id"]],
+            "source": "loverslab",
+            "remote_id": first_mod["remote_id"],
+            "title": first_mod["title"],
+            "page_url": first_mod["page_url"],
+            "install_dependencies": True,
+        },
+    )
+    assert inst1.status_code == 200
+    inst1_data = inst1.json()
+    assert inst1_data["success"] is True
+
+    # Both shared dependencies and Mod 1 were downloaded exactly once
+    assert download_call_counts["3169"] == 1
+    assert download_call_counts["99901"] == 1
+    assert download_call_counts["51444"] == 1
+
+    # 3. Directly execute installation of Mods 2, 3, and 4 with install_dependencies=True
+    for subsequent_mod in group_of_4_mods[1:]:
+        rid = subsequent_mod["remote_id"]
+
+        # Verify check-dependencies sees both shared dependencies as ALREADY INSTALLED
+        chk_sub = client.post(
+            "/api/catalog/check-dependencies",
+            json={
+                "catalog_mod_id": mod_db_ids[rid],
+                "source": "loverslab",
+                "title": subsequent_mod["title"],
+            },
+        )
+        assert chk_sub.status_code == 200
+        chk_sub_data = chk_sub.json()
+        assert len(chk_sub_data["missing_dependencies"]) == 0
+        already_titles = {d["title"] for d in chk_sub_data["already_installed_dependencies"]}
+        assert already_titles == {"WickedWhims", "XML Injector"}
+
+        # Execute installation directly with install_dependencies=True
+        inst_sub = client.post(
+            "/api/catalog/install",
+            json={
+                "catalog_mod_id": mod_db_ids[rid],
+                "source": "loverslab",
+                "remote_id": rid,
+                "title": subsequent_mod["title"],
+                "page_url": subsequent_mod["page_url"],
+                "install_dependencies": True,
+            },
+        )
+        assert inst_sub.status_code == 200
+        inst_sub_data = inst_sub.json()
+        assert inst_sub_data["success"] is True
+        assert inst_sub_data.get("installed_dependencies", []) == []
+
+        # Shared dependencies MUST NOT have been re-downloaded or reinstalled!
+        assert download_call_counts["3169"] == 1, f"WickedWhims was reinstalled during {subsequent_mod['title']}!"
+        assert download_call_counts["99901"] == 1, f"XML Injector was reinstalled during {subsequent_mod['title']}!"
+        assert download_call_counts[rid] == 1
+
+    # 4. Final verification: 6 total installed mods in DB and on disk
+    with db.get_session() as s:
+        all_installed = s.query(InstalledMod).all()
+        assert len(all_installed) == 6
+        installed_titles = {im.title for im in all_installed}
+        assert installed_titles == {
+            "WickedWhims",
+            "XML Injector",
+            "Confidence Cascade",
+            "Exciting Animations Pack",
+            "Wicked Traits Unleashed",
+            "Private Night (TS4 WW)",
+        }
+        for im in all_installed:
+            folder = mods_dir / im.folder_name
+            assert folder.exists()

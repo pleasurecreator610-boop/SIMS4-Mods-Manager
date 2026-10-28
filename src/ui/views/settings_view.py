@@ -160,7 +160,7 @@ class SettingsView(QWidget):
         self.i18n.set_language(lang_code)
         run_async_ui_task(
             lambda: self.api_client.update_settings({"language": lang_code}),
-            on_error=lambda err: logger.error(f"Erreur API lors de la sauvegarde de la langue: {err}")
+            on_error=lambda err: logger.error(f"Erreur API lors de la sauvegarde de la langue: {err}"),
         )
 
     def _on_mods_path_changed(self, text: str):
@@ -183,6 +183,7 @@ class SettingsView(QWidget):
 
     def load_settings(self):
         """Loads settings through API /api/settings asynchronously."""
+
         def _fetch():
             return self.api_client.get_settings()
 
@@ -216,6 +217,7 @@ class SettingsView(QWidget):
 
     def load_database_stats(self):
         """Fetches and displays current catalog and installed database counts asynchronously."""
+
         def _fetch():
             return self.api_client.get_database_stats()
 
@@ -258,7 +260,9 @@ class SettingsView(QWidget):
                 logger.error(f"Erreur lors de la purge de la base de données : {err}")
                 QMessageBox.warning(self, tr("dialogs.error_title"), tr("settings.purge_error", error=str(err)))
 
-            run_async_ui_task(_do_purge, on_finished=_on_purged, on_error=_on_error, disable_widgets=[btn] if btn else None)
+            run_async_ui_task(
+                _do_purge, on_finished=_on_purged, on_error=_on_error, disable_widgets=[btn] if btn else None
+            )
 
     def browse_mods_folder(self):
         """Exécute l'opération browse mods folder."""
@@ -288,7 +292,9 @@ class SettingsView(QWidget):
         def _on_error(err):
             QMessageBox.warning(self, tr("dialogs.error_title"), tr("nav.launch_game_error", error=str(err)))
 
-        run_async_ui_task(_do_launch, on_finished=_on_launched, on_error=_on_error, disable_widgets=[btn] if btn else None)
+        run_async_ui_task(
+            _do_launch, on_finished=_on_launched, on_error=_on_error, disable_widgets=[btn] if btn else None
+        )
 
     def clear_cache(self):
         """Exécute l'opération clear cache."""
@@ -310,7 +316,9 @@ class SettingsView(QWidget):
         def _on_error(err):
             QMessageBox.warning(self, tr("dialogs.error_title"), tr("settings.clear_cache_error", error=str(err)))
 
-        run_async_ui_task(_do_clear, on_finished=_on_cleared, on_error=_on_error, disable_widgets=[btn] if btn else None)
+        run_async_ui_task(
+            _do_clear, on_finished=_on_cleared, on_error=_on_error, disable_widgets=[btn] if btn else None
+        )
 
     def save_settings(self):
         """Exécute l'opération save settings sans bloquer la GUI."""
@@ -337,6 +345,7 @@ class SettingsView(QWidget):
 
     def load_storage_stats(self):
         """Fetches and displays disk usage stats (backups, cache, downloads) asynchronously."""
+
         def _fetch():
             return self.api_client.get_storage_stats()
 
@@ -388,6 +397,6 @@ class SettingsView(QWidget):
                 logger.error(f"Erreur lors du nettoyage de stockage : {err}")
                 QMessageBox.warning(self, tr("dialogs.error_title"), f"Erreur lors du nettoyage : {err}")
 
-            run_async_ui_task(_do_cleanup, on_finished=_on_cleaned, on_error=_on_error, disable_widgets=[btn] if btn else None)
-
-
+            run_async_ui_task(
+                _do_cleanup, on_finished=_on_cleaned, on_error=_on_error, disable_widgets=[btn] if btn else None
+            )

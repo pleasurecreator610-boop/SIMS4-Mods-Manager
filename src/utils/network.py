@@ -58,23 +58,34 @@ def find_available_port(host: str = "127.0.0.1", start_port: int = 8000, max_att
         return allocated_port
 
 
+# Quota maximal de téléchargement par mod (4 Gio)
+MAX_DOWNLOAD_FILE_SIZE: int = 4 * 1024 * 1024 * 1024  # 4 GiB
+
+
 def stream_download(
     response,
     dest_path: Path,
     progress_callback: Optional[Callable[[int, str, str], None]] = None,
     phase_label: str = "Téléchargement",
 ) -> Tuple[bool, str]:
-    """
-    Streams an HTTP response body to a file with progress tracking, speed calculation, and logging.
-
-    Shared by all providers (LoversLab, Patreon) to avoid duplicating the download loop.
-    Handles both streaming (iter_content) and non-streaming (content) responses gracefully.
-    """
+    """Streams an HTTP response body to a file with progress tracking, speed calculation, and logging."""
     total_size = int(response.headers.get("Content-Length") or 0)
+    if total_size > MAX_DOWNLOAD_FILE_SIZE:
+        err = f"Fichier trop volumineux ({total_size // (1024 * 1024)} Mo > {MAX_DOWNLOAD_FILE_SIZE // (1024 * 1024)} Mo autorisés)."
+        logger.error(err)
+        return False, err
+
     downloaded = 0
     start_time = time.time()
     last_ui_time = start_time
     last_log_time = start_time
+
+    # Taille de bloc adaptative selon la taille totale
+    chunk_size = 65536
+    if total_size > 100 * 1024 * 1024:
+        chunk_size = 524288  # 512 Ko
+    elif total_size > 20 * 1024 * 1024:
+        chunk_size = 131072  # 128 Ko
 
     def _calc_progress() -> Tuple[int, str]:
         elapsed = time.time() - start_time
@@ -96,10 +107,14 @@ def stream_download(
         dest_path.parent.mkdir(parents=True, exist_ok=True)
         with open(dest_path, "wb") as f:
             try:
-                for chunk in response.iter_content(chunk_size=65536):
+                for chunk in response.iter_content(chunk_size=chunk_size):
                     if chunk:
                         f.write(chunk)
                         downloaded += len(chunk)
+                        if downloaded > MAX_DOWNLOAD_FILE_SIZE:
+                            raise ValueError(
+                                f"Dépassement du quota de téléchargement ({MAX_DOWNLOAD_FILE_SIZE // (1024 * 1024)} Mo)."
+                            )
                         now = time.time()
                         pct, detail = _calc_progress()
 

@@ -2,6 +2,7 @@ from datetime import datetime
 from src.core.config import AppConfig
 from typing import Any
 from fastapi import APIRouter, HTTPException
+from sqlalchemy.orm import defer
 
 from src.api.schemas.updates import (
     UpdatesListResponse,
@@ -24,7 +25,10 @@ def _update_one_mod(installed_id: int) -> tuple[bool, str]:
     from src.application.game.game_service import GameDetector
 
     if GameDetector.is_game_running():
-        return False, "Le jeu Les Sims 4 est actuellement en cours d'exécution. Veuillez fermer le jeu avant de mettre à jour des mods."
+        return (
+            False,
+            "Le jeu Les Sims 4 est actuellement en cours d'exécution. Veuillez fermer le jeu avant de mettre à jour des mods.",
+        )
 
     db = DatabaseManager.get_instance()
     with db.get_session() as session:
@@ -170,6 +174,7 @@ def get_updates():
 
         matching_catalog = (
             session.query(CatalogMod)
+            .options(defer(CatalogMod.description))
             .filter((CatalogMod.remote_id.in_(remote_ids)) | (CatalogMod.id.in_(cat_ids)))
             .all()
             if (remote_ids or cat_ids)
@@ -178,13 +183,14 @@ def get_updates():
         catalog_by_id = {cm.id: cm for cm in matching_catalog}
         catalog_by_key = {(cm.source, cm.remote_id): cm for cm in matching_catalog}
 
+        dirty = False
         for im in installed:
             cat_mod = None
             if im.remote_id and im.source:
                 cat_mod = catalog_by_key.get((im.source, im.remote_id))
                 if cat_mod and im.catalog_mod_id != cat_mod.id:
                     im.catalog_mod_id = cat_mod.id
-                    session.commit()
+                    dirty = True
             if not cat_mod and im.catalog_mod_id:
                 candidate = catalog_by_id.get(im.catalog_mod_id)
                 if candidate:
@@ -192,7 +198,7 @@ def get_updates():
                         cat_mod = candidate
                     else:
                         im.catalog_mod_id = None
-                        session.commit()
+                        dirty = True
 
             if im.version_str and im.version_str.strip():
                 cur_ver = im.version_str.strip()
@@ -245,6 +251,9 @@ def get_updates():
                 )
             )
 
+        if dirty:
+            session.commit()
+
     items.sort(key=lambda x: (not x.has_update, x.title.lower()))
     updatable_count = sum(1 for x in items if x.has_update)
 
@@ -295,6 +304,7 @@ def update_all_mods():
 
         matching_catalog = (
             session.query(CatalogMod)
+            .options(defer(CatalogMod.description))
             .filter((CatalogMod.remote_id.in_(remote_ids)) | (CatalogMod.id.in_(cat_ids)))
             .all()
             if (remote_ids or cat_ids)

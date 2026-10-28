@@ -57,14 +57,19 @@ class ModInstallCoordinator:
         from src.application.game.game_service import GameDetector
 
         if GameDetector.is_game_running():
-            return False, "Le jeu Les Sims 4 est actuellement en cours d'exécution. Veuillez fermer le jeu avant d'installer des mods."
+            return (
+                False,
+                "Le jeu Les Sims 4 est actuellement en cours d'exécution. Veuillez fermer le jeu avant d'installer des mods.",
+            )
 
         config = AppConfig.load()
         file_path = self.actions.detect_and_normalize_extension(file_path)
 
-        title: str = custom_title or ((catalog_mod.title if catalog_mod and catalog_mod.title else None) or file_path.stem)
+        title: str = custom_title or (
+            (catalog_mod.title if catalog_mod and catalog_mod.title else None) or file_path.stem
+        )
         source_name: str = source or ((catalog_mod.source if catalog_mod and catalog_mod.source else None) or "manual")
-        remote_id: str = (catalog_mod.remote_id if catalog_mod and catalog_mod.remote_id else "")
+        remote_id: str = catalog_mod.remote_id if catalog_mod and catalog_mod.remote_id else ""
         catalog_id = catalog_mod.id if catalog_mod else None
 
         with self.db.get_session() as session:
@@ -251,7 +256,9 @@ class ModInstallCoordinator:
 
             dep_key = (dep_source, dep_remote_id)
             if dep_remote_id and dep_key in visited:
-                logger.info(f"[INSTALL-DEP] Dépendance déjà en cours ou cycle détecté pour '{dep_title}' (#{dep_remote_id})")
+                logger.info(
+                    f"[INSTALL-DEP] Dépendance déjà en cours ou cycle détecté pour '{dep_title}' (#{dep_remote_id})"
+                )
                 continue
             if dep_remote_id:
                 visited.add(dep_key)
@@ -301,7 +308,9 @@ class ModInstallCoordinator:
                         f"Dépendance partagée '{dep_title}' en cours d'installation, attente...",
                         f"ID #{dep_remote_id}",
                     )
-                wait_ok, wait_msg = registry.wait_for_active_install(dep_source, dep_remote_id, dep_title, timeout=180.0)
+                wait_ok, wait_msg = registry.wait_for_active_install(
+                    dep_source, dep_remote_id, dep_title, timeout=180.0
+                )
                 if wait_ok:
                     installed_deps.append(dep_title)
                     continue
@@ -334,7 +343,9 @@ class ModInstallCoordinator:
                 dep_res = install_func(dep_payload, progress_callback)
                 if dep_res.success:
                     installed_deps.append(dep_title)
-                    registry.complete_install(dep_source, dep_remote_id, dep_title, success=True, message=dep_res.message)
+                    registry.complete_install(
+                        dep_source, dep_remote_id, dep_title, success=True, message=dep_res.message
+                    )
                 else:
                     err_msg = f"Échec de l'installation de la dépendance requise '{dep_title}': {dep_res.message}"
                     logger.error(f"[INSTALL-DEP] ❌ {err_msg}")
@@ -354,7 +365,9 @@ class ModInstallCoordinator:
             except Exception as e:
                 registry.complete_install(dep_source, dep_remote_id, dep_title, success=False, message=str(e))
                 if allow_partial:
-                    logger.error(f"[INSTALL-DEP] ❌ Exception lors de l'installation de la dépendance '{dep_title}': {e}")
+                    logger.error(
+                        f"[INSTALL-DEP] ❌ Exception lors de l'installation de la dépendance '{dep_title}': {e}"
+                    )
                     not_detected_deps.append(
                         DependencyItem(
                             source=dep_source,
@@ -365,6 +378,11 @@ class ModInstallCoordinator:
                         )
                     )
                 else:
-                    return False, installed_deps, not_detected_deps, f"Échec de l'installation de la dépendance requise '{dep_title}': {e}"
+                    return (
+                        False,
+                        installed_deps,
+                        not_detected_deps,
+                        f"Échec de l'installation de la dépendance requise '{dep_title}': {e}",
+                    )
 
         return True, installed_deps, not_detected_deps, None

@@ -21,7 +21,6 @@ from src.i18n import tr
 from src.utils.logger import logger
 
 
-
 class InstalledView(QWidget):
     """
     Modern grid view managing installed Sims 4 mods.
@@ -227,7 +226,9 @@ class InstalledView(QWidget):
                     self.refresh_mods()
                     self.mods_changed.emit()
                 else:
-                    DialogHelper.error(self, tr("dialogs.error_title"), res.get("message", "Échec du changement d'état."))
+                    DialogHelper.error(
+                        self, tr("dialogs.error_title"), res.get("message", "Échec du changement d'état.")
+                    )
 
             def _on_toggle_error(err):
                 logger.error(f"Erreur lors du basculement d'état du mod {mod_id}: {err}")
@@ -236,6 +237,7 @@ class InstalledView(QWidget):
             run_async_ui_task(_do_toggle, on_finished=_on_toggle_finished, on_error=_on_toggle_error)
 
         if not target_state:
+
             def _fetch_deps():
                 try:
                     dep_res = self.api_client.get_mod_dependents(mod_id)
@@ -246,7 +248,9 @@ class InstalledView(QWidget):
 
             def _on_deps_fetched(dependents):
                 if dependents:
-                    dep_lines = "\n".join(f"  • {d.get('title', 'Mod')} ({d.get('folder_name', '')})" for d in dependents)
+                    dep_lines = "\n".join(
+                        f"  • {d.get('title', 'Mod')} ({d.get('folder_name', '')})" for d in dependents
+                    )
                     confirmed = DialogHelper.confirm(
                         self,
                         title=tr("installed.dep_warning_title"),
@@ -420,6 +424,7 @@ class InstalledView(QWidget):
 
     def open_mods_folder(self):
         """Exécute l'ouverture du dossier mods de façon asynchrone."""
+
         def _on_err(err: str) -> None:
             QMessageBox.warning(self, tr("dialogs.error_title"), f"{err}")
 
@@ -430,6 +435,7 @@ class InstalledView(QWidget):
 
     def open_mod_folder(self, folder_name: str):
         """Exécute l'ouverture du sous-dossier mod de façon asynchrone."""
+
         def _on_err(err: str) -> None:
             QMessageBox.warning(self, tr("dialogs.error_title"), f"{err}")
 
@@ -437,7 +443,6 @@ class InstalledView(QWidget):
             lambda: self.api_client.open_folder(folder_name=folder_name),
             on_error=_on_err,
         )
-
 
     def retranslate_ui(self):
         """Retranslates all text elements in InstalledView."""
@@ -463,4 +468,3 @@ class InstalledView(QWidget):
         """Interrompt les tâches asynchrones lors de la fermeture."""
         self.cleanup()
         super().closeEvent(event)
-

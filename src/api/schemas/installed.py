@@ -140,5 +140,3 @@ class ResolveConflictResponse(BaseModel):
     success: bool
     message: str
     new_path: Optional[str] = None
-
-

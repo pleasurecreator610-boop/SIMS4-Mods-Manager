@@ -174,7 +174,9 @@ class DependenciesDialog(QDialog):
         ic_layout.setSpacing(12)
 
         self.interpellate_desc = QLabel("💡 Un prérequis introuvable ou un faux positif ? Signalez-le à l'auteur :")
-        self.interpellate_desc.setStyleSheet("color: #94a3b8; font-size: 11px; font-weight: 500; border: none; background: transparent;")
+        self.interpellate_desc.setStyleSheet(
+            "color: #94a3b8; font-size: 11px; font-weight: 500; border: none; background: transparent;"
+        )
         self.interpellate_desc.setWordWrap(True)
         ic_layout.addWidget(self.interpellate_desc, stretch=1)
 

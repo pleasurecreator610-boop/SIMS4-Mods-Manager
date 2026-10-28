@@ -46,7 +46,8 @@ class ModUpdateCoordinator:
                         "installed_mod": mod,
                         "catalog_mod": cat_mod,
                         "current_version": getattr(mod, "version_str", None) or getattr(mod, "version_date", None),
-                        "latest_version": getattr(cat_mod, "version_str", None) or getattr(cat_mod, "updated_date", None),
+                        "latest_version": getattr(cat_mod, "version_str", None)
+                        or getattr(cat_mod, "updated_date", None),
                     }
                 )
 

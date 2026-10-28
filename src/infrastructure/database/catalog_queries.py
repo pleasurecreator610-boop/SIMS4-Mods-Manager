@@ -7,6 +7,11 @@ from src.database.models import CatalogMod, InstalledMod
 from src.utils.mod_type_classifier import ModTypeClassifier
 
 
+def escape_like_term(term: str) -> str:
+    """Échappe les caractères jokers SQL LIKE (% et _) pour une recherche stricte et sécurisée."""
+    return term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 def build_catalog_query(
     session: Session,
     search: Optional[str] = None,
@@ -20,11 +25,11 @@ def build_catalog_query(
     query = session.query(CatalogMod)
 
     if search:
-        s_clean = search.strip()
+        s_clean = escape_like_term(search.strip())
         query = query.filter(
-            (CatalogMod.title.ilike(f"%{s_clean}%"))
-            | (CatalogMod.author.ilike(f"%{s_clean}%"))
-            | (CatalogMod.tags.ilike(f"%{s_clean}%"))
+            (CatalogMod.title.ilike(f"%{s_clean}%", escape="\\"))
+            | (CatalogMod.author.ilike(f"%{s_clean}%", escape="\\"))
+            | (CatalogMod.tags.ilike(f"%{s_clean}%", escape="\\"))
         )
 
     if source and source.lower() != "all":

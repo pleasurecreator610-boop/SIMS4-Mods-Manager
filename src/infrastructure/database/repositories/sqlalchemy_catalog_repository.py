@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from typing import Optional
 
-from sqlalchemy import distinct
+from sqlalchemy import distinct, or_
+from sqlalchemy.orm import defer
+from sqlalchemy.orm.attributes import flag_modified
 
 from src.database.manager import DatabaseManager
 from src.database.models import CatalogMod
@@ -108,7 +110,7 @@ class SqlAlchemyCatalogRepository(ICatalogRepository):
                 q = q.filter(CatalogMod.author.ilike(f"%{author.strip()}%"))
 
             total_count = q.count()
-            models = q.offset(offset).limit(limit).all()
+            models = q.options(defer(CatalogMod.description)).offset(offset).limit(limit).all()
             return [ModelMapper.catalog_to_entity(m) for m in models], total_count
 
     def get_all(self, limit: Optional[int] = None, offset: int = 0) -> list[CatalogModEntity]:
@@ -122,12 +124,29 @@ class SqlAlchemyCatalogRepository(ICatalogRepository):
             Résultat de l'opération get_all.
         """
         with self.db_manager.get_session() as session:
-            q = session.query(CatalogMod).order_by(CatalogMod.title.asc())
+            q = session.query(CatalogMod).options(defer(CatalogMod.description)).order_by(CatalogMod.title.asc())
             if offset > 0:
                 q = q.offset(offset)
             if limit is not None:
                 q = q.limit(limit)
             models = q.all()
+            return [ModelMapper.catalog_to_entity(m) for m in models]
+
+    def get_by_ids_or_remote_ids(self, mod_ids: list[int], remote_ids: list[str]) -> list[CatalogModEntity]:
+        """Récupère uniquement les entrées du catalogue correspondant aux IDs ou remote_ids fournis (sans description HTML)."""
+        clean_ids = [int(i) for i in mod_ids if i is not None]
+        clean_rids = [str(r) for r in remote_ids if r]
+        if not clean_ids and not clean_rids:
+            return []
+
+        conditions = []
+        if clean_ids:
+            conditions.append(CatalogMod.id.in_(clean_ids))
+        if clean_rids:
+            conditions.append(CatalogMod.remote_id.in_(clean_rids))
+
+        with self.db_manager.get_session() as session:
+            models = session.query(CatalogMod).options(defer(CatalogMod.description)).filter(or_(*conditions)).all()
             return [ModelMapper.catalog_to_entity(m) for m in models]
 
     def save(self, entity: CatalogModEntity) -> CatalogModEntity:
@@ -202,9 +221,10 @@ class SqlAlchemyCatalogRepository(ICatalogRepository):
             model = session.query(CatalogMod).filter(CatalogMod.id == mod_id).first()
             if not model:
                 return False
-            existing = model.get_requirements_overrides()
+            existing = dict(model.get_requirements_overrides())
             existing.update(overrides)
             model.set_requirements_overrides(existing)
+            flag_modified(model, "requirements_overrides_json")
             session.commit()
             return True
 

@@ -502,7 +502,9 @@ class DownloadsView(QWidget):
                 t_id = str(t_data.get("id") or t_data.get("remote_id") or "")
                 t_title = (t_data.get("title") or "").strip().lower()
                 if (target_id and t_id and target_id == t_id) or (target_title and t_title and target_title == t_title):
-                    logger.info(f"Téléchargement déjà actif pour '{target_title or target_id}' (task {tid}), doublon ignoré.")
+                    logger.info(
+                        f"Téléchargement déjà actif pour '{target_title or target_id}' (task {tid}), doublon ignoré."
+                    )
                     return tid
 
         mod_id = str(mod_data.get("id") or mod_data.get("remote_id") or mod_data.get("title"))
@@ -622,6 +624,7 @@ class DownloadsView(QWidget):
 
     def open_mods_directory(self):
         """Exécute l'ouverture du dossier mods de façon asynchrone."""
+
         def _on_err(err: str) -> None:
             QMessageBox.warning(self, tr("dialogs.warning_title"), f"Le dossier Mods n'a pas pu être ouvert: {err}")
 

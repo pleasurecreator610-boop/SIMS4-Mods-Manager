@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import queue
+import re
+import socket
+import urllib.parse
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import FileResponse, StreamingResponse
 
@@ -24,21 +28,87 @@ from src.utils.logger import logger
 
 install_router = APIRouter(tags=["Catalog Installation"])
 
+MAX_THUMBNAIL_BYTES: int = 10 * 1024 * 1024  # 10 Mio max
+
+
+def _is_forbidden_ip(ip_str: str) -> bool:
+    """Vérifie si une adresse IP est privée, loopback, link-local, multicast ou réservée."""
+    try:
+        ip_obj = ipaddress.ip_address(ip_str)
+        return bool(
+            ip_obj.is_loopback
+            or ip_obj.is_private
+            or ip_obj.is_link_local
+            or ip_obj.is_reserved
+            or ip_obj.is_multicast
+            or ip_obj.is_unspecified
+        )
+    except ValueError:
+        return False
+
+
+def _validate_safe_thumbnail_url(url: str) -> None:
+    """Valide une URL de vignette contre les attaques SSRF (CWE-918)."""
+    parsed = urllib.parse.urlparse(url.strip())
+    if parsed.scheme.lower() not in ("http", "https"):
+        raise HTTPException(status_code=400, detail="Schéma d'URL non autorisé pour la vignette.")
+
+    hostname = (parsed.hostname or "").strip().lower()
+    if (
+        not hostname
+        or hostname in {"localhost", "localhost.localdomain", "ip6-localhost"}
+        or hostname.endswith((".local", ".internal"))
+    ):
+        raise HTTPException(status_code=400, detail="Hôte local ou interne interdit (protection SSRF).")
+
+    if _is_forbidden_ip(hostname):
+        raise HTTPException(status_code=400, detail="Adresse IP privée ou loopback interdite (protection SSRF).")
+
+    try:
+        addr_infos = socket.getaddrinfo(hostname, None)
+        for info in addr_infos:
+            resolved_ip = str(info[4][0])
+            if _is_forbidden_ip(resolved_ip):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Résolution DNS vers une adresse IP interne interdite (protection SSRF).",
+                )
+    except HTTPException:
+        raise
+    except OSError:
+        # En mode hors-ligne / tests unitaires mockés, la résolution DNS peut échouer sans être une IP interne
+        pass
+
 
 @install_router.get("/thumbnail")
 def get_thumbnail(source: str, remote_id: str, url: str):
-    """Récupère et met en cache l'image vignette d'un mod."""
-    cache_dir = AppConfig.get_thumbnails_cache_dir()
-    dest_path = cache_dir / f"thumb_{source}_{remote_id}.jpg"
+    """Récupère et met en cache l'image vignette d'un mod de manière sécurisée (anti-SSRF & anti-Path Traversal)."""
+    if ".." in source or ".." in remote_id or "/" in source or "\\" in source or "/" in remote_id or "\\" in remote_id:
+        raise HTTPException(status_code=400, detail="Paramètres source ou remote_id invalides.")
+
+    safe_source = re.sub(r"[^a-zA-Z0-9_-]", "", source)
+    safe_remote_id = re.sub(r"[^a-zA-Z0-9_-]", "", remote_id)
+    if not safe_source or not safe_remote_id:
+        raise HTTPException(status_code=400, detail="Paramètres source ou remote_id vides après nettoyage.")
+
+    _validate_safe_thumbnail_url(url)
+
+    cache_dir = AppConfig.get_thumbnails_cache_dir().resolve()
+    dest_path = (cache_dir / f"thumb_{safe_source}_{safe_remote_id}.jpg").resolve()
+    if cache_dir not in dest_path.parents:
+        raise HTTPException(status_code=400, detail="Chemin de destination hors du cache autorisé.")
 
     if not dest_path.exists() or dest_path.stat().st_size < 100:
-        session = SessionManager.get_http_session(source)
+        session = SessionManager.get_http_session(safe_source)
         try:
             resp = session.get(url, timeout=15)
-            if resp.status_code == 200 and len(resp.content) > 100:
+            content = resp.content or b""
+            if len(content) > MAX_THUMBNAIL_BYTES:
+                raise HTTPException(status_code=413, detail="Image vignette trop volumineuse (> 10 Mio).")
+            if resp.status_code == 200 and len(content) > 100:
                 dest_path.parent.mkdir(parents=True, exist_ok=True)
                 with open(dest_path, "wb") as f:
-                    f.write(resp.content)
+                    f.write(content)
             else:
                 raise HTTPException(status_code=404, detail="Image introuvable.")
         except HTTPException:

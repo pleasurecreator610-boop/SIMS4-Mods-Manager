@@ -323,7 +323,11 @@ class ModCard(BaseModCard):
         """
         if event.button() == Qt.MouseButton.LeftButton:
             child = self.childAt(event.pos())
-            if child is not None and hasattr(self, "action_btn") and (child == self.action_btn or self.action_btn.isAncestorOf(child)):
+            if (
+                child is not None
+                and hasattr(self, "action_btn")
+                and (child == self.action_btn or self.action_btn.isAncestorOf(child))
+            ):
                 super().mousePressEvent(event)
                 return
             self.details_requested.emit(self.mod_data)

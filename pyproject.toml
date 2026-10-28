@@ -1,6 +1,6 @@
 [project]
 name = "sims4-mods-manager"
-version = "0.1.0"
+version = "0.2.0"
 description = "Modern Sims 4 Mod Manager with multi-site catalog, anti-bot handling, and update tracking"
 readme = "README.md"
 requires-python = ">=3.11, <3.14"

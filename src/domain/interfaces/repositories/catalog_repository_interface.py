@@ -45,6 +45,10 @@ class ICatalogRepository(ABC):
         """Retourne la liste des mods du catalogue."""
         ...
 
+    def get_by_ids_or_remote_ids(self, mod_ids: list[int], remote_ids: list[str]) -> list[CatalogModEntity]:
+        """Récupère uniquement les mods du catalogue correspondant aux IDs ou remote_ids fournis."""
+        return self.get_all()
+
     @abstractmethod
     def save(self, entity: CatalogModEntity) -> CatalogModEntity:
         """Sauvegarde ou met à jour une entrée du catalogue."""

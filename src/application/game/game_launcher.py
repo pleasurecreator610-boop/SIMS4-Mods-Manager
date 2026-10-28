@@ -4,6 +4,7 @@ and Windows registry, and handles process execution.
 """
 
 import os
+
 try:
     import winreg
 except ImportError:

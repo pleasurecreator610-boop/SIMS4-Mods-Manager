@@ -7,7 +7,6 @@ from src.infrastructure.filesystem.dbpf_parser import DbpfParser
 from src.application.mods.conflict_detector_service import ConflictDetectorService
 
 
-
 def create_mock_dbpf_package(file_path: Path, tgi_list: list[tuple[int, int, int]]) -> Path:
     """Crée un fichier conteneur DBPF 2.0 synthétique valide pour les tests."""
     file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -21,8 +20,8 @@ def create_mock_dbpf_package(file_path: Path, tgi_list: list[tuple[int, int, int
     header = bytearray(header_size)
     struct.pack_into("<4sII", header, 0, b"DBPF", 2, 0)
     struct.pack_into("<I", header, 40, len(tgi_list))  # index_record_count
-    struct.pack_into("<I", header, 44, index_offset)    # index_pos_low
-    struct.pack_into("<I", header, 48, index_size)     # index_size
+    struct.pack_into("<I", header, 44, index_offset)  # index_pos_low
+    struct.pack_into("<I", header, 48, index_size)  # index_size
 
     # Table d'index
     index_data = bytearray()
@@ -38,8 +37,8 @@ def create_mock_dbpf_package(file_path: Path, tgi_list: list[tuple[int, int, int
             dummy_data_offset,
             10,  # file size
             10,  # decompressed size
-            0,   # compressed flag
-            0,   # dummy
+            0,  # compressed flag
+            0,  # dummy
         )
         dummy_data_offset += 10
 
@@ -191,4 +190,3 @@ def test_conflict_detector_categorizes_stbl_translation_overrides(tmp_path: Path
     c = report.conflicts[0]
     assert c.is_translation_override is True
     assert c.resource_type_name == "String Table (STBL)"
-

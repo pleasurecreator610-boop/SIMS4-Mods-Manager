@@ -119,9 +119,7 @@ class ModUpdateActions:
 
         return False
 
-    def resolve_catalog_entry(
-        self, installed_mod: InstalledModEntity
-    ) -> Optional[CatalogModEntity]:
+    def resolve_catalog_entry(self, installed_mod: InstalledModEntity) -> Optional[CatalogModEntity]:
         """Resolves catalog entity via repository interfaces."""
         cat_mod: Optional[CatalogModEntity] = None
 
@@ -147,14 +145,14 @@ class ModUpdateActions:
 
         return cat_mod
 
-    def resolve_catalog_mod_session(
-        self, session, installed_mod: InstalledMod
-    ) -> Optional[CatalogMod]:
+    def resolve_catalog_mod_session(self, session, installed_mod: InstalledMod) -> Optional[CatalogMod]:
         """Resolves catalog mod via an active SQLAlchemy session."""
         cat_mod = None
         if installed_mod.remote_id and installed_mod.source:
             cat_mod = (
-                session.query(CatalogMod).filter_by(source=installed_mod.source, remote_id=installed_mod.remote_id).first()
+                session.query(CatalogMod)
+                .filter_by(source=installed_mod.source, remote_id=installed_mod.remote_id)
+                .first()
             )
             if cat_mod and installed_mod.catalog_mod_id != cat_mod.id:
                 installed_mod.catalog_mod_id = cat_mod.id

@@ -167,15 +167,33 @@ def extract_loverslab_requirements(
         ).strip()
 
         has_delimiters = bool(re.search(r"[,;+/|]|\s+[-–—]\s*|\s+(?:and|et)\s+", unprefixed_line))
+        is_instruction_or_disclaimer = bool(
+            "->" in unprefixed_line
+            or "→" in unprefixed_line
+            or re.search(
+                r"(?i)\b(script-only mod|no \.package file|make sure you have|restart the game|bad decisions)\b",
+                unprefixed_line,
+            )
+        )
         is_sentence = (
             bool(re.search(r"(?i)\b(is|are|does|do|will|have|has|enabled)\b", unprefixed_line)) and not has_delimiters
-        )
+        ) or is_instruction_or_disclaimer
 
         if is_sentence:
             line_tokens = [unprefixed_line]
         else:
             protected_line = re.sub(r"(?i)\bcats\s*(?:&|and)\s*dogs\b", "Cats_and_Dogs", unprefixed_line)
             protected_line = re.sub(r"(?i)\blife\s*(?:&|and)\s*death\b", "Life_and_Death", protected_line)
+            protected_line = re.sub(
+                r"(?i)\bbusinesses\s*(?:&|and)\s*hobbies\b",
+                "Businesses_and_Hobbies",
+                protected_line,
+            )
+            protected_line = re.sub(
+                r"(?i)\brelationship\s*(?:&|and)\s*pregnancy\s+overhaul\b",
+                "Relationship_and_Pregnancy_Overhaul",
+                protected_line,
+            )
             protected_line = re.sub(
                 r"(?i)\b(sims\s*4|ts4)\s*[-–—]\s*",
                 r"\1 : ",
@@ -184,7 +202,13 @@ def extract_loverslab_requirements(
             primary_tokens = re.split(r"[,;+/|]|\s+[-–—]\s*|\s+(?:and|et|as\s+well\s+as)\s+|\s+&\s+", protected_line)
             line_tokens = []
             for pt in primary_tokens:
-                pt_str = pt.replace("Cats_and_Dogs", "Cats & Dogs").replace("Life_and_Death", "Life & Death").strip()
+                pt_str = (
+                    pt.replace("Cats_and_Dogs", "Cats & Dogs")
+                    .replace("Life_and_Death", "Life & Death")
+                    .replace("Businesses_and_Hobbies", "Businesses & Hobbies")
+                    .replace("Relationship_and_Pregnancy_Overhaul", "Relationship & Pregnancy Overhaul")
+                    .strip()
+                )
                 if not pt_str:
                     continue
                 sub_parts = re.split(r"(\s+[a-zA-Z0-9]+)-(?=[A-Z])", pt_str)

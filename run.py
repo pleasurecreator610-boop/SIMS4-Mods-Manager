@@ -141,8 +141,9 @@ def main():
     def _on_startup_error(err):
         logger.warning(f"Avertissement lors des vérifications initiales API: {err}")
 
-    QTimer.singleShot(50, lambda: run_async_ui_task(_run_startup_worker, on_finished=_on_startup_finished, on_error=_on_startup_error))
-
+    QTimer.singleShot(
+        50, lambda: run_async_ui_task(_run_startup_worker, on_finished=_on_startup_finished, on_error=_on_startup_error)
+    )
 
     # Démarrage de la vérification des dossiers du jeu et des mods installés en tâche de fond
     from src.application.game.game_service import GameDetector

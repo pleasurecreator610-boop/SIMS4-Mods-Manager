@@ -64,4 +64,3 @@ def test_accounts_dynamic_providers(client):
     assert resp.status_code == 200
     providers = [a["provider_name"] for a in resp.json()["accounts"]]
     assert "customplugin" in providers
-

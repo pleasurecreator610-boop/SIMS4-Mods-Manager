@@ -5,11 +5,61 @@ from pathlib import Path
 from typing import Optional
 
 
+WINDOWS_RESERVED_NAMES = {
+    "CON",
+    "PRN",
+    "AUX",
+    "NUL",
+    "COM1",
+    "COM2",
+    "COM3",
+    "COM4",
+    "COM5",
+    "COM6",
+    "COM7",
+    "COM8",
+    "COM9",
+    "LPT1",
+    "LPT2",
+    "LPT3",
+    "LPT4",
+    "LPT5",
+    "LPT6",
+    "LPT7",
+    "LPT8",
+    "LPT9",
+}
+
+
 def sanitize_filename(name: str) -> str:
-    """Sanitizes file names to be valid on Windows."""
-    clean = re.sub(r'[\\/*?:"<>|]', "", name)
-    clean = clean.strip().replace(" ", "_")
+    """Sanitizes file names to be strictly safe and valid on Windows and cross-platform."""
+    if not name:
+        return "Mod"
+    # Supprimer les caractères nuls, de contrôle ASCII et non imprimables
+    clean = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", name)
+    # Remplacer les séparateurs de chemin et caractères interdits Windows
+    clean = re.sub(r'[\\/*?:"<>|]', "", clean)
+    clean = clean.strip(". ").replace(" ", "_")
+
+    # Protection contre les noms de périphériques réservés sous Windows
+    stem = Path(clean).stem.upper()
+    if stem in WINDOWS_RESERVED_NAMES:
+        clean = f"mod_{clean}"
+
     return clean or "Mod"
+
+
+def sanitize_content_disposition(content_disposition: str) -> Optional[str]:
+    """Extrait et assainit en toute sécurité le nom de fichier d'un en-tête HTTP Content-Disposition."""
+    if not content_disposition:
+        return None
+    # Extraction regex du paramètre filename="..." ou filename=...
+    match = re.search(r'filename\*?=(?:UTF-8\'\')?(?:"([^"]+)"|([^;]+))', content_disposition, re.IGNORECASE)
+    if not match:
+        return None
+    raw_name = match.group(1) or match.group(2) or ""
+    clean = sanitize_filename(raw_name.strip("'\" \t\r\n"))
+    return clean if clean and clean != "Mod" else None
 
 
 def sanitize_mod_folder_name(name: str) -> str:
@@ -46,3 +96,23 @@ def generate_unique_mod_folder_name(source: str, title: str, mods_dir: Optional[
             return folder_name
 
     return f"{clean_source}_{clean_title}_{random.randint(1000, 9999)}"
+
+
+def cleanup_temp_download_files(temp_dir: Path, ttl_seconds: int = 86400) -> int:
+    """Purge les fichiers temporaires orphelins (.tmp, .part, .crdownload, etc.) plus vieux que ttl_seconds."""
+    if not temp_dir.exists():
+        return 0
+    import time
+
+    now = time.time()
+    deleted_count = 0
+    temp_extensions = {".tmp", ".part", ".crdownload", ".download"}
+    for p in temp_dir.glob("*"):
+        if p.is_file() and (p.suffix.lower() in temp_extensions or p.name.startswith("tmp_")):
+            try:
+                if now - p.stat().st_mtime > ttl_seconds:
+                    p.unlink(missing_ok=True)
+                    deleted_count += 1
+            except Exception:
+                pass
+    return deleted_count

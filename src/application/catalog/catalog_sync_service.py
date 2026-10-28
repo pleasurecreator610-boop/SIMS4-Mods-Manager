@@ -58,6 +58,4 @@ def check_catalog_dependencies(
 ) -> DependenciesCheckResponse:
     """Entry point checking dependencies via CatalogSyncOrchestrator."""
     orchestrator = CatalogSyncOrchestrator()
-    return orchestrator.check_dependencies(
-        mod_title=mod_title, page_url=page_url, source=source, cat_mod=cat_mod
-    )
+    return orchestrator.check_dependencies(mod_title=mod_title, page_url=page_url, source=source, cat_mod=cat_mod)

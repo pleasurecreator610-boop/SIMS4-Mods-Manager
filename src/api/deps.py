@@ -52,4 +52,3 @@ def get_app_container():
     from src.core.container import get_container
 
     return get_container()
-

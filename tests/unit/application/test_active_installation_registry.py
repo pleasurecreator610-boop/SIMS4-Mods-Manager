@@ -142,4 +142,3 @@ def test_complete_install_cleans_title_even_when_omitted():
     # Both key and title should be purged completely
     assert reg.is_active("loverslab", "99999") is False
     assert reg.is_active("loverslab", "", "My Mod With Title") is False
-

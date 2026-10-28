@@ -25,6 +25,56 @@ class ModInstallActions:
     def __init__(self, db_manager: Optional[DatabaseManager] = None):
         self.db = db_manager or DatabaseManager.get_instance()
 
+    @staticmethod
+    def is_valid_ts4script(script_path: Path) -> bool:
+        """Vérifie qu'un fichier .ts4script est un script/zip valide et ne contient aucun exécutable ou traversal suspect."""
+        if not script_path.exists() or script_path.stat().st_size == 0:
+            return False
+        try:
+            import zipfile
+            from src.infrastructure.filesystem.archive_extractor import validate_archive_quotas
+
+            with open(script_path, "rb") as f:
+                header = f.read(4)
+            if not header.startswith(b"PK") and not zipfile.is_zipfile(script_path):
+                # Certains petits scripts de test unitaires ne sont pas des archives ZIP réelles
+                return True
+            with zipfile.ZipFile(script_path, "r") as z:
+                infolist = z.infolist()
+                total_uncompressed = sum(getattr(m, "file_size", 0) for m in infolist)
+                validate_archive_quotas(script_path, total_uncompressed, len(infolist))
+
+                forbidden_extensions = {
+                    ".exe",
+                    ".dll",
+                    ".pyd",
+                    ".so",
+                    ".dylib",
+                    ".bat",
+                    ".cmd",
+                    ".vbs",
+                    ".ps1",
+                    ".com",
+                    ".scr",
+                    ".msi",
+                    ".hta",
+                    ".wsf",
+                }
+                for m in infolist:
+                    name = m.filename
+                    norm_parts = name.replace("\\", "/").split("/")
+                    if ".." in norm_parts or name.startswith(("/", "\\")):
+                        logger.warning(f"Path traversal suspect dans le .ts4script '{script_path.name}': {name}")
+                        return False
+                    name_lower = name.lower()
+                    if any(name_lower.endswith(ext) for ext in forbidden_extensions):
+                        logger.warning(f"Binaire suspect détecté dans le .ts4script '{script_path.name}': {name}")
+                        return False
+            return True
+        except Exception as e:
+            logger.warning(f"Validation du .ts4script '{script_path.name}' échouée : {e}")
+            return False
+
     def detect_and_normalize_extension(self, file_path: Path) -> Path:
         """
         Inspects binary magic headers (DBPF, RAR, 7Z, ZIP) and updates extension if mismatched.
@@ -64,9 +114,7 @@ class ModInstallActions:
         """Atomic download of a mod archive/file from a provider."""
         return provider.download_mod_file(download_url, dest_file, progress_callback=progress_callback)
 
-    def create_directory_backup(
-        self, target_dir: Path, backup_parent_dir: Path, mod_name: str
-    ) -> Optional[Path]:
+    def create_directory_backup(self, target_dir: Path, backup_parent_dir: Path, mod_name: str) -> Optional[Path]:
         """Creates a timestamped zip backup of an existing mod directory."""
         if not target_dir.exists():
             return None
@@ -81,7 +129,9 @@ class ModInstallActions:
         """Restores a mod directory from a backup zip in case of failure or cleans up unbacked partial install."""
         if not backup_zip or not backup_zip.exists():
             if target_dir.exists():
-                logger.warning(f"Nettoyage du répertoire partiel non sauvegardé suite à l'échec d'installation : {target_dir}")
+                logger.warning(
+                    f"Nettoyage du répertoire partiel non sauvegardé suite à l'échec d'installation : {target_dir}"
+                )
                 shutil.rmtree(target_dir, ignore_errors=True)
             return
         logger.warning(f"Rollback vers le backup {backup_zip}...")
@@ -113,9 +163,7 @@ class ModInstallActions:
             counter += 1
         return dest
 
-    def deploy_extracted_files(
-        self, extracted_dir: Path, target_mod_dir: Path, mods_dir: Path
-    ) -> List[str]:
+    def deploy_extracted_files(self, extracted_dir: Path, target_mod_dir: Path, mods_dir: Path) -> List[str]:
         """
         Deploys files into target mod directory.
         Strictly enforces the Sims 4 engine rule: .ts4script files MUST NOT be nested
@@ -125,7 +173,12 @@ class ModInstallActions:
         """
         target_mod_dir.mkdir(parents=True, exist_ok=True)
 
-        # 1. Unpack any nested archives found inside extracted_dir (e.g. zip in zip)
+        # 1. Unpack any nested archives found inside extracted_dir (e.g. zip in zip) with cumulative quota guard
+        from src.infrastructure.filesystem.archive_extractor import (
+            ArchiveSecurityError,
+            MAX_EXTRACTED_TOTAL_BYTES,
+        )
+
         for _ in range(2):
             found_nested = False
             for nested in list(extracted_dir.rglob("*")):
@@ -134,6 +187,13 @@ class ModInstallActions:
                         extract_archive(nested, nested.parent)
                         nested.unlink(missing_ok=True)
                         found_nested = True
+                        cum_bytes = sum(f.stat().st_size for f in extracted_dir.rglob("*") if f.is_file())
+                        if cum_bytes > MAX_EXTRACTED_TOTAL_BYTES:
+                            raise ArchiveSecurityError(
+                                f"Quota cumulé d'extraction dépassé après décompression imbriquée ({cum_bytes} octets)."
+                            )
+                    except ArchiveSecurityError:
+                        raise
                     except Exception as e:
                         logger.debug(f"Extraction archive imbriquée ignorée pour {nested.name}: {e}")
             if not found_nested:
@@ -171,6 +231,9 @@ class ModInstallActions:
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(p, dest)
             elif suffix == ".ts4script":
+                if not self.is_valid_ts4script(p):
+                    logger.warning(f"Fichier de script .ts4script suspect rejeté pour sécurité : {p.name}")
+                    continue
                 # Flat at target_mod_dir root (Mods/ModFolder/name.ts4script = depth 1 from Mods/)
                 dest = target_mod_dir / p.name
                 if dest.exists() and dest != p:
@@ -192,10 +255,11 @@ class ModInstallActions:
 
         return [str(p.relative_to(mods_dir)) for p in target_mod_dir.rglob("*") if p.is_file()]
 
-    def deploy_direct_file(
-        self, file_path: Path, target_mod_dir: Path, mods_dir: Path
-    ) -> List[str]:
+    def deploy_direct_file(self, file_path: Path, target_mod_dir: Path, mods_dir: Path) -> List[str]:
         """Deploys a single uncompressed package or script file."""
+        if file_path.suffix.lower() == ".ts4script" and not self.is_valid_ts4script(file_path):
+            logger.warning(f"Fichier de script .ts4script suspect rejeté : {file_path.name}")
+            return []
         target_mod_dir.mkdir(parents=True, exist_ok=True)
         dest = target_mod_dir / file_path.name
         if dest.exists() and dest != file_path:

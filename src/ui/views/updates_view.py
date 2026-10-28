@@ -151,7 +151,6 @@ class UpdatesView(QWidget):
 
         run_async_ui_task(_fetch, on_finished=_on_fetched, on_error=_on_error)
 
-
     def _render_table(self):
         query = self.search_input.text().lower().strip()
         filtered = [

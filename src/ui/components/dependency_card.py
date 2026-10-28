@@ -32,7 +32,7 @@ class DependencyCardWidget(QFrame):
         self.setStyleSheet(f"""
             QFrame {{
                 background-color: {bg_col};
-                border: 1px {'dashed' if dashed else 'solid'} {border_col};
+                border: 1px {"dashed" if dashed else "solid"} {border_col};
                 border-radius: 8px;
             }}
         """)

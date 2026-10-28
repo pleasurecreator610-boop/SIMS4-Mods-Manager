@@ -126,4 +126,3 @@ def test_mod_toggle_replaces_existing_target_without_error(tmp_path):
     assert new_path2 == mod_file
     assert mod_file.read_text() == "ACTIVE"
     assert not disabled_file.exists()
-

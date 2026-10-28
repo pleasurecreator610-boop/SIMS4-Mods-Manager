@@ -170,7 +170,12 @@ class ModMatcher(TitleNormalizer):
             informative_tokens = [tok for tok in tokens if len(tok) >= 2]
         informative_tokens.sort(key=len, reverse=True)
 
-        candidate_query = session.query(CatalogMod)
+        from sqlalchemy.orm import defer
+
+        candidate_query = session.query(CatalogMod).options(
+            defer(CatalogMod.description),
+            defer(CatalogMod.requirements_text),
+        )
         if informative_tokens:
             from sqlalchemy import or_
 

@@ -241,3 +241,22 @@ class SubmitMissingReportResponse(BaseModel):
     message: str
     already_reported: bool = False
     reported_at: Optional[str] = None
+
+
+class DeleteMissingReportRequest(BaseModel):
+    """Requête de suppression d'un commentaire de rapport de dépendances sur le forum."""
+
+    catalog_mod_id: Optional[int] = None
+    source: str = "loverslab"
+    remote_id: str = ""
+    page_url: str = ""
+    title: str = ""
+    missing_modules: List[str] = []
+    unnecessary_modules: List[str] = []
+
+
+class DeleteMissingReportResponse(BaseModel):
+    """Réponse de suppression d'un commentaire de rapport de dépendances."""
+
+    success: bool
+    message: str

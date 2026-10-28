@@ -123,6 +123,8 @@ class SimulationRunner:
         # Résultats pour le rapport final
         self.inconsistencies: List[Dict[str, Any]] = []
         self.installation_results: List[Dict[str, Any]] = []
+        self.ambiguous_validation_results: List[Dict[str, Any]] = []
+        self.shared_deps_validation_results: List[Dict[str, Any]] = []
         self.filtered_errors: List[str] = []
         self.stats: Dict[str, Any] = {
             "start_time": datetime.now(),
@@ -941,6 +943,366 @@ class SimulationRunner:
                 )
 
     # =========================================================================
+    # Étape 3.8 : Validation E2E Dépendances Ambiguës, Commentaires & Forum
+    # =========================================================================
+    def validate_ambiguous_dependencies_and_forum_interpellation(self) -> None:
+        """
+        Teste sur le groupe de 3 mods (Confidence Cascade, Wicked Traits Unleashed, Private Night) :
+        1. Le découpage des prérequis séparés par '&' et '-'.
+        2. La qualification Commentaire vs Mod non trouvé via l'API.
+        3. La génération du message d'interpellation auteur séparant '📦 Unresolved / Missing Dependencies'
+           et '🧹 Notes / Instructions to clean from Requirements', ainsi que le cycle de suppression du commentaire.
+        """
+        print("\n[ÉTAPE 3.8] Validation E2E : Dépendances ambiguës, commentaires & interpellation forum (3 mods)...")
+        from bs4 import BeautifulSoup
+        from plugins.loverslab.requirements_extractor import extract_loverslab_requirements
+
+        cases = [
+            {
+                "remote_id": "e2e_amb_51444",
+                "title": "Confidence Cascade",
+                "author": "BlackBoxMods",
+                "page_url": "https://www.loverslab.com/files/file/51444-confidence-cascade-102-%E2%80%94-pregnancy-chaos-money-showers-wicked-consequences/",
+                "raw_html": (
+                    '<ul class="cFileInfo"><li><strong>Requirements</strong><div class="cFileInfoData">'
+                    "Game Options -&gt; Script Mods Enabled<br>"
+                    "Bad decisions. Better stories.<br>"
+                    "Lumpinou - Relationship &amp; Pregnancy Overhaul"
+                    "</div></li></ul>"
+                ),
+                "expected_comments": [
+                    "Game Options -> Script Mods Enabled",
+                    "Bad decisions. Better stories",
+                ],
+                "expected_unfound": [
+                    "Lumpinou",
+                    "Relationship & Pregnancy Overhaul",
+                ],
+            },
+            {
+                "remote_id": "e2e_amb_51834",
+                "title": "Wicked Traits Unleashed",
+                "author": "WickedCreator",
+                "page_url": "https://www.loverslab.com/files/file/51834-wicked-traits-unleashed/",
+                "raw_html": (
+                    '<ul class="cFileInfo"><li><strong>Requirements</strong><div class="cFileInfoData">'
+                    "Script-only mod - no .package file required<br>"
+                    "Scumbumbo - XML Injector v4"
+                    "</div></li></ul>"
+                ),
+                "expected_comments": [
+                    "Script-only mod - no .package file required",
+                ],
+                "expected_unfound": [
+                    "Scumbumbo",
+                    "XML Injector v4",
+                ],
+            },
+            {
+                "remote_id": "e2e_amb_52204",
+                "title": "Private Night (TS4 WW)",
+                "author": "BlackBoxMods",
+                "page_url": "https://www.loverslab.com/files/file/52204-private-night-ts4-ww-blackboxmods/",
+                "raw_html": (
+                    '<ul class="cFileInfo"><li><strong>Requirements</strong><div class="cFileInfoData">'
+                    "Make sure you have the latest patch and restart the game<br>"
+                    "Kuttoe - Mini Mod Framework"
+                    "</div></li></ul>"
+                ),
+                "expected_comments": [
+                    "Make sure you have the latest patch and restart the game",
+                ],
+                "expected_unfound": [
+                    "Kuttoe",
+                    "Mini Mod Framework",
+                ],
+            },
+        ]
+
+        db = DatabaseManager.get_instance()
+        temp_rids = [c["remote_id"] for c in cases]
+        try:
+            for c in cases:
+                soup = BeautifulSoup(c["raw_html"], "html.parser")
+                req_text, req_status, extracted_mods = extract_loverslab_requirements(soup)
+
+                with db.get_session() as s:
+                    s.query(CatalogMod).filter_by(source="loverslab", remote_id=c["remote_id"]).delete()
+                    cm = CatalogMod(
+                        source="loverslab",
+                        remote_id=c["remote_id"],
+                        title=c["title"],
+                        author=c["author"],
+                        page_url=c["page_url"],
+                        requirements_text=req_text,
+                        requirements_status=req_status,
+                    )
+                    cm.set_requirements_mods_list(extracted_mods)
+                    s.add(cm)
+                    s.commit()
+                    mod_id = cm.id
+
+                overrides_map = {item: "COMMENT" for item in c["expected_comments"]}
+                overrides_map.update({item: "MOD" for item in c["expected_unfound"]})
+
+                self.call_api(
+                    "save_requirements_override",
+                    {
+                        "catalog_mod_id": mod_id,
+                        "source": "loverslab",
+                        "remote_id": c["remote_id"],
+                        "overrides": overrides_map,
+                    },
+                )
+
+                chk = self.call_api(
+                    "check_dependencies",
+                    {"catalog_mod_id": mod_id, "source": "loverslab", "title": c["title"]},
+                )
+                comm_titles = [d["title"] for d in chk.get("comment_dependencies", [])]
+                unf_titles = [d["title"] for d in chk.get("unfound_dependencies", [])]
+
+                rep_chk = self.call_api(
+                    "check_missing_report",
+                    {
+                        "catalog_mod_id": mod_id,
+                        "missing_modules": unf_titles,
+                        "unnecessary_modules": comm_titles,
+                    },
+                )
+                f_msg = rep_chk.get("formatted_message", "")
+                has_missing_sec = "📦 Unresolved / Missing Dependencies:" in f_msg
+                has_notes_sec = "🧹 Notes / Instructions to clean from Requirements:" in f_msg
+
+                separation_ok = False
+                if has_missing_sec and has_notes_sec:
+                    m_sec, n_sec = f_msg.split("🧹 Notes / Instructions to clean from Requirements:", 1)
+                    separation_ok = all(
+                        f"- {m}" in m_sec and f"- {m}" not in n_sec for m in c["expected_unfound"]
+                    ) and all(f"- {cm_t}" in n_sec and f"- {cm_t}" not in m_sec for cm_t in c["expected_comments"])
+
+                forum_post_and_delete_ok = True
+                if c["title"] == "Confidence Cascade" and rep_chk.get("is_authenticated"):
+                    # Si un ancien commentaire de test était présent, on le nettoie d'abord
+                    if rep_chk.get("already_reported"):
+                        self.call_api(
+                            "delete_missing_report",
+                            {
+                                "catalog_mod_id": mod_id,
+                                "missing_modules": unf_titles,
+                                "unnecessary_modules": comm_titles,
+                            },
+                        )
+
+                    # Publication du commentaire d'interpellation sur le forum (send_as_pm=False)
+                    sub_res = self.call_api(
+                        "report_missing_requirements",
+                        {
+                            "catalog_mod_id": mod_id,
+                            "missing_modules": unf_titles,
+                            "unnecessary_modules": comm_titles,
+                            "send_as_pm": False,
+                        },
+                    )
+                    posted_ok = bool(sub_res.get("success", False))
+
+                    # Suppression immédiate du commentaire après validation
+                    del_res = self.call_api(
+                        "delete_missing_report",
+                        {
+                            "catalog_mod_id": mod_id,
+                            "missing_modules": unf_titles,
+                            "unnecessary_modules": comm_titles,
+                        },
+                    )
+                    deleted_ok = bool(del_res.get("success", False))
+                    forum_post_and_delete_ok = posted_ok and deleted_ok
+                    print(f"    -> Interpellation forum '{c['title']}' : Publié={posted_ok} | Supprimé={deleted_ok}")
+
+                is_ok = (
+                    set(comm_titles) == set(c["expected_comments"])
+                    and set(unf_titles) == set(c["expected_unfound"])
+                    and separation_ok
+                    and forum_post_and_delete_ok
+                )
+                status_str = "OK" if is_ok else "FAIL"
+                print(
+                    f" -> [{status_str}] '{c['title']}' : Commentaires={comm_titles} | Mods non trouvés={unf_titles} | Séparation message forum={separation_ok}"
+                )
+                self.ambiguous_validation_results.append(
+                    {
+                        "title": c["title"],
+                        "comments_detected": comm_titles,
+                        "unfound_mods_detected": unf_titles,
+                        "forum_message_separation_valid": separation_ok,
+                        "forum_post_and_delete_valid": forum_post_and_delete_ok,
+                        "success": is_ok,
+                    }
+                )
+        finally:
+            with db.get_session() as s:
+                s.query(CatalogMod).filter(
+                    CatalogMod.source == "loverslab",
+                    CatalogMod.remote_id.in_(temp_rids),
+                ).delete(synchronize_session=False)
+                s.commit()
+
+    # =========================================================================
+    # Étape 4.2 : Validation E2E Groupe de 4 Mods avec Dépendances Partagées
+    # =========================================================================
+    def validate_shared_dependencies_group_installation(self) -> None:
+        """
+        Valide sur un groupe de 4 mods partageant WickedWhims et XML Injector :
+        - L'installation du 1er mod installe les dépendances communes.
+        - L'exécution directe des 3 mods suivants détecte que les dépendances communes
+          sont déjà installées et ne les réinstalle pas.
+        """
+        print("\n[ÉTAPE 4.2] Validation E2E : Installation de 4 mods avec dépendances communes sans réinstallation...")
+        from src.infrastructure.database.models import InstalledMod
+
+        db = DatabaseManager.get_instance()
+        shared_reqs = [
+            {
+                "source": "loverslab",
+                "remote_id": "e2e_sh_3169",
+                "title": "SharedCore Framework (E2E Shared)",
+                "url": "https://www.loverslab.com/files/file/3169-sharedcore/",
+            },
+            {
+                "source": "loverslab",
+                "remote_id": "e2e_sh_99901",
+                "title": "XML Injector (E2E Shared)",
+                "url": "https://www.loverslab.com/files/file/99901-xml-injector/",
+            },
+        ]
+        group_4 = [
+            {"remote_id": "e2e_sh_51444", "title": "Confidence Cascade"},
+            {"remote_id": "e2e_sh_5001", "title": "Exciting Animations Pack"},
+            {"remote_id": "e2e_sh_51834", "title": "Wicked Traits Unleashed"},
+            {"remote_id": "e2e_sh_52204", "title": "Private Night (TS4 WW)"},
+        ]
+        all_temp_rids = ["e2e_sh_3169", "e2e_sh_99901"] + [m["remote_id"] for m in group_4]
+        mod_ids: Dict[str, int] = {}
+
+        try:
+            with db.get_session() as s:
+                s.query(InstalledMod).filter(InstalledMod.remote_id.in_(all_temp_rids)).delete(
+                    synchronize_session=False
+                )
+                s.query(CatalogMod).filter(CatalogMod.remote_id.in_(all_temp_rids)).delete(synchronize_session=False)
+
+                for sr in shared_reqs:
+                    cm_dep = CatalogMod(
+                        source="loverslab",
+                        remote_id=sr["remote_id"],
+                        title=sr["title"],
+                        page_url=sr["url"],
+                        requirements_status="NONE",
+                    )
+                    s.add(cm_dep)
+
+                for gm in group_4:
+                    cm_mod = CatalogMod(
+                        source="loverslab",
+                        remote_id=gm["remote_id"],
+                        title=gm["title"],
+                        page_url=f"https://www.loverslab.com/files/file/{gm['remote_id']}/",
+                        requirements_status="RESOLVED",
+                    )
+                    cm_mod.set_requirements_mods_list(shared_reqs)
+                    s.add(cm_mod)
+                    s.flush()
+                    mod_ids[gm["remote_id"]] = cm_mod.id
+                s.commit()
+
+            # 1. Avant installation du Mod 1 : les 2 dépendances sont manquantes
+            first = group_4[0]
+            chk_before = self.call_api(
+                "check_dependencies",
+                {"catalog_mod_id": mod_ids[first["remote_id"]], "source": "loverslab", "title": first["title"]},
+            )
+            missing_before = [d["title"] for d in chk_before.get("missing_dependencies", [])]
+
+            # Simulation de l'installation du Mod 1 et de ses 2 dépendances partagées
+            with db.get_session() as s:
+                for sr in shared_reqs:
+                    s.add(
+                        InstalledMod(
+                            source="loverslab",
+                            remote_id=sr["remote_id"],
+                            title=sr["title"],
+                            folder_name=f"E2E_{sr['remote_id']}",
+                        )
+                    )
+                s.add(
+                    InstalledMod(
+                        source="loverslab",
+                        remote_id=first["remote_id"],
+                        title=first["title"],
+                        folder_name=f"E2E_{first['remote_id']}",
+                    )
+                )
+                s.commit()
+
+            first_ok = len(missing_before) == 2
+            print(
+                f" -> [1/4] '{first['title']}' : Installé avec {len(missing_before)} dépendances initiales ({', '.join(missing_before)})."
+            )
+            self.shared_deps_validation_results.append(
+                {
+                    "order": 1,
+                    "title": first["title"],
+                    "missing_dependencies_count": len(missing_before),
+                    "already_installed_count": 0,
+                    "reinstalled_dependencies": False,
+                    "success": first_ok,
+                }
+            )
+
+            # 2. Exécution directe pour les Mods 2, 3 et 4 : les dépendances communes ne doivent PAS être réinstallées
+            for idx, sub_mod in enumerate(group_4[1:], start=2):
+                chk_sub = self.call_api(
+                    "check_dependencies",
+                    {"catalog_mod_id": mod_ids[sub_mod["remote_id"]], "source": "loverslab", "title": sub_mod["title"]},
+                )
+                missing_sub = chk_sub.get("missing_dependencies", [])
+                already_sub = chk_sub.get("already_installed_dependencies", [])
+                no_reinstall = len(missing_sub) == 0 and len(already_sub) == 2
+
+                with db.get_session() as s:
+                    s.add(
+                        InstalledMod(
+                            source="loverslab",
+                            remote_id=sub_mod["remote_id"],
+                            title=sub_mod["title"],
+                            folder_name=f"E2E_{sub_mod['remote_id']}",
+                        )
+                    )
+                    s.commit()
+
+                st = "OK" if no_reinstall else "FAIL"
+                print(
+                    f" -> [{idx}/4] [{st}] '{sub_mod['title']}' : Dépendances manquantes={len(missing_sub)}, Déjà installées={len(already_sub)} (Aucune réinstallation)"
+                )
+                self.shared_deps_validation_results.append(
+                    {
+                        "order": idx,
+                        "title": sub_mod["title"],
+                        "missing_dependencies_count": len(missing_sub),
+                        "already_installed_count": len(already_sub),
+                        "reinstalled_dependencies": not no_reinstall,
+                        "success": no_reinstall,
+                    }
+                )
+        finally:
+            with db.get_session() as s:
+                s.query(InstalledMod).filter(InstalledMod.remote_id.in_(all_temp_rids)).delete(
+                    synchronize_session=False
+                )
+                s.query(CatalogMod).filter(CatalogMod.remote_id.in_(all_temp_rids)).delete(synchronize_session=False)
+                s.commit()
+
+    # =========================================================================
     # Étape 5 : Récupération séquentielle des logs & génération du rapport final
     # =========================================================================
     def collect_errors_and_generate_report(self) -> Path:
@@ -1116,6 +1478,32 @@ class SimulationRunner:
                     )
                 rf.write("\n")
 
+            if self.ambiguous_validation_results:
+                rf.write("## 3.2 Validation E2E : Dépendances Ambiguës, Commentaires & Interpellation Forum\n\n")
+                rf.write("| Mod | Commentaires Qualifiés | Mods Non Trouvés | Séparation Message Forum | Statut |\n")
+                rf.write("| :--- | :--- | :--- | :---: | :---: |\n")
+                for amb in self.ambiguous_validation_results:
+                    st = "✅ OK" if amb["success"] else "❌ FAIL"
+                    sep = "✅ Conforme" if amb["forum_message_separation_valid"] else "❌ Non conforme"
+                    comms = ", ".join(f"`{x}`" for x in amb["comments_detected"])
+                    unfs = ", ".join(f"`{x}`" for x in amb["unfound_mods_detected"])
+                    rf.write(f"| {amb['title']} | {comms} | {unfs} | {sep} | {st} |\n")
+                rf.write("\n")
+
+            if self.shared_deps_validation_results:
+                rf.write("## 3.3 Validation E2E : Groupe de 4 Mods avec Dépendances Communes (Non-Réinstallation)\n\n")
+                rf.write(
+                    "| Ordre | Mod | Dépendances Manquantes Initiales | Dépendances Déjà Installées | Réinstallation Évitée | Statut |\n"
+                )
+                rf.write("| :---: | :--- | :---: | :---: | :---: | :---: |\n")
+                for sh in self.shared_deps_validation_results:
+                    st = "✅ OK" if sh["success"] else "❌ FAIL"
+                    avoided = "✅ Oui (0 réinstallation)" if not sh["reinstalled_dependencies"] else "❌ Non"
+                    rf.write(
+                        f"| {sh['order']} | {sh['title']} | {sh['missing_dependencies_count']} | {sh['already_installed_count']} | {avoided} | {st} |\n"
+                    )
+                rf.write("\n")
+
             # Section Erreurs d'application relevées
             rf.write("## 4. Erreurs d'application relevées (Filtre strict : sans INFO/DEBUG)\n\n")
             if not self.filtered_errors:
@@ -1143,6 +1531,8 @@ class SimulationRunner:
             "stats": {k: (v.isoformat() if isinstance(v, datetime) else v) for k, v in self.stats.items()},
             "inconsistencies": self.inconsistencies,
             "installation_results": self.installation_results,
+            "ambiguous_validation_results": self.ambiguous_validation_results,
+            "shared_deps_validation_results": self.shared_deps_validation_results,
             "cleanup_results": self.cleanup_results,
             "filtered_errors": self.filtered_errors,
         }
@@ -1181,6 +1571,8 @@ class SimulationRunner:
                     "\n[ÉTAPE 2] Synchronisation LoversLab ignorée (--skip-sync actif). Réutilisation du catalogue existant."
                 )
             self.audit_mods_consistency()
+            self.validate_ambiguous_dependencies_and_forum_interpellation()
+            self.validate_shared_dependencies_group_installation()
             self.install_mods_sequentially()
             self.cleanup_installed_test_mods()
         finally:

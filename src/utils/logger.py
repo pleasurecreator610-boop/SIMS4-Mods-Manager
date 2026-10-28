@@ -1,7 +1,37 @@
+import re
 import sys
 import logging
 from collections import deque
 from typing import List
+
+SENSITIVE_PATTERNS = [
+    (re.compile(r"(X-Internal-Token:\s*)([^\s,]+)", re.IGNORECASE), r"\1***REDACTED***"),
+    (
+        re.compile(
+            r"(['\"]?(?:ips4_login_key|ips4_member_id|cf_clearance|token|password|secret)['\"]?\s*[:=]\s*['\"]?)([^'\",\s]+)",
+            re.IGNORECASE,
+        ),
+        r"\1***REDACTED***",
+    ),
+]
+
+
+class SanitizedFormatter(logging.Formatter):
+    """Formateur de logs qui masque automatiquement les jetons sensibles et mots de passe."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        s = super().format(record)
+        for pattern, replacement in SENSITIVE_PATTERNS:
+            s = pattern.sub(replacement, s)
+        return s
+
+
+def create_sanitized_formatter() -> SanitizedFormatter:
+    """Crée une instance configurée du formateur sécurisé."""
+    return SanitizedFormatter(
+        fmt="[%(asctime)s] [%(levelname)s] [%(name)s:%(lineno)d] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
 
 
 # Log dir uses the same path as AppConfig.get_app_dir() / "logs"
@@ -64,10 +94,7 @@ def attach_qt_handler(logger_instance: logging.Logger | None = None) -> QtLogHan
     emitter = QtLogEmitter()
     handler = QtLogHandler(emitter)
 
-    formatter = logging.Formatter(
-        fmt="[%(asctime)s] [%(levelname)s] [%(name)s:%(lineno)d] %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
+    formatter = create_sanitized_formatter()
     handler.setFormatter(formatter)
     handler.setLevel(logging.DEBUG)
 
@@ -95,11 +122,8 @@ def setup_logger(name: str = "sims4_mod_manager") -> logging.Logger:
 
     _logger.setLevel(logging.DEBUG)
 
-    # Formatter
-    formatter = logging.Formatter(
-        fmt="[%(asctime)s] [%(levelname)s] [%(name)s:%(lineno)d] %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
+    # Formatter sécurisé
+    formatter = create_sanitized_formatter()
 
     # Console Handler
     console_handler = logging.StreamHandler(sys.stdout)

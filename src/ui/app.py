@@ -455,7 +455,6 @@ class MainWindow(QMainWindow):
 
         run_async_ui_task(_check_and_start_sync, on_finished=_on_sync_checked)
 
-
     def closeEvent(self, event):
         """Exécute l'opération closeevent.
 

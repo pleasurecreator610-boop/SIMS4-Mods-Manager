@@ -6,9 +6,12 @@ et identifie les collisions de ressources TGI (Type, Group, Instance).
 
 from __future__ import annotations
 
+import concurrent.futures
 from dataclasses import dataclass, field
+import os
 from pathlib import Path
-from typing import Dict, List, Optional
+import threading
+from typing import Dict, List, Optional, Tuple
 
 from src.infrastructure.filesystem.dbpf_parser import DbpfParser
 
@@ -39,8 +42,73 @@ class ModConflictReport:
 class ConflictDetectorService:
     """Service d'analyse et de diagnostic des conflits de mods."""
 
+    # Cache mtime/taille thread-safe partagé : path_str -> (mtime, size, list[(tgi_str, res_name, is_stbl)])
+    _cache: dict[str, tuple[float, int, list[tuple[str, str, bool]]]] = {}
+    _cache_lock = threading.Lock()
+
     def __init__(self, parser: Optional[type[DbpfParser]] = None) -> None:
         self.parser = parser or DbpfParser
+
+    def _parse_package_safe(self, pkg: Path, mods_dir: Path) -> Tuple[str, List[Tuple[str, str, bool]], int]:
+        """Parse un package individuel avec mise en cache mtime/taille pour accélération."""
+        try:
+            rel_path = str(pkg.relative_to(mods_dir)).replace("\\", "/")
+        except Exception:
+            rel_path = pkg.name
+
+        try:
+            stat = pkg.stat()
+            mtime = stat.st_mtime
+            size = stat.st_size
+            path_key = str(pkg.resolve())
+
+            with self._cache_lock:
+                cached = self._cache.get(path_key)
+                if cached is not None and cached[0] == mtime and cached[1] == size:
+                    return rel_path, cached[2], len(cached[2])
+
+            entries = self.parser.parse_index(pkg)
+            seen_in_pkg = set()
+            parsed_items: List[Tuple[str, str, bool]] = []
+            for entry in entries:
+                key_str = entry.key.tgi_str
+                if key_str in seen_in_pkg:
+                    continue
+                seen_in_pkg.add(key_str)
+                is_stbl = entry.key.type_id == 0x220557DA
+                parsed_items.append((key_str, entry.key.resource_type_name, is_stbl))
+
+            with self._cache_lock:
+                self._cache[path_key] = (mtime, size, parsed_items)
+
+            return rel_path, parsed_items, len(entries)
+        except Exception as e:
+            logger.warning(f"Erreur ignorée lors du scan du package {pkg}: {e}")
+            return rel_path, [], 0
+
+    @staticmethod
+    def _scan_enabled_packages(mods_dir: Path) -> List[Path]:
+        """Parcours rapide via os.scandir élaguant immédiatement les dossiers .disabled et cachés."""
+        packages: List[Path] = []
+        stack = [str(mods_dir)]
+        while stack:
+            current = stack.pop()
+            try:
+                with os.scandir(current) as it:
+                    for entry in it:
+                        try:
+                            name = entry.name
+                            if name.startswith(".") or name.lower().endswith(".disabled"):
+                                continue
+                            if entry.is_dir(follow_symlinks=False):
+                                stack.append(entry.path)
+                            elif entry.is_file(follow_symlinks=False) and name.lower().endswith(".package"):
+                                packages.append(Path(entry.path))
+                        except OSError:
+                            continue
+            except OSError:
+                continue
+        return packages
 
     def detect_conflicts(self, mods_dir: Path) -> ModConflictReport:
         """Parcourt le dossier Mods et détecte toutes les collisions TGI entre .package distincts."""
@@ -48,38 +116,30 @@ class ConflictDetectorService:
         if not mods_dir.exists() or not mods_dir.is_dir():
             return report
 
-        # Trouver tous les fichiers .package non désactivés (en ignorant les sous-dossiers .disabled)
-        package_files = [
-            p for p in mods_dir.rglob("*.package")
-            if not any(part.endswith(".disabled") for part in p.parts)
-        ]
+        # Trouver tous les fichiers .package non désactivés (en élaguant les sous-dossiers .disabled dès la traversée)
+        package_files = self._scan_enabled_packages(mods_dir)
         report.total_packages_scanned = len(package_files)
 
         # Table d'indexation inversée : TGI -> (nom de ressource, is_translation, liste des chemins relatifs)
         tgi_map: Dict[str, tuple[str, bool, List[str]]] = {}
         total_resources = 0
 
-        for pkg in package_files:
-            try:
-                rel_path = str(pkg.relative_to(mods_dir)).replace("\\", "/")
-                entries = self.parser.parse_index(pkg)
-                total_resources += len(entries)
+        # Traitement multithreadé adaptatif
+        max_workers = min(16, (os.cpu_count() or 4) + 4)
+        if len(package_files) <= 4:
+            results = [self._parse_package_safe(pkg, mods_dir) for pkg in package_files]
+        else:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = [executor.submit(self._parse_package_safe, pkg, mods_dir) for pkg in package_files]
+                results = [f.result() for f in futures]
 
-                # Éviter de compter les doublons internes à un même fichier
-                seen_in_pkg = set()
-                for entry in entries:
-                    key_str = entry.key.tgi_str
-                    if key_str in seen_in_pkg:
-                        continue
-                    seen_in_pkg.add(key_str)
-
-                    is_stbl = (entry.key.type_id == 0x220557DA)
-                    if key_str not in tgi_map:
-                        tgi_map[key_str] = (entry.key.resource_type_name, is_stbl, [rel_path])
-                    else:
-                        tgi_map[key_str][2].append(rel_path)
-            except Exception as e:
-                logger.warning(f"Erreur ignorée lors du scan du package {pkg}: {e}")
+        for rel_path, parsed_items, res_count in results:
+            total_resources += res_count
+            for key_str, res_name, is_stbl in parsed_items:
+                if key_str not in tgi_map:
+                    tgi_map[key_str] = (res_name, is_stbl, [rel_path])
+                else:
+                    tgi_map[key_str][2].append(rel_path)
 
         report.total_resources_indexed = total_resources
 
@@ -167,4 +227,3 @@ class ConflictDetectorService:
                 return False, f"Impossible de réactiver le package : {e}", None
 
         return False, f"Action inconnue '{action}'. Utilisez 'disable' ou 'enable'.", None
-

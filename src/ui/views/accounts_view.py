@@ -108,6 +108,7 @@ class AccountsView(QWidget):
 
     def refresh_statuses(self):
         """Loads account statuses through API /api/accounts asynchronously."""
+
         def _fetch_accounts():
             client = get_api_client()
             return client.get_accounts()
@@ -174,7 +175,9 @@ class AccountsView(QWidget):
             def _on_clear_error(err):
                 QMessageBox.warning(self, tr("dialogs.error_title"), f"{err}")
 
-            run_async_ui_task(_do_clear, on_finished=_on_cleared, on_error=_on_clear_error, disable_widgets=widgets_to_disable)
+            run_async_ui_task(
+                _do_clear, on_finished=_on_cleared, on_error=_on_clear_error, disable_widgets=widgets_to_disable
+            )
 
     def _on_test_clicked(self, provider_name: str):
         card = self.cards_by_provider.get(provider_name)
@@ -247,6 +250,7 @@ class AccountsView(QWidget):
         self.refresh_statuses()
 
         if success:
+
             def _trigger_sync():
                 client = get_api_client()
                 client.start_catalog_sync(max_pages=0)
@@ -259,4 +263,3 @@ class AccountsView(QWidget):
             self.login_successful.emit(p_name)
         else:
             QMessageBox.warning(self, tr("dialogs.info_title"), msg)
-

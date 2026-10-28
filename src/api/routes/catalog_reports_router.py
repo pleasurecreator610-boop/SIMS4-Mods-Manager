@@ -9,6 +9,8 @@ from src.domain.interfaces.repositories.catalog_repository_interface import ICat
 from src.api.schemas.catalog import (
     CheckMissingReportRequest,
     CheckMissingReportResponse,
+    DeleteMissingReportRequest,
+    DeleteMissingReportResponse,
     SubmitMissingReportRequest,
     SubmitMissingReportResponse,
     RequirementsOverrideRequest,
@@ -105,3 +107,29 @@ def save_requirements_override(
         catalog_repo.update_requirements_overrides(cat_mod.id, current)
     logger.info(f"Overrides de prérequis mis à jour pour '{cat_mod.title}': {payload.overrides}")
     return {"success": True, "overrides": current}
+
+
+@reports_router.post("/delete-missing-report", response_model=DeleteMissingReportResponse)
+def delete_missing_report(
+    payload: DeleteMissingReportRequest,
+    catalog_repo: ICatalogRepository = Depends(get_catalog_repo),
+):
+    """Deletes a previously posted missing requirements comment on the provider forum."""
+    cat_mod = None
+    if payload.catalog_mod_id:
+        cat_mod = catalog_repo.get_by_id(payload.catalog_mod_id)
+    elif payload.source and payload.remote_id:
+        cat_mod = catalog_repo.get_by_source_and_remote_id(payload.source, payload.remote_id)
+
+    page_url = str((cat_mod.page_url if cat_mod else payload.page_url) or "")
+    source = str((cat_mod.source if cat_mod else payload.source) or "loverslab")
+    mod_title = str((cat_mod.title if cat_mod else payload.title) or "Mod")
+
+    res = RequirementReporterService.delete_report(
+        source=source,
+        page_url=page_url,
+        mod_title=mod_title,
+        missing_modules=payload.missing_modules,
+        unnecessary_modules=payload.unnecessary_modules,
+    )
+    return DeleteMissingReportResponse(**res)

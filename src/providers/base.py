@@ -62,6 +62,13 @@ class BaseSourceProvider(ABC):
         """
         pass
 
+    def delete_mod_comment(self, page_url: str, required_keywords: Optional[List[str]] = None) -> Tuple[bool, str]:
+        """
+        Deletes a comment posted by the authenticated user on the mod page/forum.
+        Returns (success, message_or_error).
+        """
+        return False, "Ce fournisseur ne supporte pas la suppression de commentaires."
+
     def get_creator_info(self, page_url: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """
         Extracts creator info (member_id, member_name, profile_url) if supported by provider.

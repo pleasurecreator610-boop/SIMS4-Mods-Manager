@@ -40,7 +40,11 @@ COPY run.py ./
 EXPOSE 8000
 
 # Volumes pour la persistance de la BDD et le dossier des Mods Sims 4
-VOLUME ["/root/.sims4_mod_manager", "/sims4_mods"]
+VOLUME ["/home/appuser/.sims4_mod_manager", "/sims4_mods"]
+
+# Création et bascule vers un utilisateur non-privilégié pour des raisons de sécurité
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
 
 # Point d'entrée : Serveur FastAPI autonome
 ENTRYPOINT ["uv", "run", "python", "run.py", "--server", "--port", "8000"]

@@ -25,9 +25,11 @@ def test_uninstall_mod_rejects_empty_or_malicious_folder(tmp_path, monkeypatch):
     (mods_dir / "important_keep.package").write_text("DO_NOT_DELETE")
 
     from src.application.game.game_detector import GameDetector
+
     monkeypatch.setattr(GameDetector, "detect_mods_dir", classmethod(lambda cls, custom=None: mods_dir))
 
     from src.database.manager import DatabaseManager
+
     db = DatabaseManager.get_instance()
 
     with db.get_session() as s:
@@ -95,6 +97,7 @@ def test_user_config_preservation_on_update(tmp_path, monkeypatch):
     (mod_folder / "mc_cmd_center.package").write_text("OLD_PACKAGE_V1")
 
     from src.database.manager import DatabaseManager
+
     db = DatabaseManager.get_instance()
 
     with db.get_session() as s:
@@ -404,14 +407,18 @@ def test_conflict_detector_service_resolve_conflict(tmp_path):
     pkg.write_bytes(b"DBPF_DATA")
 
     # Disable action
-    ok, msg, new_path = ConflictDetectorService.resolve_conflict(mods_dir, "ConflictingMod/conflict_item.package", action="disable")
+    ok, msg, new_path = ConflictDetectorService.resolve_conflict(
+        mods_dir, "ConflictingMod/conflict_item.package", action="disable"
+    )
     assert ok is True
     assert new_path == "ConflictingMod/conflict_item.package.disabled"
     assert not pkg.exists()
     assert (mod_sub / "conflict_item.package.disabled").exists()
 
     # Enable action
-    ok2, msg2, new_path2 = ConflictDetectorService.resolve_conflict(mods_dir, "ConflictingMod/conflict_item.package.disabled", action="enable")
+    ok2, msg2, new_path2 = ConflictDetectorService.resolve_conflict(
+        mods_dir, "ConflictingMod/conflict_item.package.disabled", action="enable"
+    )
     assert ok2 is True
     assert new_path2 == "ConflictingMod/conflict_item.package"
     assert pkg.exists()
@@ -551,7 +558,3 @@ def test_mod_install_orchestrator_targets_app_downloads_dir():
 
     stats = StorageService.get_storage_stats()
     assert hasattr(stats, "downloads_size_bytes")
-
-
-
-

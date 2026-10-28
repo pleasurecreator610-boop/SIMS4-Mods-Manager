@@ -3,7 +3,6 @@ ModDetailCompatMixin: Provides property aliases for ModDetailView to maintain
 strict backwards compatibility with legacy callers and unit tests.
 """
 
-
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:

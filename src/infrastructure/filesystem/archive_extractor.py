@@ -12,6 +12,53 @@ from pathlib import Path
 
 from src.utils.logger import logger
 
+# Seuils de sécurité contre les décompressions abusives (Zip Bomb / OOM / saturation disque)
+MAX_EXTRACTED_TOTAL_BYTES: int = 8 * 1024 * 1024 * 1024  # 8 Gio
+MAX_ARCHIVE_FILE_COUNT: int = 10_000
+MAX_COMPRESSION_RATIO: float = 100.0
+
+
+class ArchiveSecurityError(ValueError):
+    """Exception levée lorsqu'une archive viole une règle de sécurité (Zip Bomb ou Path Traversal)."""
+
+
+def validate_archive_quotas(
+    archive_path: Path,
+    total_uncompressed_bytes: int,
+    file_count: int,
+) -> None:
+    """Valide les quotas d'extraction contre les décompressions explosives (Zip Bombs)."""
+    if file_count > MAX_ARCHIVE_FILE_COUNT:
+        logger.warning(
+            f"Extraction bloquée : nombre d'entrées ({file_count} > {MAX_ARCHIVE_FILE_COUNT}) pour {archive_path.name}"
+        )
+        raise ArchiveSecurityError(
+            f"L'archive contient un nombre excessif de fichiers ({file_count} > {MAX_ARCHIVE_FILE_COUNT})."
+        )
+
+    if total_uncompressed_bytes > MAX_EXTRACTED_TOTAL_BYTES:
+        logger.warning(
+            f"Extraction bloquée : volume décompressé trop volumineux ({total_uncompressed_bytes} octets) pour {archive_path.name}"
+        )
+        raise ArchiveSecurityError(
+            f"L'archive dépasse la taille décompressée autorisée ({total_uncompressed_bytes // (1024 * 1024)} Mo > {MAX_EXTRACTED_TOTAL_BYTES // (1024 * 1024)} Mo)."
+        )
+
+    try:
+        compressed_size = archive_path.stat().st_size
+    except Exception:
+        compressed_size = 0
+
+    if compressed_size > 0 and total_uncompressed_bytes > 10 * 1024 * 1024:
+        ratio = total_uncompressed_bytes / compressed_size
+        if ratio > MAX_COMPRESSION_RATIO:
+            logger.warning(
+                f"Zip Bomb suspectée : ratio {ratio:.1f}:1 dépasse le seuil {MAX_COMPRESSION_RATIO}:1 pour {archive_path.name}"
+            )
+            raise ArchiveSecurityError(
+                f"Ratio de décompression anormal détecté ({ratio:.1f}:1). Extraction bloquée pour sécurité."
+            )
+
 
 class BaseArchiveHandler(ABC):
     """Interface abstraite pour un gestionnaire de format d'archive."""
@@ -30,7 +77,6 @@ class BaseArchiveHandler(ABC):
     ) -> list[Path]:
         """Extrait l'archive dans le répertoire cible et retourne la liste des fichiers."""
         ...
-
 
 
 class ZipArchiveHandler(BaseArchiveHandler):
@@ -80,6 +126,9 @@ class ZipArchiveHandler(BaseArchiveHandler):
                     logger.warning(f"Zip Slip bloqué pour le fichier : {m.filename}")
 
             total = len(safe_members)
+            total_uncompressed = sum(getattr(m, "file_size", 0) for m in safe_members)
+            validate_archive_quotas(path, total_uncompressed, total)
+
             for idx, member in enumerate(safe_members):
                 try:
                     z.extract(member, dest_dir, filter="data")  # type: ignore[call-arg]
@@ -124,11 +173,21 @@ class SevenZipArchiveHandler(BaseArchiveHandler):
 
         resolved_dest = dest_dir.resolve()
         with py7zr.SevenZipFile(path, mode="r") as z:
-            for name in z.getnames():
+            names = z.getnames()
+            total_entries = len(names)
+            total_bytes = 0
+            try:
+                info = z.archiveinfo()
+                total_bytes = getattr(info, "uncompressed", 0) or 0
+            except Exception:
+                total_bytes = 0
+            validate_archive_quotas(path, total_bytes, total_entries)
+
+            for name in names:
                 target_path = (dest_dir / name).resolve()
                 if target_path != resolved_dest and resolved_dest not in target_path.parents:
                     logger.warning(f"7Z path traversal bloqué pour le fichier : {name}")
-                    raise ValueError(f"Évasion de chemin interdite dans l'archive 7Z : {name}")
+                    raise ArchiveSecurityError(f"Évasion de chemin interdite dans l'archive 7Z : {name}")
             z.extractall(path=dest_dir)
         if progress_cb:
             progress_cb(100, path.name)
@@ -202,11 +261,15 @@ class RarArchiveHandler(BaseArchiveHandler):
         try:
             resolved_dest = dest_dir.resolve()
             with rarfile.RarFile(path) as rf:
-                for m in rf.infolist():
+                infolist = rf.infolist()
+                total_rar_bytes = sum(getattr(m, "file_size", 0) for m in infolist)
+                validate_archive_quotas(path, total_rar_bytes, len(infolist))
+
+                for m in infolist:
                     target_path = (dest_dir / m.filename).resolve()
                     if target_path != resolved_dest and resolved_dest not in target_path.parents:
                         logger.warning(f"RAR path traversal bloqué pour le fichier : {m.filename}")
-                        raise ValueError(f"Évasion de chemin interdite dans l'archive RAR : {m.filename}")
+                        raise ArchiveSecurityError(f"Évasion de chemin interdite dans l'archive RAR : {m.filename}")
                 rf.extractall(dest_dir)
         except rarfile.RarCannotExec as e:
             logger.error(f"Outil UnRAR manquant pour extraire {path.name}: {e}")
@@ -260,6 +323,8 @@ class ArchiveExtractor:
             if handler.can_handle(archive_path):
                 try:
                     return handler.extract(archive_path, dest_dir, progress_cb=progress_cb)
+                except ArchiveSecurityError:
+                    raise
                 except Exception as e:
                     logger.warning(
                         f"Échec de l'extraction avec {handler.__class__.__name__} sur {archive_path.name}: {e}"
@@ -275,6 +340,8 @@ class ArchiveExtractor:
                         f"Extraction réussie avec le gestionnaire de secours {handler.__class__.__name__} sur {archive_path.name}"
                     )
                     return extracted
+            except ArchiveSecurityError:
+                raise
             except Exception:
                 continue
 
@@ -319,7 +386,6 @@ def extract_archive(
 ) -> list[Path]:
     """Fonction globale pour compatibilité ascendante."""
     return _default_extractor.extract(archive_path, dest_dir, progress_cb=progress_cb)
-
 
 
 def create_backup_zip(source_dir: Path, backup_zip_path: Path) -> Path:

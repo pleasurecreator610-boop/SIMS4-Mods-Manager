@@ -50,7 +50,6 @@ class AppContainer:
         instance = target()
         return instance
 
-
     # Propriétés de commodité typées pour les composants clés
     @property
     def database_manager(self) -> Any:

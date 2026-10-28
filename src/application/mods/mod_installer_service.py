@@ -1,3 +1,4 @@
+import os
 import re
 import shutil
 import time
@@ -25,6 +26,29 @@ __all__ = [
     "generate_unique_mod_folder_name",
     "sanitize_filename",
 ]
+
+
+def _fast_scan_relative_files(directory: Path, mods_root: Path) -> List[str]:
+    """Parcours récursif haute performance utilisant os.scandir au lieu de rglob."""
+    files: List[str] = []
+    root_resolved = mods_root.resolve()
+    stack = [str(directory)]
+    while stack:
+        current = stack.pop()
+        try:
+            with os.scandir(current) as it:
+                for entry in it:
+                    try:
+                        if entry.is_file(follow_symlinks=False):
+                            rel = str(Path(entry.path).relative_to(root_resolved)).replace("\\", "/")
+                            files.append(rel)
+                        elif entry.is_dir(follow_symlinks=False) and not entry.name.startswith("."):
+                            stack.append(entry.path)
+                    except OSError:
+                        continue
+        except OSError:
+            continue
+    return files
 
 
 class ModInstaller:
@@ -82,7 +106,10 @@ class ModInstaller:
     def uninstall_mod(cls, installed_mod_id: int) -> Tuple[bool, str]:
         """Removes the mod folder and its database record."""
         if GameDetector.is_game_running():
-            return False, "Le jeu Les Sims 4 est actuellement en cours d'exécution. Veuillez fermer le jeu avant de désinstaller des mods."
+            return (
+                False,
+                "Le jeu Les Sims 4 est actuellement en cours d'exécution. Veuillez fermer le jeu avant de désinstaller des mods.",
+            )
 
         config = AppConfig.load()
         mods_dir = GameDetector.detect_mods_dir(config.custom_mods_dir)
@@ -231,7 +258,7 @@ class ModInstaller:
 
                 folder_name = item.name
                 if is_dir:
-                    files = [str(p.relative_to(mods_dir)) for p in item.rglob("*") if p.is_file()]
+                    files = _fast_scan_relative_files(item, mods_dir)
                     if not files:
                         continue
                     if folder_name.lower().endswith(".disabled"):
@@ -244,7 +271,11 @@ class ModInstaller:
 
                 clean_fn = folder_name[:-9] if folder_name.endswith(".disabled") else folder_name
                 alt_fn = folder_name[:-9] if folder_name.endswith(".disabled") else f"{folder_name}.disabled"
-                existing = existing_by_folder.get(folder_name) or existing_by_folder.get(clean_fn) or existing_by_folder.get(alt_fn)
+                existing = (
+                    existing_by_folder.get(folder_name)
+                    or existing_by_folder.get(clean_fn)
+                    or existing_by_folder.get(alt_fn)
+                )
 
                 if not existing:
                     stripped_name = re.sub(r"_\d{3,4}$", "", folder_name)
@@ -261,9 +292,7 @@ class ModInstaller:
                             break
 
                     clean_search = stripped_name.replace("_", " ").strip()
-                    matched_cat = (
-                        session.query(CatalogMod).filter(CatalogMod.title.ilike(f"%{clean_search}%")).first()
-                    )
+                    matched_cat = session.query(CatalogMod).filter(CatalogMod.title.ilike(f"%{clean_search}%")).first()
                     if not matched_cat and len(clean_search.split()) > 1:
                         first_word = clean_search.split()[0]
                         if len(first_word) >= 4:

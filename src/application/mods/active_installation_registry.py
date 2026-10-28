@@ -60,7 +60,27 @@ class ActiveInstallationRegistry:
                     cls._instance._active_by_key.clear()
                     cls._instance._active_by_title.clear()
                     cls._instance._completed_cache.clear()
+                    if hasattr(cls._instance, "_locked_folders"):
+                        cls._instance._locked_folders.clear()
             cls._instance = None
+
+    def acquire_folder_lock(self, folder_name: str) -> bool:
+        """Verrouille un nom de dossier de mod pour empêcher les écritures concurrentes."""
+        clean = folder_name.strip().lower()
+        with self._lock:
+            if not hasattr(self, "_locked_folders"):
+                self._locked_folders: set[str] = set()
+            if clean in self._locked_folders:
+                return False
+            self._locked_folders.add(clean)
+            return True
+
+    def release_folder_lock(self, folder_name: str) -> None:
+        """Libère le verrou d'un dossier de mod."""
+        clean = folder_name.strip().lower()
+        with self._lock:
+            if hasattr(self, "_locked_folders"):
+                self._locked_folders.discard(clean)
 
     def _normalize_title(self, title: str) -> str:
         return title.strip().lower() if title else ""
@@ -87,9 +107,13 @@ class ActiveInstallationRegistry:
                 entry = self._active_by_key[key]
                 if entry.initiator_thread_id == current_thread:
                     entry.depth += 1
-                    logger.debug(f"[ActiveRegistry] Réentrance autorisée pour thread {current_thread} sur {key} (depth={entry.depth})")
+                    logger.debug(
+                        f"[ActiveRegistry] Réentrance autorisée pour thread {current_thread} sur {key} (depth={entry.depth})"
+                    )
                     return True, entry.event
-                logger.info(f"[ActiveRegistry] Installation déjà active pour la clé {key} (thread {entry.initiator_thread_id}).")
+                logger.info(
+                    f"[ActiveRegistry] Installation déjà active pour la clé {key} (thread {entry.initiator_thread_id})."
+                )
                 return False, entry.event
 
             # Check by normalized title
@@ -97,9 +121,13 @@ class ActiveInstallationRegistry:
                 entry = self._active_by_title[norm_title]
                 if entry.initiator_thread_id == current_thread:
                     entry.depth += 1
-                    logger.debug(f"[ActiveRegistry] Réentrance autorisée pour thread {current_thread} sur '{norm_title}' (depth={entry.depth})")
+                    logger.debug(
+                        f"[ActiveRegistry] Réentrance autorisée pour thread {current_thread} sur '{norm_title}' (depth={entry.depth})"
+                    )
                     return True, entry.event
-                logger.info(f"[ActiveRegistry] Installation déjà active pour le titre '{norm_title}' (thread {entry.initiator_thread_id}).")
+                logger.info(
+                    f"[ActiveRegistry] Installation déjà active pour le titre '{norm_title}' (thread {entry.initiator_thread_id})."
+                )
                 return False, entry.event
 
             entry = ActiveInstallEntry(key=key, title=title, depth=1)
@@ -108,7 +136,9 @@ class ActiveInstallationRegistry:
             if norm_title:
                 self._active_by_title[norm_title] = entry
 
-            logger.debug(f"[ActiveRegistry] Enregistrement d'une nouvelle installation active: {key} ('{title}') par thread {current_thread}")
+            logger.debug(
+                f"[ActiveRegistry] Enregistrement d'une nouvelle installation active: {key} ('{title}') par thread {current_thread}"
+            )
             return True, entry.event
 
     def is_active(self, source: str, remote_id: str, title: str = "") -> bool:
@@ -158,17 +188,25 @@ class ActiveInstallationRegistry:
 
         # Anti-deadlock guard: never self-wait
         if entry.initiator_thread_id == current_thread:
-            logger.debug(f"[ActiveRegistry] Thread {current_thread} a tenté d'attendre sa propre tâche sur {key}, reprise immédiate.")
+            logger.debug(
+                f"[ActiveRegistry] Thread {current_thread} a tenté d'attendre sa propre tâche sur {key}, reprise immédiate."
+            )
             return True, "Attente sur soi-même ignorée (réentrance)"
 
-        logger.info(f"[ActiveRegistry] En attente de la fin de l'installation de '{title or remote_id}' par le thread {entry.initiator_thread_id} (timeout={timeout}s)...")
+        logger.info(
+            f"[ActiveRegistry] En attente de la fin de l'installation de '{title or remote_id}' par le thread {entry.initiator_thread_id} (timeout={timeout}s)..."
+        )
         finished = event.wait(timeout=timeout)
 
         if not finished:
-            logger.warning(f"[ActiveRegistry] Timeout ({timeout}s) dépassé en attendant l'installation de '{title or remote_id}'.")
+            logger.warning(
+                f"[ActiveRegistry] Timeout ({timeout}s) dépassé en attendant l'installation de '{title or remote_id}'."
+            )
             return False, f"Timeout ({timeout}s) dépassé lors de l'attente de la dépendance."
 
-        logger.info(f"[ActiveRegistry] Installation partagée terminée pour '{title or remote_id}' (succès={entry.success}).")
+        logger.info(
+            f"[ActiveRegistry] Installation partagée terminée pour '{title or remote_id}' (succès={entry.success})."
+        )
         return entry.success, entry.message
 
     def complete_install(
@@ -198,7 +236,9 @@ class ActiveInstallationRegistry:
                 if entry.initiator_thread_id == current_thread:
                     entry.depth -= 1
                     if entry.depth > 0:
-                        logger.debug(f"[ActiveRegistry] Libération partielle réentrante pour {key} (depth={entry.depth})")
+                        logger.debug(
+                            f"[ActiveRegistry] Libération partielle réentrante pour {key} (depth={entry.depth})"
+                        )
                         return
 
                 if entry.key[1]:

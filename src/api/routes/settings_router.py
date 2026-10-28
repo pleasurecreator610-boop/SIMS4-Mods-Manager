@@ -163,4 +163,3 @@ def get_storage():
 def cleanup_storage():
     """Purges residual downloaded archives and thumbnail cache to free disk space."""
     return StorageService.cleanup_storage()
-

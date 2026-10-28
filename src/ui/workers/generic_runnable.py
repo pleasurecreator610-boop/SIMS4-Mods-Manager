@@ -102,5 +102,3 @@ def run_async_ui_task(
         QThreadPool.globalInstance().start(worker)
 
     return worker
-
-

@@ -148,7 +148,9 @@ class DbpfParser:
                     if const_type is None:
                         offset += 4
 
-                    r_group = const_group if const_group is not None else struct.unpack_from("<I", index_data, offset)[0]
+                    r_group = (
+                        const_group if const_group is not None else struct.unpack_from("<I", index_data, offset)[0]
+                    )
                     if const_group is None:
                         offset += 4
 

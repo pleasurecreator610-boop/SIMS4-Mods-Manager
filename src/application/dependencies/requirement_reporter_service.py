@@ -297,3 +297,39 @@ class RequirementReporterService:
             "already_reported": False,
             "reported_at": None,
         }
+
+    @classmethod
+    def delete_report(
+        cls,
+        source: str,
+        page_url: str,
+        mod_title: str = "",
+        missing_modules: Optional[List[str]] = None,
+        unnecessary_modules: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Deletes a previously posted requirements report comment from the provider's forum.
+        """
+        if not SessionManager.is_member_authenticated(source):
+            return {
+                "success": False,
+                "message": "Veuillez vous connecter avec votre compte membre pour pouvoir supprimer un commentaire.",
+            }
+
+        provider = ProviderRegistry.get_provider(source)
+        if not provider or not hasattr(provider, "delete_mod_comment"):
+            return {
+                "success": False,
+                "message": f"Fournisseur non trouvé ou suppression non supportée: {source}",
+            }
+
+        all_keywords = (missing_modules or []) + (unnecessary_modules or [])
+        success, result_msg = provider.delete_mod_comment(page_url, required_keywords=all_keywords)
+        if success:
+            logger.info(f"Commentaire de rapport supprimé pour '{mod_title}' sur {source}.")
+        else:
+            logger.warning(f"Échec de suppression du commentaire pour '{mod_title}' sur {source}: {result_msg}")
+        return {
+            "success": success,
+            "message": result_msg,
+        }

@@ -65,4 +65,3 @@ def test_stream_download_network_exception_cleanup(tmp_path):
     assert ok is False
     assert "Erreur réseau" in err
     assert not dest.exists()
-

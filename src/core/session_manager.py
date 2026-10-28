@@ -11,7 +11,6 @@ from src.database import DatabaseManager, AccountSession
 from src.utils.logger import logger
 
 
-
 def _close_async_session(async_sess: cffi_requests.AsyncSession) -> None:
     """Closes an AsyncSession cleanly without leaving orphaned coroutines."""
     try:
@@ -72,8 +71,6 @@ class SessionManager:
             for async_s in cls._async_http_sessions.values():
                 _close_async_session(async_s)
             cls._async_http_sessions.clear()
-
-
 
     @classmethod
     def get_saved_session(cls, provider_name: str) -> Optional[AccountSession]:
@@ -356,5 +353,3 @@ class SessionManager:
 
 
 ShutdownManager.register_callback(SessionManager.close_all_http_sessions)
-
-
