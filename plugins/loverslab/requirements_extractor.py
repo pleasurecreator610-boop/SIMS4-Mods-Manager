@@ -120,29 +120,38 @@ def extract_loverslab_requirements(
                 t_name = a.get_text(strip=True) or urllib.parse.unquote(slug).replace("-", " ").title()
                 seen_titles.add(t_name.lower())
                 clean_slug = urllib.parse.unquote(slug)
+                is_nsfwmods = "nsfwmods.com" in href.lower()
+                src_name = "nsfwmods" if is_nsfwmods else "loverslab"
+                domain_base = "https://nsfwmods.com" if is_nsfwmods else "https://www.loverslab.com"
                 req_mods.append(
                     {
-                        "source": "loverslab",
+                        "source": src_name,
                         "remote_id": r_id,
                         "title": t_name,
-                        "url": f"https://www.loverslab.com/files/file/{r_id}-{clean_slug}/",
+                        "url": f"{domain_base}/files/file/{r_id}-{clean_slug}/",
                     }
                 )
 
-    for m in re.finditer(r"https?://(?:www\.)?loverslab\.com/files/file/(\d+)-?([^/\s\"'>]*)", str(data_el)):
-        r_id = m.group(1)
-        slug = m.group(2)
+    for m in re.finditer(
+        r"https?://(?:www\.)?(loverslab\.com|nsfwmods\.com)/files/file/(\d+)-?([^/\s\"'>]*)", str(data_el)
+    ):
+        domain_matched = m.group(1).lower()
+        r_id = m.group(2)
+        slug = m.group(3)
         if r_id not in seen_ids:
             seen_ids.add(r_id)
             clean_slug = urllib.parse.unquote(slug)
             t_name = clean_slug.replace("-", " ").title()
             seen_titles.add(t_name.lower())
+            is_nsfwmods = "nsfwmods.com" in domain_matched
+            src_name = "nsfwmods" if is_nsfwmods else "loverslab"
+            domain_base = "https://nsfwmods.com" if is_nsfwmods else "https://www.loverslab.com"
             req_mods.append(
                 {
-                    "source": "loverslab",
+                    "source": src_name,
                     "remote_id": r_id,
                     "title": t_name,
-                    "url": f"https://www.loverslab.com/files/file/{r_id}-{clean_slug}/",
+                    "url": f"{domain_base}/files/file/{r_id}-{clean_slug}/",
                 }
             )
 

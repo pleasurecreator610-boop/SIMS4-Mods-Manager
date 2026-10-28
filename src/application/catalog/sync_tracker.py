@@ -38,7 +38,7 @@ class SyncTracker:
     page1_ready: bool = False
     last_completed_at: Optional[str] = None
     categories: Dict[str, Dict[str, Any]] = {}
-    providers_status: Dict[str, str] = {"loverslab": "OK", "patreon": "OK"}
+    providers_status: Dict[str, str] = {"loverslab": "OK", "nsfwmods": "OK", "patreon": "OK"}
     _cached_db_count: int = 0
     _last_count_time: float = 0.0
 

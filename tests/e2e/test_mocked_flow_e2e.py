@@ -1016,3 +1016,94 @@ def test_multi_mods_shared_dependencies_non_reinstallation_e2e(e2e_env, monkeypa
         for im in all_installed:
             folder = mods_dir / im.folder_name
             assert folder.exists()
+
+
+def test_nsfwmods_provider_catalog_and_installation_e2e(e2e_env, monkeypatch):
+    """
+    Tests end-to-end catalog listing, filtering, details fetching, and installation
+    for a mod from the NSFWMods provider ('nsfwmods', https://nsfwmods.com/files/category/287-sims-mods/).
+    """
+    import io
+    import zipfile
+    from unittest.mock import MagicMock
+    from src.database.models import InstalledMod
+
+    client = e2e_env["client"]
+    db = e2e_env["db"]
+    mods_dir = e2e_env["mods_dir"]
+
+    with db.get_session() as s:
+        nm_mod = CatalogMod(
+            source="nsfwmods",
+            remote_id="424",
+            title="Sim Snatcher",
+            author="ColonolNutty",
+            category="Sims Mods (NSFWMods)",
+            page_url="https://nsfwmods.com/files/file/424-sim-snatcher/",
+            version_str="3.11",
+            patreon_status="NONE",
+            requirements_status="NONE",
+        )
+        s.add(nm_mod)
+        s.commit()
+        nm_mod_id = nm_mod.id
+
+    # 1. Verify catalog filtering by source="nsfwmods"
+    cat_resp = client.get("/api/catalog?source=nsfwmods")
+    assert cat_resp.status_code == 200
+    items = cat_resp.json()["items"]
+    assert len(items) == 1
+    assert items[0]["source"] == "nsfwmods"
+    assert items[0]["title"] == "Sim Snatcher"
+
+    # 2. Mock NSFWMods provider download and install the mod
+    mock_nm_provider = MagicMock()
+    mock_nm_provider.provider_name = "nsfwmods"
+    mock_nm_provider.get_mod_details.return_value = {
+        "description": "<div>Sim Snatcher for Sims 4</div>",
+        "download_urls": [
+            {
+                "name": "SimSnatcher_v3.11.zip",
+                "url": "https://nsfwmods.com/files/file/424-sim-snatcher/?do=download&csrfKey=abc123",
+                "size": 0,
+            }
+        ],
+        "requirements_mods": [],
+        "requirements_status": "NONE",
+        "version_str": "3.11",
+    }
+
+    def mock_nm_download(download_url=None, dest_path=None, progress_callback=None, **kwargs):
+        target = Path(dest_path or kwargs.get("dest_folder"))
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            zf.writestr("SimSnatcher.package", b"DBPF_SIM_SNATCHER")
+        target.write_bytes(buf.getvalue())
+        return True, str(target)
+
+    mock_nm_provider.download_mod_file = mock_nm_download
+    orig_get = ProviderRegistry.get_provider
+    monkeypatch.setattr(
+        ProviderRegistry,
+        "get_provider",
+        classmethod(lambda cls, name: mock_nm_provider if name == "nsfwmods" else orig_get(name)),
+    )
+
+    inst_resp = client.post(
+        "/api/catalog/install",
+        json={
+            "catalog_mod_id": nm_mod_id,
+            "source": "nsfwmods",
+            "remote_id": "424",
+            "title": "Sim Snatcher",
+            "page_url": "https://nsfwmods.com/files/file/424-sim-snatcher/",
+            "install_dependencies": False,
+        },
+    )
+    assert inst_resp.status_code == 200
+    assert inst_resp.json()["success"] is True
+
+    with db.get_session() as s:
+        installed = s.query(InstalledMod).filter_by(source="nsfwmods", remote_id="424").first()
+        assert installed is not None
+        assert (mods_dir / installed.folder_name).exists()

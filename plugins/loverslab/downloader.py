@@ -42,7 +42,12 @@ def extract_download_candidates(soup: BeautifulSoup, base_url: str) -> List[Dict
 
     if not candidates:
         generic = soup.select(
-            "a[href*='do=download'][href*='confirm='], a[href*='do=download&r='], a.ipsButton_primary[href*='do=download'], a[data-action='download']"
+            "a[href*='do=download'][href*='confirm='], "
+            "a[href*='do=download'][href*='csrfKey='], "
+            "a[href*='do=download&r='], "
+            "a.ipsButton_primary[href*='do=download'], "
+            "a.ipsButton_important[href*='do=download'], "
+            "a[data-action='download']"
         )
         for g in generic:
             href = g.get("href", "")
@@ -61,10 +66,11 @@ def download_loverslab_file(
     patreon_provider: Any = None,
     base_url: str = "https://www.loverslab.com",
     progress_callback: Optional[Callable[[int, str, str], None]] = None,
+    provider_name: str = "loverslab",
     **kwargs,
 ) -> Tuple[bool, str]:
     """
-    Downloads a direct file from LoversLab resolving multi-step IPS confirmation pages.
+    Downloads a direct file from an IPS4 provider resolving multi-step IPS confirmation pages.
     """
     if download_url is None:
         download_url = kwargs.get("mod_url", "")
@@ -81,8 +87,8 @@ def download_loverslab_file(
     if "patreon.com" in download_url:
         return patreon_provider.download_mod_file(download_url, dest_path, progress_callback=progress_callback)
 
-    session = SessionManager.get_http_session("loverslab")
-    is_member = SessionManager.is_member_authenticated("loverslab")
+    session = SessionManager.get_http_session(provider_name)
+    is_member = SessionManager.is_member_authenticated(provider_name)
 
     import time
 

@@ -1550,6 +1550,33 @@ class SimulationRunner:
 
         return report_path.resolve()
 
+    def validate_nsfwmods_provider_e2e(self) -> None:
+        """Valide le plugin NSFWMods (https://nsfwmods.com/files/category/287-sims-mods/) en conditions réelles."""
+        from src.providers.registry import ProviderRegistry
+
+        print("\n[ÉTAPE 3quater] Validation E2E du plugin NSFWMods (https://nsfwmods.com/files/category/287-sims-mods/)...")
+        prov = ProviderRegistry.get_provider("nsfwmods")
+        if not prov:
+            self.inconsistencies.append("Plugin 'nsfwmods' non enregistré dans ProviderRegistry.")
+            return
+
+        cat = prov.CATEGORIES[0]
+        mods, _ = prov.scrape_category_page(cat, page=1)
+        print(f" -> Catégorie '{cat['name']}' scrapée : {len(mods)} mod(s) détecté(s).")
+        if not mods:
+            self.inconsistencies.append("Aucun mod retourné par NSFWMods sur la catégorie 287-sims-mods.")
+            return
+
+        first_mod = mods[0]
+        details = prov.get_mod_details(first_mod["page_url"])
+        dl_urls = details.get("download_urls", [])
+        print(
+            f" -> Détails extraits pour '{first_mod['title']}' (ID {first_mod['remote_id']}) : "
+            f"{len(dl_urls)} lien(s) de téléchargement."
+        )
+        if not dl_urls:
+            self.inconsistencies.append(f"Aucun lien de téléchargement trouvé sur NSFWMods pour {first_mod['title']}.")
+
     def run(self) -> None:
         """Exécute toutes les étapes de la simulation."""
         print("=" * 80)
@@ -1573,6 +1600,7 @@ class SimulationRunner:
             self.audit_mods_consistency()
             self.validate_ambiguous_dependencies_and_forum_interpellation()
             self.validate_shared_dependencies_group_installation()
+            self.validate_nsfwmods_provider_e2e()
             self.install_mods_sequentially()
             self.cleanup_installed_test_mods()
         finally:

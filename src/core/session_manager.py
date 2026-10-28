@@ -92,7 +92,7 @@ class SessionManager:
         if not cookies:
             return False
 
-        if provider_name.lower() == "loverslab":
+        if provider_name.lower() in ("loverslab", "nsfwmods"):
             member_id = cookies.get("ips4_member_id")
             return bool(member_id and member_id != "0")
 
@@ -116,7 +116,7 @@ class SessionManager:
         if not cookies:
             return False
 
-        if provider_name.lower() == "loverslab":
+        if provider_name.lower() in ("loverslab", "nsfwmods"):
             # Ready if we have Cloudflare clearance, adult age consent, or member login
             has_cf = bool(cookies.get("cf_clearance"))
             has_age = bool(cookies.get("ips4_hasAcceptedAge"))
@@ -227,6 +227,21 @@ class SessionManager:
                         f"Protection Cloudflare active (Code {resp.status_code}). Veuillez rouvrir le navigateur.",
                     )
 
+            elif provider_name.lower() == "nsfwmods":
+                url = "https://nsfwmods.com/files/category/287-sims-mods/"
+                resp = session.get(url, timeout=12)
+                logger.info(f"Test de session NSFWMods ({url}) -> Code HTTP {resp.status_code}")
+                if resp.status_code == 200:
+                    html = resp.text
+                    if "elUserNav" in html or "Sign Out" in html or "Déconnexion" in html:
+                        return True, "Session membre NSFWMods connectée et active."
+                    return True, "Accès à NSFWMods vérifié avec succès."
+                if resp.status_code in [403, 503]:
+                    return (
+                        False,
+                        f"Protection anti-bot active sur NSFWMods (Code {resp.status_code}). Veuillez ouvrir le navigateur.",
+                    )
+
             elif provider_name.lower() == "patreon":
                 url = "https://www.patreon.com/api/current_user"
                 resp = session.get(url, timeout=12)
@@ -274,10 +289,13 @@ class SessionManager:
                 if acc.user_agent:
                     http_session.headers["User-Agent"] = acc.user_agent
 
-        # For LoversLab: automatically ensure adult age consent cookie
+        # For LoversLab & NSFWMods: automatically ensure adult age consent cookie
         if key == "loverslab":
             http_session.cookies.set("ips4_hasAcceptedAge", "1", domain=".loverslab.com")
             http_session.cookies.set("ips4_IPSSessionFront", "1", domain=".loverslab.com")
+        elif key == "nsfwmods":
+            http_session.cookies.set("ips4_hasAcceptedAge", "1", domain=".nsfwmods.com")
+            http_session.cookies.set("ips4_IPSSessionFront", "1", domain=".nsfwmods.com")
 
         if not force_new:
             with cls._http_sessions_lock:
@@ -318,6 +336,9 @@ class SessionManager:
         if key == "loverslab":
             async_session.cookies.set("ips4_hasAcceptedAge", "1", domain=".loverslab.com")
             async_session.cookies.set("ips4_IPSSessionFront", "1", domain=".loverslab.com")
+        elif key == "nsfwmods":
+            async_session.cookies.set("ips4_hasAcceptedAge", "1", domain=".nsfwmods.com")
+            async_session.cookies.set("ips4_IPSSessionFront", "1", domain=".nsfwmods.com")
 
         if not force_new:
             with cls._http_sessions_lock:

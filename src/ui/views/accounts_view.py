@@ -64,7 +64,19 @@ class AccountsView(QWidget):
         self.loverslab_card.login_requested.connect(self.open_login_window)
         self.cards_layout.addWidget(self.loverslab_card)
 
-        # 2. Patreon Card
+        # 2. NSFWMods Card
+        self.nsfwmods_card = AccountCardWidget(
+            provider_name="nsfwmods",
+            title_key="accounts.nsfwmods_title",
+            desc_key="accounts.nsfwmods_desc",
+            parent=self,
+        )
+        self.nsfwmods_card.clear_requested.connect(self._on_clear_clicked)
+        self.nsfwmods_card.test_requested.connect(self._on_test_clicked)
+        self.nsfwmods_card.login_requested.connect(self.open_login_window)
+        self.cards_layout.addWidget(self.nsfwmods_card)
+
+        # 3. Patreon Card
         self.patreon_card = AccountCardWidget(
             provider_name="patreon",
             title_key="accounts.patreon_title",
@@ -78,6 +90,7 @@ class AccountsView(QWidget):
 
         self.cards_by_provider: dict[str, AccountCardWidget] = {
             "loverslab": self.loverslab_card,
+            "nsfwmods": self.nsfwmods_card,
             "patreon": self.patreon_card,
         }
 
@@ -85,7 +98,7 @@ class AccountsView(QWidget):
         layout.addStretch()
 
         # Backward compatibility dictionary for card_widgets
-        for card in [self.loverslab_card, self.patreon_card]:
+        for card in [self.loverslab_card, self.nsfwmods_card, self.patreon_card]:
             self.card_widgets[card.provider_name] = {
                 "title_lbl": card.title_lbl,
                 "title_key": card.title_key,

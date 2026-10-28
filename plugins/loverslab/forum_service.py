@@ -81,24 +81,28 @@ class LoversLabForumService:
         return None
 
     @staticmethod
-    def check_user_already_commented(page_url: str, required_keywords: List[str]) -> Tuple[bool, Optional[str]]:
+    def check_user_already_commented(
+        page_url: str,
+        required_keywords: List[str],
+        provider_name: str = "loverslab",
+    ) -> Tuple[bool, Optional[str]]:
         """
-        Scrapes the live LoversLab file or topic page to check if the authenticated user
+        Scrapes the live IPS4 file or topic page to check if the authenticated user
         has already posted a comment referencing the missing requirements.
         Returns (already_commented: bool, formatted_datetime: Optional[str]).
         """
         if not page_url:
             return False, None
 
-        acc = SessionManager.get_saved_session("loverslab")
-        if not acc or not SessionManager.is_member_authenticated("loverslab"):
+        acc = SessionManager.get_saved_session(provider_name)
+        if not acc or not SessionManager.is_member_authenticated(provider_name):
             return False, None
 
         cookies = acc.get_cookies_dict()
         member_id = str(cookies.get("ips4_member_id") or "").strip()
         user_display = (acc.user_display_name or "").strip().lower()
 
-        session = SessionManager.get_http_session("loverslab")
+        session = SessionManager.get_http_session(provider_name)
         try:
             resp = session.get(page_url, timeout=15)
             if resp.status_code != 200:
@@ -192,20 +196,25 @@ class LoversLabForumService:
             return False, None
 
     @staticmethod
-    def post_mod_comment(page_url: str, message: str) -> Tuple[bool, str]:
+    def post_mod_comment(
+        page_url: str,
+        message: str,
+        provider_name: str = "loverslab",
+        base_url: str = "https://www.loverslab.com",
+    ) -> Tuple[bool, str]:
         """
-        Posts a comment or message on the LoversLab file page or linked discussion topic
+        Posts a comment or message on the IPS4 file page or linked discussion topic
         using authenticated IPS session and dynamic form fields.
         """
         if not page_url:
             logger.error("LoversLab post_mod_comment: URL du mod invalide ou manquante.")
             return False, "URL du mod invalide ou manquante."
 
-        if not SessionManager.is_member_authenticated("loverslab"):
+        if not SessionManager.is_member_authenticated(provider_name):
             logger.error("LoversLab post_mod_comment: Utilisateur non authentifié avec un compte membre LoversLab.")
             return False, "Utilisateur non authentifié avec un compte membre LoversLab."
 
-        session = SessionManager.get_http_session("loverslab")
+        session = SessionManager.get_http_session(provider_name)
         try:
             active_url = page_url
             get_resp = session.get(active_url, timeout=15)
@@ -321,7 +330,7 @@ class LoversLabForumService:
 
             headers = {
                 "Referer": active_url,
-                "Origin": "https://www.loverslab.com",
+                "Origin": base_url.rstrip("/"),
             }
 
             logger.info(f"LoversLab post_mod_comment: Envoi du message vers {form_action}")
@@ -356,12 +365,16 @@ class LoversLabForumService:
             return False, f"Exception lors de la publication: {e}"
 
     @staticmethod
-    def extract_creator_info(soup: BeautifulSoup, base_url: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    def extract_creator_info(
+        soup: BeautifulSoup,
+        base_url: str,
+        provider_name: str = "loverslab",
+    ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """
         Extracts the creator's member ID, display name, and profile URL from a mod page.
         Returns (member_id, member_name, profile_url).
         """
-        acc = SessionManager.get_saved_session("loverslab")
+        acc = SessionManager.get_saved_session(provider_name)
         my_id = ""
         if acc:
             cookies = acc.get_cookies_dict()
@@ -398,18 +411,21 @@ class LoversLabForumService:
         return None, None, None
 
     @staticmethod
-    def get_creator_info(page_url: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    def get_creator_info(
+        page_url: str,
+        provider_name: str = "loverslab",
+    ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """
         Fetches the mod page and extracts creator info (member_id, member_name, profile_url).
         """
         if not page_url:
             return None, None, None
-        session = SessionManager.get_http_session("loverslab")
+        session = SessionManager.get_http_session(provider_name)
         try:
             resp = session.get(page_url, timeout=15)
             if resp.status_code == 200:
                 soup = BeautifulSoup(resp.text, "html.parser")
-                return LoversLabForumService.extract_creator_info(soup, page_url)
+                return LoversLabForumService.extract_creator_info(soup, page_url, provider_name=provider_name)
         except Exception as e:
             logger.debug(f"get_creator_info failed for {page_url}: {e}")
         return None, None, None
@@ -419,18 +435,20 @@ class LoversLabForumService:
         creator_id: Optional[str] = None,
         creator_name: Optional[str] = None,
         mod_title: str = "",
+        provider_name: str = "loverslab",
+        base_url: str = "https://www.loverslab.com",
     ) -> Tuple[bool, Optional[str]]:
         """
-        Checks the user's LoversLab messenger (/messenger/) to determine if a PM
+        Checks the user's IPS4 messenger (/messenger/) to determine if a PM
         has already been sent regarding this mod or to this creator.
         Returns (already_sent: bool, formatted_date: Optional[str]).
         """
-        if not SessionManager.is_member_authenticated("loverslab"):
+        if not SessionManager.is_member_authenticated(provider_name):
             return False, None
 
-        session = SessionManager.get_http_session("loverslab")
+        session = SessionManager.get_http_session(provider_name)
         try:
-            resp = session.get("https://www.loverslab.com/messenger/", timeout=15)
+            resp = session.get(f"{base_url.rstrip('/')}/messenger/", timeout=15)
             if resp.status_code != 200:
                 return False, None
 
@@ -473,20 +491,22 @@ class LoversLabForumService:
         creator_name: str,
         subject: str,
         message: str,
+        provider_name: str = "loverslab",
+        base_url: str = "https://www.loverslab.com",
     ) -> Tuple[bool, str]:
         """
-        Sends a private message to a LoversLab creator via LoversLab Messenger.
+        Sends a private message to a creator via IPS4 Messenger.
         """
         if not creator_id:
             logger.error("LoversLab send_private_message: ID du créateur manquant.")
             return False, "ID du créateur manquant."
 
-        if not SessionManager.is_member_authenticated("loverslab"):
+        if not SessionManager.is_member_authenticated(provider_name):
             logger.error("LoversLab send_private_message: Utilisateur non authentifié.")
             return False, "Utilisateur non authentifié avec un compte membre LoversLab."
 
-        session = SessionManager.get_http_session("loverslab")
-        compose_url = f"https://www.loverslab.com/messenger/compose/?to={creator_id}"
+        session = SessionManager.get_http_session(provider_name)
+        compose_url = f"{base_url.rstrip('/')}/messenger/compose/?to={creator_id}"
 
         try:
             get_resp = session.get(compose_url, timeout=15)
@@ -534,7 +554,7 @@ class LoversLabForumService:
 
             headers = {
                 "Referer": compose_url,
-                "Origin": "https://www.loverslab.com",
+                "Origin": base_url.rstrip("/"),
             }
 
             logger.info(f"LoversLab send_private_message: Envoi du MP à '{creator_name}' (ID {creator_id})")
@@ -566,23 +586,28 @@ class LoversLabForumService:
             return False, f"Exception lors de l'envoi du message: {e}"
 
     @staticmethod
-    def delete_user_comment(page_url: str, required_keywords: Optional[List[str]] = None) -> Tuple[bool, str]:
+    def delete_user_comment(
+        page_url: str,
+        required_keywords: Optional[List[str]] = None,
+        provider_name: str = "loverslab",
+        base_url: str = "https://www.loverslab.com",
+    ) -> Tuple[bool, str]:
         """
         Finds and deletes (or hides/clears) the authenticated user's requirements report comment
-        on the LoversLab file page or linked support topic.
+        on the IPS4 file page or linked support topic.
         Returns (success: bool, message: str).
         """
         if not page_url:
             return False, "URL du mod invalide ou manquante."
 
-        acc = SessionManager.get_saved_session("loverslab")
-        if not acc or not SessionManager.is_member_authenticated("loverslab"):
+        acc = SessionManager.get_saved_session(provider_name)
+        if not acc or not SessionManager.is_member_authenticated(provider_name):
             return False, "Utilisateur non authentifié avec un compte membre LoversLab."
 
         cookies = acc.get_cookies_dict()
         member_id = str(cookies.get("ips4_member_id") or "").strip()
         user_display = (acc.user_display_name or "").strip().lower()
-        session = SessionManager.get_http_session("loverslab")
+        session = SessionManager.get_http_session(provider_name)
 
         def _find_matching_comment_node(page_soup: BeautifulSoup) -> Optional[Tag]:
             comment_nodes = page_soup.select(
@@ -679,7 +704,7 @@ class LoversLabForumService:
             base_clean_url = active_url.split("?")[0].rstrip("/") + "/"
             headers = {
                 "Referer": active_url,
-                "Origin": "https://www.loverslab.com",
+                "Origin": base_url.rstrip("/"),
                 "X-Requested-With": "XMLHttpRequest",
             }
 
@@ -705,7 +730,7 @@ class LoversLabForumService:
                 )
                 if del_resp.status_code in [200, 302, 303]:
                     already_there, _ = LoversLabForumService.check_user_already_commented(
-                        page_url, required_keywords or []
+                        page_url, required_keywords or [], provider_name=provider_name
                     )
                     if not already_there:
                         logger.info(f"Commentaire #{comment_id} supprimé avec succès sur LoversLab ({base_clean_url}).")

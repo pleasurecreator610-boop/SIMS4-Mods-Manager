@@ -22,6 +22,7 @@ class StatusBadge(QLabel):
         """
         styles = {
             "loverslab": "background-color: #831843; color: #f472b6; border: 1px solid #9d174d;",
+            "nsfwmods": "background-color: #3b0764; color: #c084fc; border: 1px solid #6b21a8;",
             "patreon": "background-color: #7c2d12; color: #fb923c; border: 1px solid #9a3412;",
             "public": "background-color: #064e3b; color: #34d399; border: 1px solid #047857;",
             "unlocked": "background-color: #1e3a5f; color: #60a5fa; border: 1px solid #2563eb;",

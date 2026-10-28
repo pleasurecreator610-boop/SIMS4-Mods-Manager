@@ -16,9 +16,10 @@ def parse_category_page_html(
     category: Dict[str, Any],
     base_url: str = "https://www.loverslab.com",
     page: int = 1,
+    source_name: str = "loverslab",
 ) -> Tuple[List[Dict[str, Any]], Optional[int]]:
     """
-    Parses a LoversLab category page HTML to extract mod cards and total page count.
+    Parses an IPS4 category page HTML to extract mod cards and total page count.
     """
     detected_pages: Optional[int] = None
     if page == 1:
@@ -127,7 +128,7 @@ def parse_category_page_html(
 
         results.append(
             {
-                "source": "loverslab",
+                "source": source_name,
                 "remote_id": remote_id,
                 "title": title,
                 "author": author,
