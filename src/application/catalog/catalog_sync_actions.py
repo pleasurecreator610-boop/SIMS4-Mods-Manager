@@ -52,9 +52,17 @@ class CatalogSyncActions:
             return 0, 0
 
         remote_ids = [m["remote_id"] for m in mods_data if m.get("remote_id")]
+        sources = {str(m.get("source", "loverslab")) for m in mods_data}
         existing_map: Dict[Tuple[str, str], CatalogMod] = {}
         if remote_ids:
-            found = session.query(CatalogMod).filter(CatalogMod.remote_id.in_(remote_ids)).all()
+            found = (
+                session.query(CatalogMod)
+                .filter(
+                    CatalogMod.source.in_(sources),
+                    CatalogMod.remote_id.in_(remote_ids),
+                )
+                .all()
+            )
             existing_map = {(str(m.source or ""), str(m.remote_id or "")): m for m in found}
 
         new_count = 0

@@ -1,131 +1,81 @@
-"""Conteneur d'injection de dépendances (DI) léger et découplé pour SIMS 4 Mods Manager.
+"""Conteneur d'inversion de contrôle (IoC / Dependency Injection) léger pour SIMS 4 Mods Manager.
 
-Fournit la résolution centralisée des services, orchestrateurs, dépôts et clients,
-tout en facilitant la substitution de mocks lors des tests unitaires et d'intégration.
+Permet de résoudre et d'injecter les services applicatifs et d'infrastructure
+sans couplage direct aux singletons globaux, facilitant le mocking et les tests unitaires.
 """
 
-from __future__ import annotations
+from typing import Any, Callable, Dict, Optional, TypeVar
 
-from typing import Any, Dict, Optional, Type, TypeVar
+from src.infrastructure.database.manager import DatabaseManager
+from src.infrastructure.filesystem.archive_extractor import ArchiveExtractor
+from src.infrastructure.network.download_pipeline import BaseFileDownloader
 
 T = TypeVar("T")
 
 
 class AppContainer:
-    """Conteneur central d'injection de dépendances applicatif."""
+    """Conteneur de services applicatif avec support d'instances et de factories remplaçables."""
 
-    _instance: Optional[AppContainer] = None
+    _instance: Optional["AppContainer"] = None
 
     def __init__(self) -> None:
-        self._overrides: Dict[Any, Any] = {}
-        self._singletons: Dict[Any, Any] = {}
+        self._singletons: Dict[str, Any] = {}
+        self._factories: Dict[str, Callable[[], Any]] = {}
+        self._register_defaults()
 
     @classmethod
-    def get_instance(cls) -> AppContainer:
-        """Retourne l'instance unique du conteneur (Singleton)."""
+    def get_instance(cls) -> "AppContainer":
+        """Retourne l'instance unique du conteneur applicatif."""
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
 
     @classmethod
-    def reset_instance(cls) -> None:
-        """Réinitialise l'instance du conteneur (utile pour nettoyer entre les tests)."""
+    def reset(cls) -> None:
+        """Réinitialise le conteneur applicatif (utile entre les suites de tests)."""
         cls._instance = None
 
-    def override(self, target: Any, override_instance: Any) -> None:
-        """Substitue une dépendance par une implémentation mock pour les tests."""
-        self._overrides[target] = override_instance
+    def _register_defaults(self) -> None:
+        """Enregistre les services d'infrastructure par défaut."""
+        self._factories["database_manager"] = lambda: DatabaseManager.get_instance()
+        self._factories["archive_extractor"] = lambda: ArchiveExtractor()
+        self._factories["file_downloader"] = lambda: BaseFileDownloader()
 
-    def reset_overrides(self) -> None:
-        """Supprime l'ensemble des surcharges appliquées."""
-        self._overrides.clear()
+    def register_singleton(self, key: str, instance: Any) -> None:
+        """Enregistre une instance singleton pour une clé donnée."""
+        self._singletons[key] = instance
 
-    def resolve(self, target: Type[T]) -> T:
-        """Résout une dépendance avec prise en compte des surcharges actives."""
-        if target in self._overrides:
-            return self._overrides[target]
-        if target in self._singletons:
-            return self._singletons[target]
-        # Instanciation par défaut
-        instance = target()
-        return instance
+    def register_factory(self, key: str, factory: Callable[[], Any]) -> None:
+        """Enregistre une factory créant une nouvelle instance à chaque appel."""
+        self._factories[key] = factory
 
-    # Propriétés de commodité typées pour les composants clés
-    @property
-    def database_manager(self) -> Any:
-        from src.infrastructure.database import DatabaseManager
+    def resolve(self, key: str) -> Any:
+        """Résout un service par son identifiant textuel."""
+        if key in self._singletons:
+            return self._singletons[key]
+        if key in self._factories:
+            return self._factories[key]()
+        raise KeyError(f"Service non enregistré dans AppContainer: '{key}'")
 
-        if DatabaseManager in self._overrides:
-            return self._overrides[DatabaseManager]
-        return DatabaseManager.get_instance()
+    def get_database_manager(self) -> DatabaseManager:
+        """Résout le gestionnaire de base de données."""
+        res = self.resolve("database_manager")
+        assert isinstance(res, DatabaseManager)
+        return res
 
-    @property
-    def session_manager(self) -> Any:
-        from src.core.session_manager import SessionManager
+    def get_archive_extractor(self) -> ArchiveExtractor:
+        """Résout l'extracteur d'archives sécurisé."""
+        res = self.resolve("archive_extractor")
+        assert isinstance(res, ArchiveExtractor)
+        return res
 
-        if SessionManager in self._overrides:
-            return self._overrides[SessionManager]
-        return SessionManager
-
-    @property
-    def provider_registry(self) -> Any:
-        from src.providers.registry import ProviderRegistry
-
-        if ProviderRegistry in self._overrides:
-            return self._overrides[ProviderRegistry]
-        return ProviderRegistry
-
-    @property
-    def conflict_detector(self) -> Any:
-        from src.application.mods.conflict_detector_service import ConflictDetectorService
-
-        if ConflictDetectorService in self._overrides:
-            return self._overrides[ConflictDetectorService]
-        if ConflictDetectorService not in self._singletons:
-            self._singletons[ConflictDetectorService] = ConflictDetectorService()
-        return self._singletons[ConflictDetectorService]
-
-    @property
-    def catalog_orchestrator(self) -> Any:
-        from src.application.catalog.catalog_sync_orchestrator import CatalogSyncOrchestrator
-
-        if CatalogSyncOrchestrator in self._overrides:
-            return self._overrides[CatalogSyncOrchestrator]
-        if CatalogSyncOrchestrator not in self._singletons:
-            self._singletons[CatalogSyncOrchestrator] = CatalogSyncOrchestrator()
-        return self._singletons[CatalogSyncOrchestrator]
-
-    @property
-    def mod_orchestrator(self) -> Any:
-        from src.application.mods.mod_install_orchestrator import ModInstallOrchestrator
-
-        if ModInstallOrchestrator in self._overrides:
-            return self._overrides[ModInstallOrchestrator]
-        if ModInstallOrchestrator not in self._singletons:
-            self._singletons[ModInstallOrchestrator] = ModInstallOrchestrator()
-        return self._singletons[ModInstallOrchestrator]
-
-    @property
-    def dependency_orchestrator(self) -> Any:
-        from src.application.dependencies.dependency_orchestrator import DependencyOrchestrator
-
-        if DependencyOrchestrator in self._overrides:
-            return self._overrides[DependencyOrchestrator]
-        if DependencyOrchestrator not in self._singletons:
-            self._singletons[DependencyOrchestrator] = DependencyOrchestrator()
-        return self._singletons[DependencyOrchestrator]
-
-    @property
-    def game_service(self) -> Any:
-        from src.application.game.game_service import GameService
-
-        if GameService in self._overrides:
-            return self._overrides[GameService]
-        if GameService not in self._singletons:
-            self._singletons[GameService] = GameService()
-        return self._singletons[GameService]
+    def get_file_downloader(self) -> BaseFileDownloader:
+        """Résout le gestionnaire de téléchargement streaming."""
+        res = self.resolve("file_downloader")
+        assert isinstance(res, BaseFileDownloader)
+        return res
 
 
 def get_container() -> AppContainer:
-    """Accesseur fonctionnel au conteneur pour l'injection dans FastAPI via Depends()."""
+    """Raccourci pour obtenir le conteneur d'injection de dépendances applicatif."""
     return AppContainer.get_instance()

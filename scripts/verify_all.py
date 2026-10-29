@@ -26,7 +26,8 @@ def main() -> int:
     steps = [
         ("Linting & Code Style (Ruff)", ["uv", "run", "ruff", "check", "."]),
         ("Strict Type Checking (Mypy)", ["uv", "run", "mypy", "src/"]),
-        ("Test Suites (Pytest)", ["uv", "run", "pytest", "-q"]),
+        ("Documentation Build (MkDocs strict)", ["uv", "run", "mkdocs", "build", "--strict"]),
+        ("Test Suites & Coverage (Pytest)", ["uv", "run", "pytest", "-q", "--cov=src", "--cov-report=term-missing:skip-covered"]),
     ]
 
     all_ok = True

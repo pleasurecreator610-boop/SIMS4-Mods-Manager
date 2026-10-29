@@ -44,6 +44,13 @@ nav:
   - Architecture:
       - Vue d'Ensemble: architecture.md
       - Architecture Détaillée: architecture/ARCHITECTURE.md
+      - Architecture Decision Records (ADR):
+          - Index: adr/index.md
+          - ADR 0001 - Clean Architecture: adr/0001-clean-architecture-boundaries.md
+          - ADR 0002 - SQLite WAL & Upsert: adr/0002-sqlite-wal-and-bulk-upserts.md
+          - ADR 0003 - AES-256-GCM Chiffrement: adr/0003-multiplatform-aes-gcm-credentials.md
+          - ADR 0004 - Défense Décompression & SSRF: adr/0004-decompression-bomb-defense.md
+          - ADR 0005 - Forums IPS Mutualisés: adr/0005-unified-ips-forum-scrapers.md
       - APIs Internes: architecture/INTERNAL_APIS.md
       - Modules & Classes: modules_and_classes.md
   - Cas d'Usage Métier:

@@ -64,7 +64,7 @@ def test_s2_account_session_dpapi_encryption_and_legacy_fallback():
     acc.set_cookies_dict(secret_cookies)
 
     assert isinstance(acc.cookies_data, str)
-    assert acc.cookies_data.startswith(("dpapi:", "enc:"))
+    assert acc.cookies_data.startswith(("gcm:", "dpapi:", "enc:"))
     assert "super_secret_hash" not in acc.cookies_data
 
     recovered = acc.get_cookies_dict()

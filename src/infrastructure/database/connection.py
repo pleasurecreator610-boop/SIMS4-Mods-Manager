@@ -9,7 +9,6 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker, Session
 
 from src.core.config import AppConfig
-from src.infrastructure.database.models import Base
 
 
 def get_default_db_path() -> str:
@@ -43,5 +42,8 @@ def get_session_factory(engine: Engine) -> sessionmaker[Session]:
 
 
 def init_db_schema(engine: Engine) -> None:
-    """Initialise les tables déclaratives dans la base de données si elles n'existent pas."""
-    Base.metadata.create_all(engine)
+    """Initialise les tables et applique les migrations versionnées si nécessaire."""
+    from src.infrastructure.database.migrations import MigrationRunner
+
+    runner = MigrationRunner(engine)
+    runner.run_pending_migrations()

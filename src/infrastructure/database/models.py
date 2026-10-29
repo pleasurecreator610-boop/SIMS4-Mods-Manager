@@ -16,6 +16,10 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import declarative_base, relationship, Mapped
 
+from src.core.crypto import decrypt_to_dict, encrypt_dict
+
+
+
 Base = declarative_base()
 
 
@@ -144,61 +148,7 @@ class InstalledMod(Base):
         self.installed_files = _set_json_data(files, list)
 
 
-def _dpapi_encrypt(raw_bytes: bytes) -> Optional[bytes]:
-    """Chiffre des octets via Windows DPAPI (CryptProtectData) lié au compte utilisateur OS courant."""
-    import os
 
-    if os.name != "nt":
-        return None
-    try:
-        import ctypes
-        from ctypes import wintypes
-
-        class DATA_BLOB(ctypes.Structure):
-            _fields_ = [("cbData", wintypes.DWORD), ("pbData", ctypes.POINTER(ctypes.c_char))]
-
-        crypt32 = ctypes.windll.crypt32
-        kernel32 = ctypes.windll.kernel32
-        buf = ctypes.create_string_buffer(raw_bytes, len(raw_bytes))
-        in_blob = DATA_BLOB(len(raw_bytes), buf)
-        out_blob = DATA_BLOB()
-        # CRYPTPROTECT_UI_FORBIDDEN = 0x01
-        if crypt32.CryptProtectData(ctypes.byref(in_blob), None, None, None, None, 0x01, ctypes.byref(out_blob)):
-            try:
-                return ctypes.string_at(out_blob.pbData, out_blob.cbData)
-            finally:
-                kernel32.LocalFree(out_blob.pbData)
-    except Exception:
-        return None
-    return None
-
-
-def _dpapi_decrypt(enc_bytes: bytes) -> Optional[bytes]:
-    """Déchiffre des octets via Windows DPAPI (CryptUnprotectData)."""
-    import os
-
-    if os.name != "nt":
-        return None
-    try:
-        import ctypes
-        from ctypes import wintypes
-
-        class DATA_BLOB(ctypes.Structure):
-            _fields_ = [("cbData", wintypes.DWORD), ("pbData", ctypes.POINTER(ctypes.c_char))]
-
-        crypt32 = ctypes.windll.crypt32
-        kernel32 = ctypes.windll.kernel32
-        buf = ctypes.create_string_buffer(enc_bytes, len(enc_bytes))
-        in_blob = DATA_BLOB(len(enc_bytes), buf)
-        out_blob = DATA_BLOB()
-        if crypt32.CryptUnprotectData(ctypes.byref(in_blob), None, None, None, None, 0x01, ctypes.byref(out_blob)):
-            try:
-                return ctypes.string_at(out_blob.pbData, out_blob.cbData)
-            finally:
-                kernel32.LocalFree(out_blob.pbData)
-    except Exception:
-        return None
-    return None
 
 
 class AccountSession(Base):
@@ -214,41 +164,9 @@ class AccountSession(Base):
     last_verified = Column(DateTime, default=datetime.now)
 
     def get_cookies_dict(self) -> Dict[str, str]:
-        """Retourne le dictionnaire des cookies avec support du déchiffrement DPAPI et rétrocompatibilité."""
-        val = self.cookies_data
-        if isinstance(val, dict):
-            return dict(val)
-        if isinstance(val, str):
-            import base64
-
-            if val.startswith("dpapi:"):
-                try:
-                    enc_raw = base64.b64decode(val[6:])
-                    dec_raw = _dpapi_decrypt(enc_raw)
-                    if dec_raw is not None:
-                        return json.loads(dec_raw.decode("utf-8"))
-                except Exception:
-                    return {}
-            if val.startswith("enc:"):
-                try:
-                    raw = base64.b64decode(val[4:]).decode("utf-8")
-                    return json.loads(raw)
-                except Exception:
-                    return {}
-        return _get_json_data(val, dict)
+        """Retourne le dictionnaire des cookies avec déchiffrement AES-256-GCM ou rétrocompatibilité."""
+        return decrypt_to_dict(self.cookies_data)
 
     def set_cookies_dict(self, cookies: Dict[str, str]) -> None:
-        """Définit les cookies sous forme chiffrée au repos (DPAPI sur Windows avec repli Base64)."""
-        try:
-            import base64
-
-            serialized_bytes = json.dumps(cookies or {}).encode("utf-8")
-            dpapi_blob = _dpapi_encrypt(serialized_bytes)
-            if dpapi_blob is not None:
-                encoded_dpapi = base64.b64encode(dpapi_blob).decode("ascii")
-                self.cookies_data = f"dpapi:{encoded_dpapi}"
-                return
-            encoded = base64.b64encode(serialized_bytes).decode("ascii")
-            self.cookies_data = f"enc:{encoded}"
-        except Exception:
-            self.cookies_data = _set_json_data(cookies, dict)
+        """Définit les cookies sous forme chiffrée au repos via AES-256-GCM."""
+        self.cookies_data = encrypt_dict(cookies)

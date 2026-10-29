@@ -1,38 +1,46 @@
-"""Tests unitaires pour le conteneur d'injection de dépendances (AppContainer)."""
+"""Tests unitaires pour AppContainer."""
 
+import pytest
 from src.core.container import AppContainer, get_container
-from src.infrastructure.database import DatabaseManager
 
 
 def test_app_container_singleton():
-    """Vérifie que AppContainer fonctionne en singleton via get_instance et get_container."""
-    c1 = AppContainer.get_instance()
+    AppContainer.reset()
+    c1 = get_container()
     c2 = get_container()
     assert c1 is c2
 
 
-def test_app_container_resolves_services():
-    """Vérifie la résolution des dépendances de base."""
+def test_app_container_resolve_defaults():
+    AppContainer.reset()
     container = get_container()
 
-    assert container.database_manager is not None
-    assert container.session_manager is not None
-    assert container.provider_registry is not None
-    assert container.conflict_detector is not None
+    db = container.get_database_manager()
+    assert db is not None
+
+    extractor = container.get_archive_extractor()
+    assert extractor is not None
+
+    downloader = container.get_file_downloader()
+    assert downloader is not None
 
 
-def test_app_container_override_and_reset():
-    """Vérifie le mécanisme de substitution de dépendance (mock) pour les tests."""
+def test_app_container_override():
+    AppContainer.reset()
     container = get_container()
 
-    class FakeDatabaseManager:
-        is_fake = True
+    class MockService:
+        pass
 
-    fake_db = FakeDatabaseManager()
-    container.override(DatabaseManager, fake_db)
+    mock_inst = MockService()
+    container.register_singleton("custom_service", mock_inst)
 
-    assert container.database_manager is fake_db
-    assert container.database_manager.is_fake is True
+    assert container.resolve("custom_service") is mock_inst
 
-    container.reset_overrides()
-    assert container.database_manager is not fake_db
+
+def test_app_container_unknown_key():
+    AppContainer.reset()
+    container = get_container()
+
+    with pytest.raises(KeyError):
+        container.resolve("non_existent_key")
