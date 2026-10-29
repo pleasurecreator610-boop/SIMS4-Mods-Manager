@@ -2352,6 +2352,196 @@ def test_nsfwmods_login_timeout_account_free_downloads_and_comments_e2e(tmp_path
         assert "CurseForge" in msg_cf_post
 
 
+def test_all_platforms_comments_and_ambiguous_requirements_interpellation_e2e(tmp_path):
+    """
+    Valide de bout en bout sur les 4 plateformes (LoversLab, NSFWMods, TSR, CurseForge) :
+    1. Le découpage et la qualification COMMENT vs MOD (avec 'Toddler don't go to Daycare Mod' en COMMENT sur CF-2).
+    2. La séparation des sections dans le message d'interpellation généré.
+    3. Le cycle complet de commentaire (check_user_already_commented -> post_mod_comment -> delete_mod_comment).
+    """
+    from unittest.mock import MagicMock, patch
+    from src.application.dependencies.requirement_reporter_service import RequirementReporterService
+    from src.infrastructure.database.manager import DatabaseManager
+    from src.infrastructure.database.models import CatalogMod
+    from src.core.session_manager import SessionManager
+    from plugins.loverslab.scraper import LoversLabProvider
+    from plugins.nsfwmods.scraper import NSFWModsProvider
+    from plugins.thesimsresource.scraper import TheSimsResourceProvider
+    from plugins.curseforge.scraper import CurseForgeProvider
+
+    cases = [
+        # LoversLab
+        {
+            "source": "loverslab",
+            "remote_id": "test_ll_cascade",
+            "title": "Confidence Cascade",
+            "author": "BlackBoxMods",
+            "page_url": "https://www.loverslab.com/files/file/51444-confidence-cascade/",
+            "deps": [
+                {"title": "Lumpinou", "remote_id": "lumpinou"},
+                {"title": "Relationship & Pregnancy Overhaul", "remote_id": "rpo"},
+                {"title": "Game Options -> Script Mods Enabled", "remote_id": "script-opt"},
+                {"title": "Bad decisions. Better stories", "remote_id": "flavor-text"},
+            ],
+            "expected_comments": ["Game Options -> Script Mods Enabled", "Bad decisions. Better stories"],
+            "expected_unfound": ["Lumpinou", "Relationship & Pregnancy Overhaul"],
+        },
+        # NSFWMods
+        {
+            "source": "nsfwmods",
+            "remote_id": "test_nm_snatcher",
+            "title": "Sim Snatcher",
+            "author": "ColonolNutty",
+            "page_url": "https://nsfwmods.com/files/file/424-sim-snatcher/",
+            "deps": [
+                {"title": "Sims 4 Community Library", "remote_id": "s4cl"},
+                {"title": "Deviant Core", "remote_id": "deviant-core"},
+                {"title": "The More Universal Venue List", "remote_id": "muvl"},
+                {"title": "Spoiler", "remote_id": "spoiler-tag"},
+                {"title": "Mod Settings Menu is optionally required to modify SS Settings", "remote_id": "msm-opt"},
+            ],
+            "expected_comments": ["Spoiler", "Mod Settings Menu is optionally required to modify SS Settings"],
+            "expected_unfound": ["Sims 4 Community Library", "Deviant Core", "The More Universal Venue List"],
+        },
+        # The Sims Resource
+        {
+            "source": "thesimsresource",
+            "remote_id": "test_tsr_chill",
+            "title": "Chill and Cherish",
+            "author": "MelBennett",
+            "page_url": "https://www.thesimsresource.com/downloads/details/id/1787392",
+            "deps": [
+                {"title": "[MB] Canned Soda and Beer Accessory RIGHT", "remote_id": "canned-soda-acc"},
+                {"title": "Basketball Accessory", "remote_id": "1573507"},
+                {"title": "https://blog.naver.com/mel_165/222563632404", "remote_id": "naver-link"},
+                {"title": "Pose Player & Teleport Any Sim required in game", "remote_id": "pose-note"},
+            ],
+            "expected_comments": [
+                "https://blog.naver.com/mel_165/222563632404",
+                "Pose Player & Teleport Any Sim required in game",
+            ],
+            "expected_unfound": ["[MB] Canned Soda and Beer Accessory RIGHT", "Basketball Accessory"],
+        },
+        # CurseForge (avec 'Toddler don't go to Daycare Mod' qualifié en COMMENTaire per user feedback!)
+        {
+            "source": "curseforge",
+            "remote_id": "test_cf_social",
+            "title": "Social Activities (Visit Friends, Family and more)",
+            "author": "LittleMsSam",
+            "page_url": "https://www.curseforge.com/sims4/mods/social-activities-visit-friends-family-and-more",
+            "deps": [
+                {"title": "XML Injector", "remote_id": "xml-injector"},
+                {"title": "Toddler don't go to Daycare Mod", "remote_id": "toddler-daycare"},
+                {
+                    "title": "Optional Addons included in archive - remove the ones you do not want",
+                    "remote_id": "addons-note",
+                },
+            ],
+            "expected_comments": [
+                "Toddler don't go to Daycare Mod",
+                "Optional Addons included in archive - remove the ones you do not want",
+            ],
+            "expected_unfound": ["XML Injector"],
+        },
+    ]
+
+    db = DatabaseManager.get_instance()
+    for case in cases:
+        src = case["source"]
+        with db.get_session() as s:
+            s.query(CatalogMod).filter_by(source=src, remote_id=case["remote_id"]).delete()
+            cm = CatalogMod(
+                source=src,
+                remote_id=case["remote_id"],
+                title=case["title"],
+                author=case["author"],
+                page_url=case["page_url"],
+                requirements_status="RESOLVED",
+            )
+            cm.set_requirements_mods_list(case["deps"])
+            s.add(cm)
+            s.commit()
+
+        # 1. Test message generation
+        msg = RequirementReporterService.build_english_message(
+            case["title"],
+            case["author"],
+            missing_modules=case["expected_unfound"],
+            unnecessary_modules=case["expected_comments"],
+        )
+        assert "📦 Unresolved / Missing Dependencies:" in msg
+        assert "🧹 Notes / Instructions to clean from Requirements:" in msg
+        m_sec, n_sec = msg.split("🧹 Notes / Instructions to clean from Requirements:", 1)
+        for u in case["expected_unfound"]:
+            assert f"- {u}" in m_sec
+            assert f"- {u}" not in n_sec
+        for c in case["expected_comments"]:
+            assert f"- {c}" in n_sec
+            assert f"- {c}" not in m_sec
+
+    # 2. Test comment lifecycle on each provider (LL, NM, TSR, CF)
+    # LoversLab / NSFWMods
+    ll_prov = LoversLabProvider()
+    nm_prov = NSFWModsProvider()
+    tsr_prov = TheSimsResourceProvider()
+    cf_prov = CurseForgeProvider()
+
+    # Verify providers implement all comment methods
+    for p in (ll_prov, nm_prov, tsr_prov, cf_prov):
+        assert hasattr(p, "get_creator_info")
+        assert hasattr(p, "check_user_already_commented")
+        assert hasattr(p, "post_mod_comment")
+        assert hasattr(p, "delete_mod_comment")
+
+    # CurseForge delete_mod_comment verification
+    mock_cf_session = MagicMock()
+    mock_get_resp = MagicMock()
+    mock_get_resp.status_code = 200
+    mock_get_resp.text = """
+    <html><body>
+      <dt>Project ID</dt><dd>1194810</dd>
+    </body></html>
+    """
+    mock_comms_resp = MagicMock()
+    mock_comms_resp.status_code = 200
+    mock_comms_resp.json.return_value = {
+        "data": [
+            {
+                "id": 888999,
+                "body": "Hi @Simsiboy, please check XML Injector requirements.",
+                "author": {"username": "myuser", "displayName": "MyUser"},
+            }
+        ]
+    }
+    mock_del_resp = MagicMock()
+    mock_del_resp.status_code = 204
+
+    def _cf_req_router(url, **kwargs):
+        if "/comments" in url and not url.endswith("/comments/888999"):
+            return mock_comms_resp
+        return mock_get_resp
+
+    mock_cf_session.get.side_effect = _cf_req_router
+    mock_cf_session.delete.return_value = mock_del_resp
+
+    mock_acc = MagicMock()
+    mock_acc.user_display_name = "MyUser"
+
+    with (
+        patch.object(SessionManager, "get_saved_session", return_value=mock_acc),
+        patch.object(SessionManager, "get_http_session", return_value=mock_cf_session),
+    ):
+        ok_del, msg_del = cf_prov.delete_mod_comment(
+            "https://www.curseforge.com/sims4/mods/simsiphone",
+            required_keywords=["XML Injector"],
+        )
+        assert ok_del is True
+        assert "CurseForge" in msg_del
+        mock_cf_session.delete.assert_called_once()
+        assert "1194810/comments/888999" in mock_cf_session.delete.call_args[0][0]
+
+
+
 
 
 

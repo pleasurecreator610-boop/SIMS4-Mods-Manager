@@ -151,7 +151,17 @@ class RequirementReporterService:
 
         compose_pm_url = None
         if creator_id:
-            compose_pm_url = f"https://www.loverslab.com/messenger/compose/?to={creator_id}"
+            src_lower = source.lower()
+            if src_lower == "loverslab":
+                compose_pm_url = f"https://www.loverslab.com/messenger/compose/?to={creator_id}"
+            elif src_lower == "nsfwmods":
+                compose_pm_url = f"https://nsfwmods.com/messenger/compose/?to={creator_id}"
+            elif src_lower == "thesimsresource":
+                compose_pm_url = "https://forums.thesimsresource.com/messenger/"
+            elif src_lower == "curseforge":
+                compose_pm_url = f"{page_url.rstrip('/')}/comments" if page_url else creator_profile_url
+            else:
+                compose_pm_url = creator_profile_url
 
         # 3. Live check: forum comments (or PM if provider only supports PM)
         already_contacted = False

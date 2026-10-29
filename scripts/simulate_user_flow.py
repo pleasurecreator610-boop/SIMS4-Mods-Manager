@@ -947,18 +947,22 @@ class SimulationRunner:
     # =========================================================================
     def validate_ambiguous_dependencies_and_forum_interpellation(self) -> None:
         """
-        Teste sur le groupe de 3 mods (Confidence Cascade, Wicked Traits Unleashed, Private Night) :
-        1. Le découpage des prérequis séparés par '&' et '-'.
-        2. La qualification Commentaire vs Mod non trouvé via l'API.
+        Teste sur un groupe de 12 mods réels répartis sur les 4 plateformes (LoversLab, NSFWMods, TSR, CurseForge) :
+        1. Le découpage des prérequis et dépendances.
+        2. La qualification Commentaire (COMMENT) vs Mod non trouvé (MOD) via l'API save_requirements_override.
         3. La génération du message d'interpellation auteur séparant '📦 Unresolved / Missing Dependencies'
-           et '🧹 Notes / Instructions to clean from Requirements', ainsi que le cycle de suppression du commentaire.
+           et '🧹 Notes / Instructions to clean from Requirements', ainsi que le cycle de publication et suppression.
         """
-        print("\n[ÉTAPE 3.8] Validation E2E : Dépendances ambiguës, commentaires & interpellation forum (3 mods)...")
+        print(
+            "\n[ÉTAPE 3.8] Validation E2E : Dépendances ambiguës, commentaires & interpellation (12 mods sur 4 plateformes)..."
+        )
         from bs4 import BeautifulSoup
         from plugins.loverslab.requirements_extractor import extract_loverslab_requirements
 
         cases = [
+            # --- 1. LOVERSLAB (3 mods) ---
             {
+                "source": "loverslab",
                 "remote_id": "e2e_amb_51444",
                 "title": "Confidence Cascade",
                 "author": "BlackBoxMods",
@@ -978,8 +982,10 @@ class SimulationRunner:
                     "Lumpinou",
                     "Relationship & Pregnancy Overhaul",
                 ],
+                "live_target": True,
             },
             {
+                "source": "loverslab",
                 "remote_id": "e2e_amb_51834",
                 "title": "Wicked Traits Unleashed",
                 "author": "WickedCreator",
@@ -997,8 +1003,10 @@ class SimulationRunner:
                     "Scumbumbo",
                     "XML Injector v4",
                 ],
+                "live_target": False,
             },
             {
+                "source": "loverslab",
                 "remote_id": "e2e_amb_52204",
                 "title": "Private Night (TS4 WW)",
                 "author": "BlackBoxMods",
@@ -1016,20 +1024,240 @@ class SimulationRunner:
                     "Kuttoe",
                     "Mini Mod Framework",
                 ],
+                "live_target": False,
+            },
+            # --- 2. NSFWMODS (3 mods) ---
+            {
+                "source": "nsfwmods",
+                "remote_id": "e2e_amb_nm_424",
+                "title": "Sim Snatcher",
+                "author": "ColonolNutty",
+                "page_url": "https://nsfwmods.com/files/file/424-sim-snatcher/",
+                "raw_html": (
+                    '<div class="ipsType_richText">'
+                    "Spoiler<br>"
+                    "Sims 4 Community Library at least version 2.6 - NSFWMods<br>"
+                    "Deviant Core at least version 1.3 - NSFWMods<br>"
+                    "Mod Settings Menu is optionally required to modify SS Settings - The Sims 4 Nexus<br>"
+                    "The More Universal Venue List - Nexus Mods"
+                    "</div>"
+                ),
+                "expected_comments": [
+                    "Spoiler",
+                    "Mod Settings Menu is optionally required to modify SS Settings",
+                ],
+                "expected_unfound": [
+                    "Sims 4 Community Library",
+                    "Deviant Core",
+                    "The More Universal Venue List",
+                ],
+                "live_target": True,
+            },
+            {
+                "source": "nsfwmods",
+                "remote_id": "e2e_amb_nm_704",
+                "title": "Romance Reloaded",
+                "author": "ColonolNutty",
+                "page_url": "https://nsfwmods.com/files/file/704-romance-reloaded/",
+                "raw_html": (
+                    '<div class="ipsType_richText">'
+                    "Spoiler<br>"
+                    "Sims 4 Community Library at least version 3.5 - NSFWMods<br>"
+                    "Mod Settings Menu is required to modify Settings - SimFileShare"
+                    "</div>"
+                ),
+                "expected_comments": [
+                    "Spoiler",
+                    "Mod Settings Menu is required to modify Settings - SimFileShare",
+                ],
+                "expected_unfound": [
+                    "Sims 4 Community Library",
+                    "Mod Settings Menu",
+                ],
+                "live_target": False,
+            },
+            {
+                "source": "nsfwmods",
+                "remote_id": "e2e_amb_nm_713",
+                "title": "Life Improvements",
+                "author": "ColonolNutty",
+                "page_url": "https://nsfwmods.com/files/file/713-life-improvements/",
+                "raw_html": (
+                    '<div class="ipsType_richText">'
+                    "Spoiler<br>"
+                    "Sims 4 Community Library at least version 3.5 - NSFWMods<br>"
+                    "The More Universal Venue List 1.3 - NSFWMods<br>"
+                    "Custom Slider Framework - SimFileShare<br>"
+                    "Mod Settings Menu is required to modify Settings - SimFileShare"
+                    "</div>"
+                ),
+                "expected_comments": [
+                    "Spoiler",
+                    "Mod Settings Menu is required to modify Settings - SimFileShare",
+                ],
+                "expected_unfound": [
+                    "Sims 4 Community Library",
+                    "The More Universal Venue List",
+                    "Custom Slider Framework",
+                ],
+                "live_target": False,
+            },
+            # --- 3. THE SIMS RESOURCE (3 mods) ---
+            {
+                "source": "thesimsresource",
+                "remote_id": "e2e_amb_tsr_1787392",
+                "title": "Chill and Cherish",
+                "author": "MelBennett",
+                "page_url": "https://www.thesimsresource.com/downloads/details/id/1787392",
+                "custom_deps": [
+                    {"title": "[MB] Canned Soda and Beer Accessory RIGHT", "remote_id": "canned-soda-acc", "source": "thesimsresource"},
+                    {"title": "Basketball Accessory", "remote_id": "1573507", "source": "thesimsresource"},
+                    {"title": "https://blog.naver.com/mel_165/222563632404", "remote_id": "naver-link", "source": "thesimsresource"},
+                    {"title": "Pose Player & Teleport Any Sim required in game", "remote_id": "pose-note", "source": "thesimsresource"},
+                ],
+                "expected_comments": [
+                    "https://blog.naver.com/mel_165/222563632404",
+                    "Pose Player & Teleport Any Sim required in game",
+                ],
+                "expected_unfound": [
+                    "[MB] Canned Soda and Beer Accessory RIGHT",
+                    "Basketball Accessory",
+                ],
+                "live_target": True,
+            },
+            {
+                "source": "thesimsresource",
+                "remote_id": "e2e_amb_tsr_1795273",
+                "title": "Mirror Selfie",
+                "author": "NataliaAuditore",
+                "page_url": "https://www.thesimsresource.com/downloads/details/id/1795273",
+                "custom_deps": [
+                    {"title": "iPhone 11 Pro Accessory", "remote_id": "iphone-11-pro", "source": "thesimsresource"},
+                    {
+                        "title": "https://www.patreon.com/natalia_auditore/posts/iphone-11-pro-39671032?utm_medium=clipboard_copy",
+                        "remote_id": "patreon-tracking-url",
+                        "source": "thesimsresource",
+                    },
+                ],
+                "expected_comments": [
+                    "https://www.patreon.com/natalia_auditore/posts/iphone-11-pro-39671032?utm_medium=clipboard_copy",
+                ],
+                "expected_unfound": [
+                    "iPhone 11 Pro Accessory",
+                ],
+                "live_target": False,
+            },
+            {
+                "source": "thesimsresource",
+                "remote_id": "e2e_amb_tsr_1795603",
+                "title": "Nineties Style Curls The Forgotten Colors",
+                "author": "WingsSims",
+                "page_url": "https://www.thesimsresource.com/downloads/details/id/1795603",
+                "custom_deps": [
+                    {"title": "WINGS-TO1218-90s style curly hair", "remote_id": "1577470", "source": "thesimsresource"},
+                    {"title": "Recolor only - mesh not included in package", "remote_id": "mesh-note", "source": "thesimsresource"},
+                ],
+                "expected_comments": [
+                    "Recolor only - mesh not included in package",
+                ],
+                "expected_unfound": [
+                    "WINGS-TO1218-90s style curly hair",
+                ],
+                "live_target": False,
+            },
+            # --- 4. CURSEFORGE (3 mods) ---
+            {
+                "source": "curseforge",
+                "remote_id": "e2e_amb_cf_simsiphone",
+                "title": "SimsiPhone 3",
+                "author": "Simsiboy",
+                "page_url": "https://www.curseforge.com/sims4/mods/simsiphone",
+                "custom_deps": [
+                    {"title": "XML Injector", "remote_id": "xml-injector", "source": "curseforge"},
+                    {
+                        "title": "You Might also be interested in Switch-A-Phone! A phone override that let's you have different types of phones",
+                        "remote_id": "switch-a-phone-note",
+                        "source": "curseforge",
+                    },
+                ],
+                "expected_comments": [
+                    "You Might also be interested in Switch-A-Phone! A phone override that let's you have different types of phones",
+                ],
+                "expected_unfound": [
+                    "XML Injector",
+                ],
+                "live_target": True,
+            },
+            {
+                "source": "curseforge",
+                "remote_id": "e2e_amb_cf_social_act",
+                "title": "Social Activities (Visit Friends, Family and more)",
+                "author": "LittleMsSam",
+                "page_url": "https://www.curseforge.com/sims4/mods/social-activities-visit-friends-family-and-more",
+                "custom_deps": [
+                    {"title": "XML Injector", "remote_id": "xml-injector", "source": "curseforge"},
+                    {"title": "Toddler don't go to Daycare Mod", "remote_id": "toddler-daycare", "source": "curseforge"},
+                    {
+                        "title": "Optional Addons included in archive - remove the ones you do not want",
+                        "remote_id": "addons-note",
+                        "source": "curseforge",
+                    },
+                ],
+                # 'Toddler don't go to Daycare Mod' is classified as COMMENT per user instruction!
+                "expected_comments": [
+                    "Toddler don't go to Daycare Mod",
+                    "Optional Addons included in archive - remove the ones you do not want",
+                ],
+                "expected_unfound": [
+                    "XML Injector",
+                ],
+                "live_target": False,
+            },
+            {
+                "source": "curseforge",
+                "remote_id": "e2e_amb_cf_exp_preg",
+                "title": "Expanded Pregnancy Interactions",
+                "author": "LoryNaMods",
+                "page_url": "https://www.curseforge.com/sims4/mods/expanded-pregnancy-interactions",
+                "custom_deps": [
+                    {"title": "XML Injector", "remote_id": "xml-injector", "source": "curseforge"},
+                    {"title": "Maternity Shop Epi Mod", "remote_id": "maternity-shop-epi", "source": "curseforge"},
+                    {"title": "Parenting Styles Mod", "remote_id": "parenting-styles-mod", "source": "curseforge"},
+                    {
+                        "title": "Make sure Script Mods are enabled in Game Options",
+                        "remote_id": "game-options-note",
+                        "source": "curseforge",
+                    },
+                ],
+                "expected_comments": [
+                    "Make sure Script Mods are enabled in Game Options",
+                ],
+                "expected_unfound": [
+                    "XML Injector",
+                    "Maternity Shop Epi Mod",
+                    "Parenting Styles Mod",
+                ],
+                "live_target": False,
             },
         ]
 
         db = DatabaseManager.get_instance()
-        temp_rids = [c["remote_id"] for c in cases]
+        all_temp_keys = [(c["source"], c["remote_id"]) for c in cases]
         try:
             for c in cases:
-                soup = BeautifulSoup(c["raw_html"], "html.parser")
-                req_text, req_status, extracted_mods = extract_loverslab_requirements(soup)
+                src = c["source"]
+                if "custom_deps" in c:
+                    extracted_mods = c["custom_deps"]
+                    req_text = "\n".join(m["title"] for m in extracted_mods)
+                    req_status = "FOUND"
+                else:
+                    soup = BeautifulSoup(c["raw_html"], "html.parser")
+                    req_text, req_status, extracted_mods = extract_loverslab_requirements(soup)
 
                 with db.get_session() as s:
-                    s.query(CatalogMod).filter_by(source="loverslab", remote_id=c["remote_id"]).delete()
+                    s.query(CatalogMod).filter_by(source=src, remote_id=c["remote_id"]).delete()
                     cm = CatalogMod(
-                        source="loverslab",
+                        source=src,
                         remote_id=c["remote_id"],
                         title=c["title"],
                         author=c["author"],
@@ -1049,7 +1277,7 @@ class SimulationRunner:
                     "save_requirements_override",
                     {
                         "catalog_mod_id": mod_id,
-                        "source": "loverslab",
+                        "source": src,
                         "remote_id": c["remote_id"],
                         "overrides": overrides_map,
                     },
@@ -1057,7 +1285,7 @@ class SimulationRunner:
 
                 chk = self.call_api(
                     "check_dependencies",
-                    {"catalog_mod_id": mod_id, "source": "loverslab", "title": c["title"]},
+                    {"catalog_mod_id": mod_id, "source": src, "title": c["title"]},
                 )
                 comm_titles = [d["title"] for d in chk.get("comment_dependencies", [])]
                 unf_titles = [d["title"] for d in chk.get("unfound_dependencies", [])]
@@ -1082,7 +1310,7 @@ class SimulationRunner:
                     ) and all(f"- {cm_t}" in n_sec and f"- {cm_t}" not in m_sec for cm_t in c["expected_comments"])
 
                 forum_post_and_delete_ok = True
-                if c["title"] == "Confidence Cascade" and rep_chk.get("is_authenticated"):
+                if c.get("live_target") and rep_chk.get("is_authenticated"):
                     # Si un ancien commentaire de test était présent, on le nettoie d'abord
                     if rep_chk.get("already_reported"):
                         self.call_api(
@@ -1117,7 +1345,9 @@ class SimulationRunner:
                     )
                     deleted_ok = bool(del_res.get("success", False))
                     forum_post_and_delete_ok = posted_ok and deleted_ok
-                    print(f"    -> Interpellation forum '{c['title']}' : Publié={posted_ok} | Supprimé={deleted_ok}")
+                    print(
+                        f"    -> Interpellation live ({src}) '{c['title']}' : Publié={posted_ok} | Supprimé={deleted_ok}"
+                    )
 
                 is_ok = (
                     set(comm_titles) == set(c["expected_comments"])
@@ -1127,10 +1357,11 @@ class SimulationRunner:
                 )
                 status_str = "OK" if is_ok else "FAIL"
                 print(
-                    f" -> [{status_str}] '{c['title']}' : Commentaires={comm_titles} | Mods non trouvés={unf_titles} | Séparation message forum={separation_ok}"
+                    f" -> [{status_str}] [{src.upper()}] '{c['title']}' : Commentaires={len(comm_titles)} | Mods manquants={len(unf_titles)} | Séparation message={separation_ok}"
                 )
                 self.ambiguous_validation_results.append(
                     {
+                        "source": src,
                         "title": c["title"],
                         "comments_detected": comm_titles,
                         "unfound_mods_detected": unf_titles,
@@ -1141,10 +1372,11 @@ class SimulationRunner:
                 )
         finally:
             with db.get_session() as s:
-                s.query(CatalogMod).filter(
-                    CatalogMod.source == "loverslab",
-                    CatalogMod.remote_id.in_(temp_rids),
-                ).delete(synchronize_session=False)
+                for src_item, rid_item in all_temp_keys:
+                    s.query(CatalogMod).filter(
+                        CatalogMod.source == src_item,
+                        CatalogMod.remote_id == rid_item,
+                    ).delete(synchronize_session=False)
                 s.commit()
 
     # =========================================================================
@@ -1479,15 +1711,16 @@ class SimulationRunner:
                 rf.write("\n")
 
             if self.ambiguous_validation_results:
-                rf.write("## 3.2 Validation E2E : Dépendances Ambiguës, Commentaires & Interpellation Forum\n\n")
-                rf.write("| Mod | Commentaires Qualifiés | Mods Non Trouvés | Séparation Message Forum | Statut |\n")
-                rf.write("| :--- | :--- | :--- | :---: | :---: |\n")
+                rf.write("## 3.2 Validation E2E : Dépendances Ambiguës, Commentaires & Interpellation Forum (Multi-Plateformes)\n\n")
+                rf.write("| Plateforme | Mod | Commentaires Qualifiés | Mods Non Trouvés | Séparation Message Forum | Statut |\n")
+                rf.write("| :---: | :--- | :--- | :--- | :---: | :---: |\n")
                 for amb in self.ambiguous_validation_results:
                     st = "✅ OK" if amb["success"] else "❌ FAIL"
                     sep = "✅ Conforme" if amb["forum_message_separation_valid"] else "❌ Non conforme"
+                    src = amb.get("source", "loverslab").upper()
                     comms = ", ".join(f"`{x}`" for x in amb["comments_detected"])
                     unfs = ", ".join(f"`{x}`" for x in amb["unfound_mods_detected"])
-                    rf.write(f"| {amb['title']} | {comms} | {unfs} | {sep} | {st} |\n")
+                    rf.write(f"| `{src}` | {amb['title']} | {comms} | {unfs} | {sep} | {st} |\n")
                 rf.write("\n")
 
             if self.shared_deps_validation_results:

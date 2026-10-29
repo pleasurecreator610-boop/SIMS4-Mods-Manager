@@ -779,3 +779,61 @@ class CurseForgeProvider(BaseSourceProvider):
         except Exception as e:
             logger.error(f"Error posting CurseForge comment on {page_url}: {e}")
             return False, str(e)
+
+    def delete_mod_comment(self, page_url: str, required_keywords: Optional[List[str]] = None) -> Tuple[bool, str]:
+        """
+        Supprime un commentaire publié par l'utilisateur sur CurseForge via
+        `DELETE /api/v1/mods/{projectId}/comments/{commentId}`.
+        """
+        if not page_url:
+            return False, "URL de la page manquante."
+        session = SessionManager.get_http_session(self.provider_name)
+        try:
+            clean_url = re.sub(r"/comments/?$", "", page_url.split("?")[0].rstrip("/"))
+            page_resp = self._get_with_retry(session, clean_url, timeout=15)
+            if page_resp is None or page_resp.status_code != 200:
+                return False, "Impossible de charger la page du mod CurseForge."
+
+            soup = BeautifulSoup(page_resp.text, "html.parser")
+            project_id, _ = self._extract_project_and_file_ids(soup, page_resp.text)
+            if not project_id:
+                return False, "Impossible d'identifier le Project ID CurseForge."
+
+            comments_api = f"{self.base_url}/api/v1/mods/{project_id}/comments"
+            c_resp = self._get_with_retry(session, comments_api, timeout=12)
+            if c_resp is None or c_resp.status_code != 200:
+                return False, "Impossible de récupérer les commentaires CurseForge."
+
+            payload = c_resp.json()
+            comments_list = payload.get("data", []) if isinstance(payload, dict) else []
+            acc = SessionManager.get_saved_session(self.provider_name)
+            current_user = (acc.user_display_name or "").strip().lower() if acc else ""
+
+            kw_lower = [k.strip().lower() for k in (required_keywords or []) if k and k.strip()]
+            target_comment_id = None
+
+            for item in comments_list:
+                cid = item.get("id")
+                body_text = str(item.get("body") or item.get("text") or "").lower()
+                author_info = item.get("author") or {}
+                author_name = str(author_info.get("username") or author_info.get("displayName") or "").lower()
+
+                if current_user and author_name and current_user in author_name:
+                    if not kw_lower or any(k in body_text for k in kw_lower):
+                        target_comment_id = cid
+                        break
+                elif kw_lower and all(k in body_text for k in kw_lower):
+                    target_comment_id = cid
+                    break
+
+            if not target_comment_id:
+                return False, "Aucun commentaire supprimable correspondant trouvé sur CurseForge."
+
+            del_url = f"{self.base_url}/api/v1/mods/{project_id}/comments/{target_comment_id}"
+            del_resp = session.delete(del_url, timeout=15)
+            if del_resp.status_code in (200, 204):
+                return True, "Commentaire supprimé avec succès sur CurseForge."
+            return False, f"Échec de suppression du commentaire sur CurseForge (HTTP {del_resp.status_code})."
+        except Exception as e:
+            logger.error(f"Error deleting CurseForge comment on {page_url}: {e}")
+            return False, str(e)
