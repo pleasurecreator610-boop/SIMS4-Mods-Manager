@@ -1362,6 +1362,12 @@ class SimulationRunner:
                         f"    -> Interpellation live ({src}) '{c['title']}' : Publié={posted_ok} | Supprimé={deleted_ok}"
                     )
 
+                if c.get("live_target") or c["remote_id"] == "e2e_amb_cf_social_act":
+                    print(f"    [APERÇU MESSAGE - {src.upper()} - '{c['title']}'] :")
+                    for m_line in f_msg.strip().splitlines()[:18]:
+                        print(f"      | {m_line}")
+                    print("      | [...]")
+
                 is_ok = (
                     len(comm_titles) == len(c["expected_comments"])
                     and len(unf_titles) == len(c["expected_unfound"])
@@ -1376,8 +1382,10 @@ class SimulationRunner:
                     {
                         "source": src,
                         "title": c["title"],
+                        "author": c.get("author", "Author"),
                         "comments_detected": comm_titles,
                         "unfound_mods_detected": unf_titles,
+                        "formatted_message": f_msg,
                         "forum_message_separation_valid": separation_ok,
                         "forum_post_and_delete_valid": forum_post_and_delete_ok,
                         "success": is_ok,
@@ -1735,6 +1743,15 @@ class SimulationRunner:
                     unfs = ", ".join(f"`{x}`" for x in amb["unfound_mods_detected"])
                     rf.write(f"| `{src}` | {amb['title']} | {comms} | {unfs} | {sep} | {st} |\n")
                 rf.write("\n")
+
+                # Exemple de message d'interpellation avec séparation stricte Commentaires vs Mods non trouvés
+                sample = next((a for a in self.ambiguous_validation_results if a.get("comments_detected") and a.get("unfound_mods_detected")), None)
+                if sample and sample.get("formatted_message"):
+                    rf.write("### 3.2.1 Exemple de Message d'Interpellation Généré (Commentaires vs Mods Non Trouvés)\n\n")
+                    rf.write(f"> **Mod cible** : `{sample['title']}` (Auteur : `{sample.get('author', 'Author')}`)\n\n")
+                    rf.write("```text\n")
+                    rf.write(sample["formatted_message"].strip() + "\n")
+                    rf.write("```\n\n")
 
             if self.shared_deps_validation_results:
                 rf.write("## 3.3 Validation E2E : Groupe de 4 Mods avec Dépendances Communes (Non-Réinstallation)\n\n")
