@@ -33,6 +33,10 @@ def e2e_env(tmp_path, monkeypatch):
     fake_backup_dir = tmp_path / "backups"
     fake_backup_dir.mkdir(parents=True, exist_ok=True)
 
+    fake_config_path = tmp_path / "config.json"
+    monkeypatch.setattr(AppConfig, "get_app_dir", classmethod(lambda cls: tmp_path))
+    monkeypatch.setattr(AppConfig, "get_config_file_path", classmethod(lambda cls: fake_config_path))
+
     fake_config = AppConfig(
         custom_mods_dir=str(fake_mods_dir),
         auto_backup=True,
@@ -1935,5 +1939,33 @@ def test_multilingual_i18n_fr_en_switching_e2e(e2e_env):
         assert "Vêtements & Tenues" in fr_types["clothing"]
     finally:
         i18n.set_language("fr")
+
+
+def test_session_manager_thread_isolated_http_sessions_e2e(e2e_env):
+    """
+    Verifies that SessionManager.get_http_session reuses pooled sessions within the same thread
+    while isolating curl_cffi Session instances across concurrent worker threads (preventing
+    native libcurl access violations during 8-worker parallel scraping).
+    """
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+    from src.core.session_manager import SessionManager
+
+    SessionManager.close_all_http_sessions()
+    barrier = threading.Barrier(8)
+
+    def _worker_task(_idx: int):
+        barrier.wait(timeout=5)
+        s1 = SessionManager.get_http_session("loverslab")
+        s2 = SessionManager.get_http_session("loverslab")
+        assert s1 is s2
+        return id(s1)
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        session_ids = list(pool.map(_worker_task, range(8)))
+
+    assert len(set(session_ids)) == 8
+    SessionManager.close_all_http_sessions()
+
 
 

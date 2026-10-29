@@ -71,11 +71,17 @@ def reset_shutdown_state():
 @pytest.fixture(scope="session", autouse=True)
 def isolate_test_database(tmp_path_factory):
     """
-    Isole complètement la base de données de test de la base réelle de l'utilisateur.
-    Garantit qu'aucun enregistrement de test n'est injecté dans sims4_mods.db.
+    Isole complètement la base de données et le fichier config.json de test de l'environnement réel de l'utilisateur.
+    Garantit qu'aucun enregistrement de test n'est injecté dans sims4_mods.db ni dans config.json.
     """
+    from src.core.config import AppConfig
+
     test_dir = tmp_path_factory.mktemp("isolated_test_db")
     test_db = test_dir / "sims4_mods_test.db"
+    test_config = test_dir / "config_test.json"
+
+    orig_get_config_file_path = AppConfig.get_config_file_path
+    AppConfig.get_config_file_path = classmethod(lambda cls: test_config)  # type: ignore[method-assign]
 
     old_env = os.environ.get("SIMS4_DB_PATH")
     os.environ["SIMS4_DB_PATH"] = str(test_db)
@@ -87,6 +93,7 @@ def isolate_test_database(tmp_path_factory):
     yield test_db
 
     # Nettoyage
+    AppConfig.get_config_file_path = orig_get_config_file_path  # type: ignore[method-assign]
     if old_env is not None:
         os.environ["SIMS4_DB_PATH"] = old_env
     else:

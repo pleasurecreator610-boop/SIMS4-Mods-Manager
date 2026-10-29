@@ -186,7 +186,8 @@ class NSFWModsProvider(BaseSourceProvider):
                     p_url = entry["page_url"]
                     dl_chk = p_url.rstrip("/") + "/?do=download"
                     try:
-                        r_chk = session.get(dl_chk, allow_redirects=False, timeout=6)
+                        item_session = SessionManager.get_http_session(self.provider_name)
+                        r_chk = item_session.get(dl_chk, allow_redirects=False, timeout=6)
                         loc = r_chk.headers.get("Location", "")
                         if r_chk.status_code in [301, 302, 303, 307, 308]:
                             if "patreon.com" in loc.lower():

@@ -4,10 +4,19 @@ Replaces fragile QThread subclasses with QRunnable executed on QThreadPool,
 completely eliminating 'QThread: Destroyed while thread is still running' crashes.
 """
 
+import threading
 from typing import Optional, Any
 import warnings
-from PySide6.QtCore import QObject, QRunnable, QThreadPool
+from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal
 from src.utils.logger import logger
+
+_active_workers: set[Any] = set()
+_active_workers_lock = threading.Lock()
+
+
+def _release_active_worker(worker: Any) -> None:
+    with _active_workers_lock:
+        _active_workers.discard(worker)
 
 
 class BaseWorker(QObject, QRunnable):
@@ -18,16 +27,38 @@ class BaseWorker(QObject, QRunnable):
     Key advantages over QThread:
     - Never creates or destroys transient OS threads; tasks execute on managed QThreadPool.
     - Eliminates 'QThread: Destroyed while thread is still running' crashes by design.
+    - Uses setAutoDelete(False) + Python strong-reference retention to prevent C++/Shiboken double-free
+      when dual-inheriting QObject and QRunnable across threads.
     - Provides a .start() method for 100% backward compatibility with QThread.
     - Fully supports cooperative cancellation with self.is_cancelled() checks.
     """
 
+    _internal_done = Signal(object)
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        if "run" in cls.__dict__:
+            orig_run = cls.__dict__["run"]
+
+            def _wrapped_run(self, *a: Any, **kw: Any) -> Any:
+                try:
+                    return orig_run(self, *a, **kw)
+                finally:
+                    self._is_running = False
+                    try:
+                        self._internal_done.emit(self)
+                    except (RuntimeError, Exception):
+                        _release_active_worker(self)
+
+            cls.run = _wrapped_run  # type: ignore[method-assign]
+
     def __init__(self, parent: Optional[QObject] = None):
         QObject.__init__(self, parent)
         QRunnable.__init__(self)
-        self.setAutoDelete(True)
+        self.setAutoDelete(False)
         self._is_cancelled = False
         self._is_running = False
+        self._internal_done.connect(_release_active_worker)
 
     def cancel(self) -> None:
         """Requests cooperative cancellation of the background task."""
@@ -42,8 +73,10 @@ class BaseWorker(QObject, QRunnable):
         return self._is_running
 
     def start(self) -> None:
-        """Dispatches this worker to the global QThreadPool."""
+        """Dispatches this worker to the global QThreadPool while retaining a strong Python reference."""
         self._is_running = True
+        with _active_workers_lock:
+            _active_workers.add(self)
         QThreadPool.globalInstance().start(self)
 
     def wait(self, msecs: int = 0) -> bool:
@@ -100,5 +133,7 @@ def cleanup_all_threads(timeout_ms: int = 500) -> None:
     """
     try:
         QThreadPool.globalInstance().waitForDone(timeout_ms)
+        with _active_workers_lock:
+            _active_workers.clear()
     except Exception as e:
         logger.debug(f"Error waiting for QThreadPool completion on shutdown: {e}")

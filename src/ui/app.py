@@ -41,6 +41,7 @@ class BackgroundStatusWorker(QRunnable):
         super().__init__()
         self.api_client = api_client
         self.signals = signals
+        self.setAutoDelete(False)
 
     def run(self):
         """Exécute l'opération run."""
@@ -381,7 +382,10 @@ class MainWindow(QMainWindow):
 
     def refresh_game_status(self):
         """Exécute l'opération refresh game status."""
+        if not hasattr(self, "_status_workers"):
+            self._status_workers = set()
         worker = BackgroundStatusWorker(self.api_client, self.status_signals)
+        self._status_workers.add(worker)
         QThreadPool.globalInstance().start(worker)
 
     def _on_health_checked(self, success: bool, mods_detected: bool):
@@ -392,6 +396,8 @@ class MainWindow(QMainWindow):
         self.refresh_game_status()
 
     def _on_updates_checked(self, count: int):
+        if hasattr(self, "_status_workers") and len(self._status_workers) > 4:
+            self._status_workers.clear()
         self.sidebar.update_badge_count(count)
 
     def _launch_game(self):

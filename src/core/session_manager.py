@@ -39,12 +39,13 @@ class SessionManager:
     )
 
     _http_sessions: Dict[str, cffi_requests.Session] = {}
+    _thread_http_sessions: Dict[Tuple[str, int], cffi_requests.Session] = {}
     _async_http_sessions: Dict[str, cffi_requests.AsyncSession] = {}
     _http_sessions_lock: threading.Lock = threading.Lock()
 
     @classmethod
     def invalidate_http_session(cls, provider_name: str) -> None:
-        """Closes and removes the pooled HTTP sessions (sync and async) for a provider."""
+        """Closes and removes the pooled HTTP sessions (sync and async) for a provider across all threads."""
         with cls._http_sessions_lock:
             key = provider_name.lower()
             old_sess = cls._http_sessions.pop(key, None)
@@ -53,19 +54,31 @@ class SessionManager:
                     old_sess.close()
                 except Exception:
                     pass
+            thread_keys = [tk for tk in cls._thread_http_sessions if tk[0] == key]
+            for tk in thread_keys:
+                t_sess = cls._thread_http_sessions.pop(tk, None)
+                if t_sess and t_sess is not old_sess:
+                    try:
+                        t_sess.close()
+                    except Exception:
+                        pass
             old_async_sess = cls._async_http_sessions.pop(key, None)
             if old_async_sess:
                 _close_async_session(old_async_sess)
 
     @classmethod
     def close_all_http_sessions(cls) -> None:
-        """Closes all pooled curl_cffi sync and async sessions."""
+        """Closes all pooled curl_cffi sync and async sessions across all threads."""
         with cls._http_sessions_lock:
-            for s in cls._http_sessions.values():
-                try:
-                    s.close()
-                except Exception:
-                    pass
+            closed_ids: set[int] = set()
+            for s in list(cls._thread_http_sessions.values()) + list(cls._http_sessions.values()):
+                if id(s) not in closed_ids:
+                    closed_ids.add(id(s))
+                    try:
+                        s.close()
+                    except Exception:
+                        pass
+            cls._thread_http_sessions.clear()
             cls._http_sessions.clear()
 
             for async_s in cls._async_http_sessions.values():
@@ -286,13 +299,16 @@ class SessionManager:
     def get_http_session(cls, provider_name: str, force_new: bool = False) -> cffi_requests.Session:
         """
         Returns a configured curl_cffi Session loaded with provider cookies and browser impersonation.
-        Reuses pooled session per provider for connection reuse and performance.
+        Reuses a thread-isolated pooled session per (provider, thread_id) to guarantee connection reuse
+        while preventing concurrent libcurl handle corruption across OS threads.
         """
         key = provider_name.lower()
+        tid = threading.get_ident()
+        thread_key = (key, tid)
         if not force_new:
             with cls._http_sessions_lock:
-                if key in cls._http_sessions:
-                    return cls._http_sessions[key]
+                if key in cls._http_sessions and thread_key in cls._thread_http_sessions:
+                    return cls._thread_http_sessions[thread_key]
 
         http_session: cffi_requests.Session = cffi_requests.Session(impersonate="chrome120")
         http_session.headers.update(
@@ -323,6 +339,7 @@ class SessionManager:
 
         if not force_new:
             with cls._http_sessions_lock:
+                cls._thread_http_sessions[thread_key] = http_session
                 cls._http_sessions[key] = http_session
 
         return http_session

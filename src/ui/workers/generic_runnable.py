@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import threading
 import traceback
 from typing import Any, Callable, Optional
 
@@ -10,6 +11,9 @@ from typing import Any, Callable, Optional
 from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal, Slot
 
 from src.utils.logger import logger
+
+_active_runnables: set["GenericRunnable"] = set()
+_active_runnables_lock = threading.Lock()
 
 
 class WorkerSignals(QObject):
@@ -30,7 +34,7 @@ class GenericRunnable(QRunnable):
         self.args = args
         self.kwargs = kwargs
         self.signals = WorkerSignals()
-        self.setAutoDelete(True)
+        self.setAutoDelete(False)
 
     @Slot()
     def run(self) -> None:
@@ -96,9 +100,18 @@ def run_async_ui_task(
     if on_progress:
         worker.signals.progress.connect(on_progress)
 
+    def _release_worker(*_: Any) -> None:
+        with _active_runnables_lock:
+            _active_runnables.discard(worker)
+
+    worker.signals.finished.connect(_release_worker)
+    worker.signals.error.connect(_release_worker)
+
     if sync:
         worker.run()
     else:
+        with _active_runnables_lock:
+            _active_runnables.add(worker)
         QThreadPool.globalInstance().start(worker)
 
     return worker
