@@ -146,7 +146,7 @@ class ModMatcher(TitleNormalizer):
         Searches the CatalogMod database table for the best matching mod according to regex cleaning
         and similarity score.
         """
-        from src.database.models import CatalogMod
+        from src.infrastructure.database.models import CatalogMod
 
         if not query:
             return None

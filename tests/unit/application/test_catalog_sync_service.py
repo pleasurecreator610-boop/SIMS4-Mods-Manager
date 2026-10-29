@@ -4,8 +4,8 @@ from src.application.catalog.catalog_sync_service import (
     run_catalog_sync,
     check_catalog_dependencies,
 )
-from src.database.manager import DatabaseManager
-from src.database.models import CatalogMod, InstalledMod
+from src.infrastructure.database.manager import DatabaseManager
+from src.infrastructure.database.models import CatalogMod, InstalledMod
 from src.providers import ProviderRegistry
 
 

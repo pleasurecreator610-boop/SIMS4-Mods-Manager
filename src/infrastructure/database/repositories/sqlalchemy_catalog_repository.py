@@ -8,8 +8,8 @@ from sqlalchemy import distinct, or_
 from sqlalchemy.orm import defer
 from sqlalchemy.orm.attributes import flag_modified
 
-from src.database.manager import DatabaseManager
-from src.database.models import CatalogMod
+from src.infrastructure.database.manager import DatabaseManager
+from src.infrastructure.database.models import CatalogMod
 from src.domain.interfaces.repositories.catalog_repository_interface import ICatalogRepository
 from src.domain.models.mod_entity import CatalogModEntity
 from src.infrastructure.database.catalog_queries import build_catalog_query

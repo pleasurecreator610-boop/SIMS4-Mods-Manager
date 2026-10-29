@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from src.database.models import AccountSession, CatalogMod, InstalledMod
+from src.infrastructure.database.models import AccountSession, CatalogMod, InstalledMod
 from src.domain.models.account_entity import AccountSessionEntity
 from src.domain.models.mod_entity import CatalogModEntity, InstalledModEntity
 

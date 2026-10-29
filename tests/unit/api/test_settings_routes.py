@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 
 from src.api.app import app
 from src.core.config import AppConfig
-from src.database import DatabaseManager, CatalogMod, InstalledMod
+from src.infrastructure.database import DatabaseManager, CatalogMod, InstalledMod
 
 
 @pytest.fixture

@@ -1,6 +1,6 @@
 import pytest
 from datetime import datetime
-from src.database import DatabaseManager, CatalogMod, InstalledMod, AccountSession
+from src.infrastructure.database import DatabaseManager, CatalogMod, InstalledMod, AccountSession
 
 
 @pytest.fixture

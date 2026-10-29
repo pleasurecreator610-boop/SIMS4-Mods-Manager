@@ -10,7 +10,7 @@ from src.application.catalog.catalog_sync_actions import CatalogSyncActions
 from src.application.catalog.catalog_sync_coordinator import CatalogSyncCoordinator
 from src.application.catalog.catalog_sync_orchestrator import CatalogSyncOrchestrator
 from src.application.catalog.sync_tracker import SyncTracker
-from src.database.models import CatalogMod
+from src.infrastructure.database.models import CatalogMod
 from src.domain.models.mod_entity import CatalogModEntity
 
 __all__ = [

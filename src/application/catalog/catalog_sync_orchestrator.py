@@ -12,8 +12,8 @@ from src.application.catalog.catalog_sync_coordinator import CatalogSyncCoordina
 from src.application.catalog.sync_tracker import SyncTracker
 from src.application.dependencies.dependency_resolver import resolve_mod_dependencies
 from src.core.shutdown_manager import ShutdownManager
-from src.database.manager import DatabaseManager
-from src.database.models import CatalogMod, InstalledMod
+from src.infrastructure.database.manager import DatabaseManager
+from src.infrastructure.database.models import CatalogMod, InstalledMod
 from src.domain.models.mod_entity import CatalogModEntity
 from src.providers import ProviderRegistry
 from src.utils.logger import logger

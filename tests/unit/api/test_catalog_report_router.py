@@ -3,7 +3,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.api.app import app
-from src.database import DatabaseManager, CatalogMod
+from src.infrastructure.database import DatabaseManager, CatalogMod
 
 
 @pytest.fixture

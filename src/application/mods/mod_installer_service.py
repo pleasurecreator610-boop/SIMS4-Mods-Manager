@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import Optional, List, Tuple, Dict, Any, Callable
 
 from src.core.config import AppConfig
-from src.database.models import CatalogMod, InstalledMod
-from src.database.manager import DatabaseManager
+from src.infrastructure.database.models import CatalogMod, InstalledMod
+from src.infrastructure.database.manager import DatabaseManager
 from src.application.game.game_service import GameDetector
 from src.utils.logger import logger
 from src.application.mods.mod_install_orchestrator import perform_mod_install

@@ -4,7 +4,7 @@ from typing import Optional
 from sqlalchemy.orm import Session, Query as OrmQuery
 
 from src.core.config import ADULT_PROVIDERS
-from src.database.models import CatalogMod, InstalledMod
+from src.infrastructure.database.models import CatalogMod, InstalledMod
 from src.utils.mod_type_classifier import ModTypeClassifier
 
 

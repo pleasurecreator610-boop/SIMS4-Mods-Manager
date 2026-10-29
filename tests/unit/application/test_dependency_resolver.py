@@ -2,7 +2,7 @@ from bs4 import BeautifulSoup
 from fastapi.testclient import TestClient
 
 from src.api.app import app
-from src.database import DatabaseManager, CatalogMod, InstalledMod
+from src.infrastructure.database import DatabaseManager, CatalogMod, InstalledMod
 from plugins.loverslab import LoversLabProvider
 
 
@@ -474,7 +474,7 @@ def test_mod_detail_view_requirements_loading_and_retractable():
 
 def test_cross_view_synchronization_and_panel_counts():
     """Validates cross-view synchronization signals and true indexed mod count in sync panel."""
-    from src.database import DatabaseManager, CatalogMod
+    from src.infrastructure.database import DatabaseManager, CatalogMod
     from src.application.catalog.catalog_sync_service import SyncTracker
     from src.ui.views.catalog_view import CatalogView
     from src.ui.views.installed_view import InstalledView
@@ -524,8 +524,8 @@ def test_special_dependency_cases_and_wickedwhims_mapping():
         find_special_dependency_case,
         resolve_mod_dependencies,
     )
-    from src.database.manager import DatabaseManager
-    from src.database.models import CatalogMod
+    from src.infrastructure.database.manager import DatabaseManager
+    from src.infrastructure.database.models import CatalogMod
 
     # 1. Exactly 1 special case defined: WickedWhims
     assert len(SPECIAL_DEPENDENCY_CASES) == 1
@@ -629,8 +629,8 @@ def test_find_dependent_installed_mods():
     Tests detection of installed mods that depend on a target mod before uninstallation.
     """
     from src.application.dependencies.dependency_resolver import find_dependent_installed_mods
-    from src.database.manager import DatabaseManager
-    from src.database.models import InstalledMod, CatalogMod
+    from src.infrastructure.database.manager import DatabaseManager
+    from src.infrastructure.database.models import InstalledMod, CatalogMod
 
     db = DatabaseManager.get_instance()
     with db.get_session() as session:

@@ -14,8 +14,8 @@ from starlette.testclient import TestClient
 from src.api.app import app
 from src.application.catalog.sync_tracker import SyncTracker
 from src.core.config import AppConfig
-from src.database.manager import DatabaseManager
-from src.database.models import CatalogMod
+from src.infrastructure.database.manager import DatabaseManager
+from src.infrastructure.database.models import CatalogMod
 from src.providers import ProviderRegistry
 
 
@@ -280,7 +280,7 @@ def test_fast_standalone_mod_installation_e2e(e2e_env, monkeypatch):
     """
     import io
     import zipfile
-    from src.database.models import InstalledMod
+    from src.infrastructure.database.models import InstalledMod
 
     client = e2e_env["client"]
     db = e2e_env["db"]
@@ -369,7 +369,7 @@ def test_fast_mod_with_wickedwhims_dependency_installation_e2e(e2e_env, monkeypa
     """
     import io
     import zipfile
-    from src.database.models import InstalledMod
+    from src.infrastructure.database.models import InstalledMod
 
     client = e2e_env["client"]
     db = e2e_env["db"]
@@ -783,7 +783,7 @@ def test_multi_mods_shared_dependencies_non_reinstallation_e2e(e2e_env, monkeypa
     """
     import io
     import zipfile
-    from src.database.models import InstalledMod
+    from src.infrastructure.database.models import InstalledMod
 
     client = e2e_env["client"]
     db = e2e_env["db"]
@@ -1031,7 +1031,7 @@ def test_nsfwmods_provider_catalog_and_installation_e2e(e2e_env, monkeypatch):
     import io
     import zipfile
     from unittest.mock import MagicMock
-    from src.database.models import InstalledMod
+    from src.infrastructure.database.models import InstalledMod
 
     client = e2e_env["client"]
     db = e2e_env["db"]
@@ -1122,7 +1122,7 @@ def test_curseforge_provider_catalog_and_installation_e2e(e2e_env, monkeypatch):
     import io
     import zipfile
     from unittest.mock import MagicMock
-    from src.database.models import InstalledMod
+    from src.infrastructure.database.models import InstalledMod
 
     client = e2e_env["client"]
     db = e2e_env["db"]
@@ -1217,7 +1217,7 @@ def test_three_platforms_concurrent_installation_e2e(e2e_env, monkeypatch):
     from unittest.mock import MagicMock
     from src.api.schemas.catalog import CatalogInstallRequest
     from src.application.mods.mod_install_orchestrator import perform_mod_install
-    from src.database.models import InstalledMod
+    from src.infrastructure.database.models import InstalledMod
 
     db = e2e_env["db"]
     mods_dir = e2e_env["mods_dir"]
@@ -1341,7 +1341,7 @@ def test_cross_platform_shared_dependencies_and_non_collision_e2e(e2e_env, monke
     from src.api.schemas.catalog import CatalogInstallRequest
     from src.application.mods.active_installation_registry import ActiveInstallationRegistry
     from src.application.mods.mod_install_orchestrator import perform_mod_install
-    from src.database.models import InstalledMod
+    from src.infrastructure.database.models import InstalledMod
 
     ActiveInstallationRegistry.reset()
     client = e2e_env["client"]
@@ -1689,7 +1689,7 @@ def test_thesimsresource_provider_catalog_and_installation_e2e(e2e_env, monkeypa
     https://www.thesimsresource.com/downloads/browse/category/sims4/skipsetitems/1/).
     """
     from unittest.mock import MagicMock
-    from src.database.models import InstalledMod
+    from src.infrastructure.database.models import InstalledMod
 
     client = e2e_env["client"]
     db = e2e_env["db"]
@@ -1781,7 +1781,7 @@ def test_four_platforms_concurrent_installation_e2e(e2e_env, monkeypatch):
     from src.api.schemas.catalog import CatalogInstallRequest
     from src.application.mods.active_installation_registry import ActiveInstallationRegistry
     from src.application.mods.mod_install_orchestrator import perform_mod_install
-    from src.database.models import InstalledMod
+    from src.infrastructure.database.models import InstalledMod
 
     ActiveInstallationRegistry.reset()
     db = e2e_env["db"]

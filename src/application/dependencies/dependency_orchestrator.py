@@ -16,7 +16,7 @@ from src.application.dependencies.dependency_coordinator import DependencyCoordi
 class DependencyOrchestrator:
     """High-level orchestrator for dependency evaluation and categorization."""
 
-    _resolution_cache: Dict[Tuple[str, bool, str], List[DependencyItem]] = {}
+    _resolution_cache: Dict[Tuple[Any, ...], List[DependencyItem]] = {}
     _cache_lock = threading.Lock()
 
     def __init__(

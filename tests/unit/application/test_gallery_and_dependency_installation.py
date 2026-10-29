@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 from src.api.app import app
-from src.database import DatabaseManager, CatalogMod, InstalledMod
+from src.infrastructure.database import DatabaseManager, CatalogMod, InstalledMod
 from src.ui.components.image_viewer_modal import ImageViewerModal
 
 

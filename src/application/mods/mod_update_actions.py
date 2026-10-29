@@ -8,7 +8,7 @@ from datetime import datetime
 import re
 from typing import Any, Optional, Union
 
-from src.database.models import CatalogMod, InstalledMod
+from src.infrastructure.database.models import CatalogMod, InstalledMod
 from src.domain.interfaces.repositories.catalog_repository_interface import ICatalogRepository
 from src.domain.interfaces.repositories.mod_repository_interface import IInstalledModRepository
 from src.domain.models.mod_entity import CatalogModEntity, InstalledModEntity

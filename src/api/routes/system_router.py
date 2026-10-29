@@ -3,7 +3,7 @@ from sqlalchemy import text
 
 from src.api.schemas.system import HealthResponse
 from src.core.config import AppConfig
-from src.database.manager import DatabaseManager
+from src.infrastructure.database.manager import DatabaseManager
 from src.core.session_manager import SessionManager
 from src.application.game.game_service import GameDetector
 from src.utils.logger import logger

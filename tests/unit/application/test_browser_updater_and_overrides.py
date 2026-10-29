@@ -1,7 +1,7 @@
 from unittest.mock import patch, MagicMock
 from src.infrastructure.network.browser_updater_service import BrowserUpdaterService
 from src.application.dependencies.dependency_resolver import resolve_mod_dependencies
-from src.database.models import CatalogMod
+from src.infrastructure.database.models import CatalogMod
 
 
 def test_browser_updater_is_chromium_ready():

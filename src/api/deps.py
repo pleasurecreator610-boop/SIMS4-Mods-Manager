@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Generator
 from sqlalchemy.orm import Session
 
-from src.database.manager import DatabaseManager
+from src.infrastructure.database.manager import DatabaseManager
 from src.domain.interfaces.repositories.account_repository_interface import IAccountRepository
 from src.domain.interfaces.repositories.catalog_repository_interface import ICatalogRepository
 from src.domain.interfaces.repositories.mod_repository_interface import IInstalledModRepository

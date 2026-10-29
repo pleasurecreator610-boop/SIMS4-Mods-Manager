@@ -11,7 +11,7 @@ from src.application.mods.mod_install_actions import ModInstallActions
 from src.application.mods.mod_install_coordinator import ModInstallCoordinator
 from src.application.mods.mod_installer_service import ModInstaller
 from src.application.mods.mod_update_actions import is_newer_version
-from src.database.models import InstalledMod
+from src.infrastructure.database.models import InstalledMod
 from src.ui.components.installed_card import InstalledCard
 
 
@@ -28,7 +28,7 @@ def test_uninstall_mod_rejects_empty_or_malicious_folder(tmp_path, monkeypatch):
 
     monkeypatch.setattr(GameDetector, "detect_mods_dir", classmethod(lambda cls, custom=None: mods_dir))
 
-    from src.database.manager import DatabaseManager
+    from src.infrastructure.database.manager import DatabaseManager
 
     db = DatabaseManager.get_instance()
 
@@ -96,7 +96,7 @@ def test_user_config_preservation_on_update(tmp_path, monkeypatch):
     (mod_folder / "mc_settings.cfg").write_text("USER_CUSTOM_SETTINGS_DATA")
     (mod_folder / "mc_cmd_center.package").write_text("OLD_PACKAGE_V1")
 
-    from src.database.manager import DatabaseManager
+    from src.infrastructure.database.manager import DatabaseManager
 
     db = DatabaseManager.get_instance()
 
@@ -558,3 +558,62 @@ def test_mod_install_orchestrator_targets_app_downloads_dir():
 
     stats = StorageService.get_storage_stats()
     assert hasattr(stats, "downloads_size_bytes")
+
+
+
+def test_archive_extractor_blocks_dangerous_executables(tmp_path):
+    """Test de sécurité : vérifie que les exécutables et scripts dangereux sont bloqués lors de l'extraction."""
+    from src.infrastructure.filesystem.archive_extractor import extract_archive
+
+    zip_file = tmp_path / "test_unsafe.zip"
+    dest_dir = tmp_path / "extracted"
+
+    with zipfile.ZipFile(zip_file, "w") as z:
+        z.writestr("legit.package", b"DBPF_PACKAGE_DATA")
+        z.writestr("script.ts4script", b"PYTHON_SCRIPT_DATA")
+        z.writestr("trojan.exe", b"MZ_EXECUTABLE_BINARY")
+        z.writestr("malicious.bat", b"@echo off\r\ncalc.exe")
+        z.writestr("payload.dll", b"DLL_BINARY_DATA")
+
+    extracted = extract_archive(zip_file, dest_dir)
+    extracted_names = [p.name for p in extracted]
+
+    # Fichiers légitimes bien extraits
+    assert "legit.package" in extracted_names
+    assert "script.ts4script" in extracted_names
+
+    # Fichiers dangereux neutralisés et exclus
+    assert "trojan.exe" not in extracted_names
+    assert "malicious.bat" not in extracted_names
+    assert "payload.dll" not in extracted_names
+
+    # Vérification sur disque
+    assert (dest_dir / "legit.package").exists()
+    assert not (dest_dir / "trojan.exe").exists()
+    assert not (dest_dir / "malicious.bat").exists()
+    assert not (dest_dir / "payload.dll").exists()
+
+
+def test_fail_secure_internal_token_verification(monkeypatch):
+    """Test de sécurité : valide la logique fail-secure du jeton d'autorisation interne."""
+    from src.core.security import verify_internal_token, init_security
+    import src.core.security as sec
+
+    # Réinitialise pour tester
+    monkeypatch.setattr(sec, "_auth_disabled", False)
+    monkeypatch.setenv("SIMS4_DISABLE_AUTH", "0")
+    active_token = init_security(disable_auth=False)
+
+    # 1. Jeton correct
+    assert verify_internal_token(active_token) is True
+    # 2. Jeton incorrect
+    assert verify_internal_token("wrong_token_value_12345") is False
+    # 3. Jeton vide ou None
+    assert verify_internal_token("") is False
+    assert verify_internal_token(None) is False
+
+
+def test_game_launcher_is_game_running_execution():
+    """Test de performance : valide que GameLauncher.is_game_running s'exécute sans erreur."""
+    is_running = GameLauncher.is_game_running()
+    assert isinstance(is_running, bool)

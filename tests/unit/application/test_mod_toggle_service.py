@@ -1,6 +1,6 @@
 from src.application.mods.mod_toggle_service import ModToggleManager
-from src.database.manager import DatabaseManager
-from src.database.models import InstalledMod
+from src.infrastructure.database.manager import DatabaseManager
+from src.infrastructure.database.models import InstalledMod
 from src.application.game.game_service import GameDetector
 
 

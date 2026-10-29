@@ -1830,7 +1830,7 @@ class SimulationRunner:
         2. La déduplication inter-plateformes et la non-collision (XML Injector sur CurseForge & LoversLab,
            Sims 4 Community Library sur NSFWMods & LoversLab) ainsi que l'installation simultanée sur les 3 plateformes.
         """
-        from src.database.models import InstalledMod
+        from src.infrastructure.database.models import InstalledMod
         from src.providers.registry import ProviderRegistry
 
         print("\n[ÉTAPE 3quinquies] Validation E2E CurseForge & Non-Collision Inter-Plateformes (3 plateformes)...")

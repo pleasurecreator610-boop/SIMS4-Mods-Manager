@@ -8,7 +8,7 @@ from src.application.mods.mod_installer_service import (
     generate_unique_mod_folder_name,
 )
 from src.application.mods.mod_toggle_service import ModToggleManager
-from src.database import DatabaseManager, InstalledMod
+from src.infrastructure.database import DatabaseManager, InstalledMod
 from src.core.config import AppConfig
 from src.application.game.game_detector import GameDetector
 from src.infrastructure.filesystem.archive_extractor import ZipArchiveHandler

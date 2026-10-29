@@ -7,7 +7,7 @@ from curl_cffi import requests as cffi_requests
 
 from src.core.config import AppConfig
 from src.core.shutdown_manager import ShutdownManager
-from src.database import DatabaseManager, AccountSession
+from src.infrastructure.database import DatabaseManager, AccountSession
 from src.utils.logger import logger
 
 

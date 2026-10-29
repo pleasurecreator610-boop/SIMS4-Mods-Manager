@@ -6,8 +6,8 @@ from typing import Optional
 
 from sqlalchemy.orm import joinedload
 
-from src.database.manager import DatabaseManager
-from src.database.models import InstalledMod
+from src.infrastructure.database.manager import DatabaseManager
+from src.infrastructure.database.models import InstalledMod
 from src.domain.interfaces.repositories.mod_repository_interface import IInstalledModRepository
 from src.domain.models.mod_entity import InstalledModEntity
 from src.infrastructure.database.repositories.mappers import ModelMapper

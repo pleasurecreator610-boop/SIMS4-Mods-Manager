@@ -1,4 +1,4 @@
-from src.database import DatabaseManager, CatalogMod, InstalledMod
+from src.infrastructure.database import DatabaseManager, CatalogMod, InstalledMod
 from src.utils.mod_matcher import ModMatcher
 
 

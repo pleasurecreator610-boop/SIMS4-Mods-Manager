@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 from src.api.app import app
 from src.api.schemas.catalog import CatalogInstallResponse
-from src.database import DatabaseManager, CatalogMod, InstalledMod
+from src.infrastructure.database import DatabaseManager, CatalogMod, InstalledMod
 
 
 @pytest.fixture

@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from src.application.catalog.catalog_sync_actions import CatalogSyncActions
 from src.application.catalog.sync_tracker import SyncTracker
 from src.core.shutdown_manager import ShutdownManager
-from src.database.manager import DatabaseManager
+from src.infrastructure.database.manager import DatabaseManager
 from src.utils.logger import logger
 
 

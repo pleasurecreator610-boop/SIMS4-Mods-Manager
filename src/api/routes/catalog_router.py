@@ -163,8 +163,8 @@ def start_sync(payload: CatalogSyncRequest, background_tasks: BackgroundTasks):
 
     adult_enabled = AppConfig.load().adult_content_enabled
     providers = ProviderRegistry.list_providers()
-    categories = []
-    active_provider_names = []
+    categories: list[dict[str, Any]] = []
+    active_provider_names: list[str] = []
     for p in providers:
         p_name = getattr(p, "provider_name", "").lower()
         if not adult_enabled and p_name in ADULT_PROVIDERS:

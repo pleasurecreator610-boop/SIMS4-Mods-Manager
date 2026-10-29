@@ -1,6 +1,6 @@
 import zipfile
 
-from src.utils.archive import is_archive, extract_archive, create_backup_zip
+from src.infrastructure.filesystem.archive_extractor import is_archive, extract_archive, create_backup_zip
 from src.utils.cache_utils import hash_url, infer_extension, get_cached_image_path
 
 

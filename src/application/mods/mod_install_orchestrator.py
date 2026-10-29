@@ -14,8 +14,8 @@ from src.application.game.game_service import GameDetector
 from src.application.mods.mod_install_actions import ModInstallActions
 from src.application.mods.mod_install_coordinator import ModInstallCoordinator
 from src.core.config import AppConfig
-from src.database.manager import DatabaseManager
-from src.database.models import CatalogMod, InstalledMod
+from src.infrastructure.database.manager import DatabaseManager
+from src.infrastructure.database.models import CatalogMod, InstalledMod
 from src.providers import ProviderRegistry
 from src.utils.dependency_noise_rules import is_likely_comment_or_noise
 from src.utils.logger import logger

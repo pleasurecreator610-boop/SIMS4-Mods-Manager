@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Optional
 
-from src.database.manager import DatabaseManager
-from src.database.models import AccountSession
+from src.infrastructure.database.manager import DatabaseManager
+from src.infrastructure.database.models import AccountSession
 from src.domain.interfaces.repositories.account_repository_interface import IAccountRepository
 from src.domain.models.account_entity import AccountSessionEntity
 from src.infrastructure.database.repositories.mappers import ModelMapper

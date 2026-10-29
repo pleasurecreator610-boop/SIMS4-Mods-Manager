@@ -1,6 +1,6 @@
 from src.utils.mod_type_classifier import ModTypeClassifier
-from src.database.models import CatalogMod
-from src.database.manager import DatabaseManager
+from src.infrastructure.database.models import CatalogMod
+from src.infrastructure.database.manager import DatabaseManager
 
 
 def test_mod_type_classifier_choices():

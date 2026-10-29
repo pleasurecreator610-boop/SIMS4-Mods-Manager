@@ -7,8 +7,8 @@ extracting details, and persisting records into the database.
 from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy.orm import Session
 
-from src.database.manager import DatabaseManager
-from src.database.models import CatalogMod
+from src.infrastructure.database.manager import DatabaseManager
+from src.infrastructure.database.models import CatalogMod
 
 
 class CatalogSyncActions:

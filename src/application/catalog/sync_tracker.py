@@ -11,7 +11,7 @@ from src.api.schemas.catalog import (
     CatalogSyncStatusResponse,
     SubCategoryProgress,
 )
-from src.database.manager import DatabaseManager
+from src.infrastructure.database.manager import DatabaseManager
 from src.core.shutdown_manager import ShutdownManager
 from src.utils.logger import logger
 

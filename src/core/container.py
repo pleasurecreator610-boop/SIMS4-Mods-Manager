@@ -53,7 +53,7 @@ class AppContainer:
     # Propriétés de commodité typées pour les composants clés
     @property
     def database_manager(self) -> Any:
-        from src.database import DatabaseManager
+        from src.infrastructure.database import DatabaseManager
 
         if DatabaseManager in self._overrides:
             return self._overrides[DatabaseManager]

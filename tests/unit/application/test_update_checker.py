@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock
 
-from src.database import InstalledMod, CatalogMod
+from src.infrastructure.database import InstalledMod, CatalogMod
 from src.application.mods.mod_update_service import check_has_update, resolve_catalog_mod
 
 

@@ -20,8 +20,8 @@ from src.api.schemas.installed import (
     ModDependentsResponse,
 )
 from src.core.config import AppConfig
-from src.database.manager import DatabaseManager
-from src.database.models import InstalledMod
+from src.infrastructure.database.manager import DatabaseManager
+from src.infrastructure.database.models import InstalledMod
 from src.domain.interfaces.repositories.catalog_repository_interface import ICatalogRepository
 from src.domain.interfaces.repositories.mod_repository_interface import IInstalledModRepository
 from src.infrastructure.database.repositories.sqlalchemy_catalog_repository import (
@@ -281,7 +281,7 @@ class InstalledModsService:
         """Restaure la sauvegarde ZIP précédente d'un mod installé."""
         from pathlib import Path
         import shutil
-        from src.utils.archive import extract_archive
+        from src.infrastructure.filesystem.archive_extractor import extract_archive
 
         if GameDetector.is_game_running():
             return InstalledRestoreResponse(

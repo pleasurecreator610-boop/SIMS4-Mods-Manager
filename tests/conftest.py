@@ -5,11 +5,12 @@ import pytest
 from fastapi.testclient import TestClient
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+os.environ.setdefault("SIMS4_DISABLE_AUTH", "1")
 
 from src.api.app import app
 from src.core.session_manager import SessionManager
 from src.core.shutdown_manager import ShutdownManager
-from src.database import DatabaseManager
+from src.infrastructure.database import DatabaseManager
 
 _tracked_executors = []
 _orig_tpe_init = concurrent.futures.ThreadPoolExecutor.__init__
@@ -105,8 +106,10 @@ def isolate_test_database(tmp_path_factory):
 
 @pytest.fixture
 def client():
-    """TestClient FastAPI pré-configuré avec l'instance de base de données de test."""
-    with TestClient(app) as c:
+    """TestClient FastAPI pré-configuré avec l'instance de base de données de test et authentification interne."""
+    from src.core.security import get_internal_token
+    token = get_internal_token()
+    with TestClient(app, headers={"X-Internal-Token": token or ""}) as c:
         yield c
 
 

@@ -1,7 +1,7 @@
 """Tests unitaires pour le conteneur d'injection de dépendances (AppContainer)."""
 
 from src.core.container import AppContainer, get_container
-from src.database import DatabaseManager
+from src.infrastructure.database import DatabaseManager
 
 
 def test_app_container_singleton():

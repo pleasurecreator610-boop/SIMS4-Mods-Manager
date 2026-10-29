@@ -1,7 +1,7 @@
 from sqlalchemy import text
 
 from src.core.session_manager import SessionManager
-from src.database.manager import DatabaseManager
+from src.infrastructure.database.manager import DatabaseManager
 
 
 def test_sqlite_pragmas_wal_and_busy_timeout():

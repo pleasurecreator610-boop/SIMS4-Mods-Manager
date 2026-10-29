@@ -7,7 +7,7 @@ and filters candidates for upgrade.
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from src.application.mods.mod_update_actions import ModUpdateActions
-from src.database.models import CatalogMod, InstalledMod
+from src.infrastructure.database.models import CatalogMod, InstalledMod
 from src.domain.models.mod_entity import CatalogModEntity, InstalledModEntity
 
 

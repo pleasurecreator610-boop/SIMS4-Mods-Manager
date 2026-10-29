@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.api.app import app
-from src.database import DatabaseManager
+from src.infrastructure.database import DatabaseManager
 
 
 @pytest.fixture

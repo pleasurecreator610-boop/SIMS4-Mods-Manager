@@ -17,6 +17,15 @@ MAX_EXTRACTED_TOTAL_BYTES: int = 8 * 1024 * 1024 * 1024  # 8 Gio
 MAX_ARCHIVE_FILE_COUNT: int = 10_000
 MAX_COMPRESSION_RATIO: float = 100.0
 
+# Extensions exécutables ou scripts interdits à l'extraction dans le dossier Mods des Sims 4
+DANGEROUS_EXTENSIONS: set[str] = {
+    ".exe", ".bat", ".cmd", ".com", ".scr", ".pif", ".application",
+    ".gadget", ".msi", ".msp", ".vbs", ".vbe", ".js", ".jse", ".ws",
+    ".wsf", ".wsc", ".wsh", ".ps1", ".ps1xml", ".ps2", ".ps2xml",
+    ".psc1", ".psc2", ".msh", ".msh1", ".msh2", ".mshxml", ".msh1xml",
+    ".msh2xml", ".reg", ".dll",
+}
+
 
 class ArchiveSecurityError(ValueError):
     """Exception levée lorsqu'une archive viole une règle de sécurité (Zip Bomb ou Path Traversal)."""
@@ -119,6 +128,9 @@ class ZipArchiveHandler(BaseArchiveHandler):
             members = z.infolist()
             safe_members = []
             for m in members:
+                if Path(m.filename).suffix.lower() in DANGEROUS_EXTENSIONS:
+                    logger.warning(f"Exécutable ou script non autorisé bloqué dans l'archive ZIP : {m.filename}")
+                    continue
                 target_path = (dest_dir / m.filename).resolve()
                 if target_path == resolved_dest or resolved_dest in target_path.parents:
                     safe_members.append(m)
@@ -308,13 +320,24 @@ class ArchiveExtractor:
 
         return any(handler.can_handle(file_path) for handler in self._handlers)
 
+    def _sanitize_extracted_dir(self, dest_dir: Path) -> list[Path]:
+        """Élimine tout fichier exécutable ou script système dangereux extrait par inadvertance."""
+        for p in list(dest_dir.rglob("*")):
+            if p.is_file() and p.suffix.lower() in DANGEROUS_EXTENSIONS:
+                try:
+                    p.unlink()
+                    logger.warning(f"Fichier dangereux neutralisé et supprimé : {p.name}")
+                except Exception:
+                    pass
+        return [p for p in dest_dir.rglob("*") if p.is_file()]
+
     def extract(
         self,
         archive_path: Path,
         dest_dir: Path,
         progress_cb: Optional[Callable[[int, str], None]] = None,
     ) -> list[Path]:
-        """Extrait l'archive avec le gestionnaire adéquat avec mécanisme de repli et progression."""
+        """Extrait l'archive avec le gestionnaire adéquat avec mécanisme de repli, progression et assainissement."""
         dest_dir.mkdir(parents=True, exist_ok=True)
         errors: list[str] = []
 
@@ -322,7 +345,8 @@ class ArchiveExtractor:
         for handler in self._handlers:
             if handler.can_handle(archive_path):
                 try:
-                    return handler.extract(archive_path, dest_dir, progress_cb=progress_cb)
+                    handler.extract(archive_path, dest_dir, progress_cb=progress_cb)
+                    return self._sanitize_extracted_dir(dest_dir)
                 except ArchiveSecurityError:
                     raise
                 except Exception as e:
@@ -339,7 +363,7 @@ class ArchiveExtractor:
                     logger.info(
                         f"Extraction réussie avec le gestionnaire de secours {handler.__class__.__name__} sur {archive_path.name}"
                     )
-                    return extracted
+                    return self._sanitize_extracted_dir(dest_dir)
             except ArchiveSecurityError:
                 raise
             except Exception:

@@ -13,9 +13,9 @@ from typing import Callable, Dict, List, Optional, Set, Tuple
 from src.api.schemas.catalog import CatalogInstallRequest, CatalogInstallResponse, DependencyItem
 from src.application.mods.mod_install_actions import ModInstallActions
 from src.core.config import AppConfig
-from src.database.manager import DatabaseManager
-from src.database.models import CatalogMod, InstalledMod
-from src.utils.archive import extract_archive, is_archive
+from src.infrastructure.database.manager import DatabaseManager
+from src.infrastructure.database.models import CatalogMod, InstalledMod
+from src.infrastructure.filesystem.archive_extractor import extract_archive, is_archive
 from src.utils.file_utils import generate_unique_mod_folder_name
 from src.utils.dependency_noise_rules import is_likely_comment_or_noise
 from src.application.mods.mod_toggle_actions import ModToggleActions
@@ -197,8 +197,8 @@ class ModInstallCoordinator:
                             if rel_from_mods not in installed_files:
                                 installed_files.append(rel_from_mods)
                             logger.info(f"Configuration utilisateur préservée et restaurée : {rel_k}")
-                        except Exception as re:
-                            logger.debug(f"Restauration config ignorée pour {rel_k}: {re}")
+                        except Exception as exc:
+                            logger.debug(f"Restauration config ignorée pour {rel_k}: {exc}")
 
                 # If mod was previously disabled, maintain its disabled state
                 if is_mod_previously_disabled:

@@ -41,7 +41,10 @@ def init_security(disable_auth: bool = False) -> str:
 
 
 def get_internal_token() -> Optional[str]:
-    """Retourne le jeton de sécurité interne actuellement actif."""
+    """Retourne le jeton de sécurité interne actuellement actif (initialisé si nécessaire)."""
+    global _internal_token
+    if _internal_token is None and not is_auth_disabled():
+        init_security()
     return _internal_token
 
 
@@ -51,7 +54,7 @@ def is_auth_disabled() -> bool:
 
 
 def verify_internal_token(provided_token: Optional[str]) -> bool:
-    """Vérifie la validité d'un jeton reçu avec protection contre les attaques par canal auxiliaire.
+    """Vérifie la validité d'un jeton reçu avec protection contre les attaques par canal auxiliaire (Fail-Secure).
 
     Args:
         provided_token: Le jeton extrait de l'en-tête X-Internal-Token.
@@ -62,11 +65,11 @@ def verify_internal_token(provided_token: Optional[str]) -> bool:
     if is_auth_disabled():
         return True
 
+    global _internal_token
     if _internal_token is None:
-        # Si la sécurité n'a pas été explicitement initialisée (ex: tests unitaires rapides)
-        return True
+        init_security()
 
-    if not provided_token:
+    if not provided_token or _internal_token is None:
         return False
 
     return hmac.compare_digest(provided_token.strip(), _internal_token)

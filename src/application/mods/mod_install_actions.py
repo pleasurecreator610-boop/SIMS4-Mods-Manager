@@ -10,9 +10,9 @@ import shutil
 from typing import Any, Callable, List, Optional, Tuple
 from sqlalchemy.orm import Session
 
-from src.database.manager import DatabaseManager
-from src.database.models import InstalledMod
-from src.utils.archive import extract_archive, create_backup_zip, is_archive
+from src.infrastructure.database.manager import DatabaseManager
+from src.infrastructure.database.models import InstalledMod
+from src.infrastructure.filesystem.archive_extractor import extract_archive, create_backup_zip, is_archive
 from src.utils.file_utils import (
     sanitize_filename,
 )

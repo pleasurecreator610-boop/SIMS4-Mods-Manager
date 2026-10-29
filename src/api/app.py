@@ -15,7 +15,7 @@ from src.api.routes import (
     logs_router,
     system_router,
 )
-from src.database import DatabaseManager
+from src.infrastructure.database import DatabaseManager
 from src.providers import ProviderRegistry
 from src.utils.logger import logger
 
@@ -54,7 +54,7 @@ def create_app() -> FastAPI:
             "Catalogue multi-sources, téléchargement, installation, détection, activation/désactivation, "
             "mises à jour en 1 clic, contournement anti-bot et journalisation en temps réel."
         ),
-        version="0.1.0",
+        version="0.5.0",
         lifespan=lifespan,
     )
 
@@ -64,8 +64,6 @@ def create_app() -> FastAPI:
         "http://127.0.0.1",
         "http://localhost:8000",
         "http://127.0.0.1:8000",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
         "app://sims4-mods-manager",
     ]
     app.add_middleware(
@@ -81,7 +79,7 @@ def create_app() -> FastAPI:
 
     @app.middleware("http")
     async def security_token_middleware(request, call_next):
-        """Vérifie l'origine loopback, le jeton X-Internal-Token et applique les en-têtes HTTP de sécurité."""
+        """Vérifie l'origine loopback, l'hôte (anti-DNS Rebinding), le jeton X-Internal-Token et applique les en-têtes HTTP de sécurité."""
         path = request.url.path
         public_paths = ("/api/system/ping", "/docs", "/redoc", "/openapi.json")
         if not (path.startswith(public_paths) or path == "/"):
@@ -90,6 +88,14 @@ def create_app() -> FastAPI:
                 return JSONResponse(
                     status_code=403,
                     content={"detail": "Accès restreint à l'environnement local (loopback)."},
+                )
+
+            # Protection contre les attaques par DNS Rebinding
+            req_host = (request.headers.get("host") or "").split(":")[0].lower()
+            if req_host and req_host not in ("127.0.0.1", "localhost", "testserver", "::1"):
+                return JSONResponse(
+                    status_code=403,
+                    content={"detail": "En-tête Host non autorisé (anti-DNS Rebinding)."},
                 )
 
             token = request.headers.get("X-Internal-Token")

@@ -15,7 +15,7 @@ from src.application.dependencies.dependency_special_cases import (
     SPECIAL_DEPENDENCY_REMOTE_IDS,
     find_special_dependency_case,
 )
-from src.database.models import CatalogMod, InstalledMod
+from src.infrastructure.database.models import CatalogMod, InstalledMod
 from src.utils.mod_matcher import ModMatcher
 
 
