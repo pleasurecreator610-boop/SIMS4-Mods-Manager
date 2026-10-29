@@ -111,11 +111,11 @@ class DetailHeaderWidget(QWidget):
         meta_layout.setContentsMargins(4, 2, 4, 2)
         meta_layout.setSpacing(16)
 
-        self.lbl_version = QLabel("Version: -")
+        self.lbl_version = QLabel(f"{tr('mod_detail.version')} -")
         self.lbl_version.setStyleSheet("color: #cbd5e1; font-size: 11px; font-weight: 600;")
         meta_layout.addWidget(self.lbl_version)
 
-        self.lbl_updated = QLabel("Mis à jour: -")
+        self.lbl_updated = QLabel(tr("mod_detail.meta_date", date="-"))
         self.lbl_updated.setStyleSheet("color: #94a3b8; font-size: 11px;")
         meta_layout.addWidget(self.lbl_updated)
 

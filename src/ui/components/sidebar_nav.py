@@ -75,10 +75,17 @@ class SidebarNavWidget(QFrame):
         footer_layout.setSpacing(6)
 
         lang_row = QHBoxLayout()
-        lang_row.setSpacing(6)
+        lang_row.setSpacing(4)
         current_lang = self.i18n.get_language()
-        for code, label in [("fr", "🇫🇷 FR"), ("en", "🇬🇧 EN")]:
+        for code, label, tip in [
+            ("fr", "🇫🇷", "Français"),
+            ("en", "🇬🇧", "English"),
+            ("es", "🇪🇸", "Español"),
+            ("zh", "🇨🇳", "中文"),
+            ("hi", "🇮🇳", "हिन्दी"),
+        ]:
             btn_lang = QPushButton(label)
+            btn_lang.setToolTip(tip)
             btn_lang.setCheckable(True)
             btn_lang.setChecked(code == current_lang)
             btn_lang.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -89,9 +96,9 @@ class SidebarNavWidget(QFrame):
                     color: #94a3b8;
                     border: 1px solid #334155;
                     border-radius: 6px;
-                    font-size: 11px;
+                    font-size: 13px;
                     font-weight: 700;
-                    padding: 2px 8px;
+                    padding: 2px 4px;
                 }
                 QPushButton:hover {
                     background-color: #334155;

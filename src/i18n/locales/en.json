@@ -8,7 +8,8 @@
     "direct": "Direct",
     "error": "Error",
     "ready": "Ready",
-    "pending": "Pending"
+    "pending": "Pending",
+    "completed": "Completed"
   },
   "app": {
     "title": "SIMS 4",
@@ -168,7 +169,8 @@
     "status_inactive": "⏸️ Inactive",
     "toggle_tooltip": "Click to enable or disable this mod without deleting it",
     "restore_tooltip": "Restore backup of the previous version",
-    "subfolder_tooltip": "Subfolder: {folder}"
+    "subfolder_tooltip": "Subfolder: {folder}",
+    "btn_disable_anyway": "Disable anyway"
   },
   "updates": {
     "title": "Mod Updates",
@@ -250,7 +252,8 @@
     "login_success_title": "Session Saved",
     "login_success_msg": "{msg}\n\nCatalog sync has started in the background!",
     "adult_hidden_notice": "🔞 Adult platforms (LoversLab, NSFWMods) are currently hidden (disabled by default).",
-    "btn_enable_adult": "Enable +18 Content"
+    "btn_enable_adult": "Enable +18 Content",
+    "test_btn": "🔄 Test session"
   },
   "logs": {
     "title": "📋 Execution Logs & History",
@@ -340,7 +343,8 @@
     "btn_stop": "⏹️ Stop",
     "scraping_running": "⏳ Scraping in progress...",
     "scraping_paused": "⏸️ Scraping paused...",
-    "patreon_desc": "Subscriber access and download link verification."
+    "patreon_desc": "Subscriber access and download link verification.",
+    "waiting": "Waiting"
   },
   "filter_bar": {
     "all_access": "All access states",
@@ -490,5 +494,10 @@
     "btn_disable": "⏸️ Disable this package",
     "btn_enable": "🟢 Re-enable",
     "rescan_error": "Failed to rescan conflicts: {error}"
+  },
+  "progress": {
+    "operation_in_progress": "Operation in progress...",
+    "initializing": "Initializing...",
+    "connecting": "Connecting to server..."
   }
 }

@@ -7,14 +7,16 @@ from PySide6.QtWidgets import (
 )
 
 from src.ui.components.base_modal_dialog import BaseModalDialog
+from src.i18n import tr
 
 
 class ProgressDialog(BaseModalDialog):
     """A premium dark-themed dialog displaying real-time download speed, percentage, and unzip status."""
 
-    def __init__(self, title: str = "Opération en cours...", parent=None):
-        super().__init__(title=title, width=500, height=190, parent=parent, closable=False)
-        self.init_ui(title)
+    def __init__(self, title: str = "", parent=None):
+        dlg_title = title or tr("progress.operation_in_progress")
+        super().__init__(title=dlg_title, width=500, height=190, parent=parent, closable=False)
+        self.init_ui(dlg_title)
 
     def init_ui(self, title: str):
         """Exécute l'opération init ui.
@@ -82,12 +84,12 @@ class ProgressDialog(BaseModalDialog):
         layout.addWidget(divider)
 
         # Status Label (Action name: e.g. "Téléchargement en cours...", "Décompression...")
-        self.status_label = QLabel("Initialisation...")
+        self.status_label = QLabel(tr("progress.initializing"))
         self.status_label.setStyleSheet("font-size: 13px; font-weight: 600; color: #cbd5e1;")
         layout.addWidget(self.status_label)
 
         # Details Label (Metrics: e.g. "12.4 / 45.0 Mo • 3.2 Mo/s" or "Décompression : 8 fichiers...")
-        self.details_label = QLabel("Connexion au serveur...")
+        self.details_label = QLabel(tr("progress.connecting"))
         self.details_label.setStyleSheet("font-size: 11px; color: #94a3b8;")
         layout.addWidget(self.details_label)
 

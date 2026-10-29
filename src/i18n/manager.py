@@ -24,6 +24,8 @@ SUPPORTED_LANGUAGES = {
     "fr": {"name": "Français", "flag": "🇫🇷", "code": "fr"},
     "en": {"name": "English", "flag": "🇬🇧", "code": "en"},
     "es": {"name": "Español", "flag": "🇪🇸", "code": "es"},
+    "zh": {"name": "中文 (简体)", "flag": "🇨🇳", "code": "zh"},
+    "hi": {"name": "हिन्दी", "flag": "🇮🇳", "code": "hi"},
 }
 
 DEFAULT_LANGUAGE = "fr"

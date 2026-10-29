@@ -5,6 +5,7 @@ in the ProviderDrawer.
 
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel
 from PySide6.QtCore import Qt
+from src.i18n import tr
 
 
 class SubcategoryRowWidget(QFrame):
@@ -42,7 +43,7 @@ class SubcategoryRowWidget(QFrame):
         self.lbl_name.setStyleSheet("font-size: 10px; color: #cbd5e1; font-weight: 500;")
         r_layout.addWidget(self.lbl_name, stretch=1)
 
-        self.lbl_detail = QLabel("Attente")
+        self.lbl_detail = QLabel(tr("drawer.waiting"))
         self.lbl_detail.setStyleSheet("font-size: 9px; color: #64748b;")
         self.lbl_detail.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         r_layout.addWidget(self.lbl_detail)

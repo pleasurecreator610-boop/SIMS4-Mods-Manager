@@ -8,13 +8,18 @@ import sys
 import time
 from typing import List, Tuple
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
+
 
 def run_step(name: str, cmd: List[str]) -> Tuple[bool, float, str]:
     print(f"\n[+] Running {name}: {' '.join(cmd)}")
     start = time.time()
-    res = subprocess.run(cmd, capture_output=True, text=True)
+    res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     elapsed = time.time() - start
-    output = (res.stdout + "\n" + res.stderr).strip()
+    output = ((res.stdout or "") + "\n" + (res.stderr or "")).strip()
     return res.returncode == 0, elapsed, output
 
 
