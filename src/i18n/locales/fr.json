@@ -126,6 +126,7 @@
     "btn_already_installed": "✓ Déjà Installé",
     "btn_update_available": "🔄 Mettre à Jour",
     "btn_login_loverslab_required": "🔒 Compte LoversLab Requis",
+    "btn_login_nsfwmods_required": "🔒 Compte NSFWMods Requis",
     "btn_login_patreon_required": "🔒 Connexion Requise",
     "btn_patreon_sub_required": "🔒 Abonnement Requis",
     "btn_details": "Détails"

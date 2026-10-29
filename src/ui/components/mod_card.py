@@ -25,6 +25,7 @@ class ModCard(BaseModCard):
         has_update: bool = False,
         is_patreon_auth: bool = False,
         is_loverslab_auth: bool = False,
+        is_nsfwmods_auth: bool = True,
         parent=None,
     ):
         super().__init__(mod_data, parent)
@@ -32,6 +33,7 @@ class ModCard(BaseModCard):
         self.has_update = has_update
         self.is_patreon_auth = is_patreon_auth
         self.is_loverslab_auth = is_loverslab_auth
+        self.is_nsfwmods_auth = is_nsfwmods_auth
         self.thumb_width = 271
         self.thumb_height = 130
 
@@ -89,7 +91,7 @@ class ModCard(BaseModCard):
         is_patreon_mod = (
             source == "patreon"
             or "Patreon" in self.mod_data.get("tags", [])
-            or patreon_status in ["PUBLIC", "UNLOCKED", "LOCKED"]
+            or (source in ("loverslab", "nsfwmods") and patreon_status in ["UNLOCKED", "LOCKED"])
         )
 
         if is_patreon_mod:
@@ -145,8 +147,11 @@ class ModCard(BaseModCard):
         self.action_btn.setFixedHeight(34)
 
         # Determine Button State and Appearance
+        # Sites other than patreon, loverslab, and nsfwmods (e.g. curseforge, thesimsresource)
+        # work 100% without any account.
         requires_patreon = is_patreon_mod
         requires_loverslab = source == "loverslab" and not is_patreon_mod
+        requires_nsfwmods = source == "nsfwmods" and not is_patreon_mod
 
         if self.has_update:
             # Update Available
@@ -182,6 +187,20 @@ class ModCard(BaseModCard):
         elif requires_loverslab and not self.is_loverslab_auth:
             # User is NOT logged in with a registered member account on LoversLab
             self.action_btn.setText(tr("catalog.btn_login_loverslab_required"))
+            self.action_btn.setEnabled(False)
+            self.action_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #3b141d;
+                    color: #fca5a5;
+                    border: 1px solid #7f1d1d;
+                    border-radius: 8px;
+                    font-weight: 700;
+                    font-size: 11px;
+                }
+            """)
+        elif requires_nsfwmods and not self.is_nsfwmods_auth:
+            # User is NOT logged in with a registered member account on NSFWMods
+            self.action_btn.setText(tr("catalog.btn_login_nsfwmods_required"))
             self.action_btn.setEnabled(False)
             self.action_btn.setStyleSheet("""
                 QPushButton {

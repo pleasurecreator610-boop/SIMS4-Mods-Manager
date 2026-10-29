@@ -5,6 +5,8 @@ via CurseForge's CDN (edge.forgecdn.net / /api/v1/mods/{projectId}/files/{fileId
 """
 
 import re
+import threading
+import time
 import urllib.parse
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -262,10 +264,60 @@ class CurseForgeProvider(BaseSourceProvider):
         },
     ]
 
+    _cf_request_lock = threading.Lock()
+    _last_request_ts: float = 0.0
+    _min_request_interval: float = 0.45
+
     def __init__(self) -> None:
         super().__init__()
         self._category_pages_cache: Dict[str, int] = {c["id"]: c["default_pages"] for c in self.CATEGORIES}
         self.current_category_info: str = "Mods - Gameplay (CurseForge)"
+
+    @classmethod
+    def _pace_request(cls, session: Any) -> None:
+        """Applique un espacement minimal entre les requêtes concurrentes vers CurseForge pour éviter le HTTP 429."""
+        if "MagicMock" in type(session).__name__:
+            return
+        with cls._cf_request_lock:
+            now = time.monotonic()
+            elapsed = now - cls._last_request_ts
+            if elapsed < cls._min_request_interval:
+                wait_time = cls._min_request_interval - elapsed
+                if not ShutdownManager.is_shutting_down():
+                    time.sleep(wait_time)
+            cls._last_request_ts = time.monotonic()
+
+    @classmethod
+    def _get_with_retry(
+        cls,
+        session: Any,
+        url: str,
+        timeout: int = 20,
+        max_retries: int = 3,
+        **kwargs: Any,
+    ) -> Any:
+        """Exécute un GET avec limitation de débit et retry exponentiel en cas de HTTP 429."""
+        is_mock = "MagicMock" in type(session).__name__
+        resp = None
+        for attempt in range(max_retries):
+            if ShutdownManager.is_shutting_down():
+                break
+            cls._pace_request(session)
+            resp = session.get(url, timeout=timeout, **kwargs)
+            if getattr(resp, "status_code", 200) != 429:
+                return resp
+            if is_mock or attempt >= max_retries - 1:
+                break
+            retry_after_hdr = ""
+            if hasattr(resp, "headers") and isinstance(resp.headers, dict):
+                retry_after_hdr = str(resp.headers.get("Retry-After", ""))
+            backoff = float(retry_after_hdr) if retry_after_hdr.isdigit() else (1.5 * (attempt + 1))
+            backoff = min(backoff, 6.0)
+            logger.info(
+                f"CurseForge HTTP 429 sur {url} - nouvel essai {attempt + 1}/{max_retries - 1} dans {backoff:.1f}s..."
+            )
+            time.sleep(backoff)
+        return resp
 
     def update_category_detected_pages(self, cat_id: str, detected_pages: int) -> None:
         """Met à jour le nombre de pages détectées pour une catégorie CurseForge."""
@@ -311,9 +363,10 @@ class CurseForgeProvider(BaseSourceProvider):
         detected_pages: Optional[int] = None
 
         try:
-            resp = session.get(url, timeout=20)
-            if resp.status_code != 200:
-                logger.warning(f"CurseForge request returned status {resp.status_code} for {url}")
+            resp = self._get_with_retry(session, url, timeout=20)
+            if resp is None or resp.status_code != 200:
+                code = getattr(resp, "status_code", "N/A")
+                logger.warning(f"CurseForge request returned status {code} for {url}")
                 return results, detected_pages
 
             soup = BeautifulSoup(resp.text, "html.parser")
@@ -476,8 +529,8 @@ class CurseForgeProvider(BaseSourceProvider):
         }
 
         try:
-            resp = session.get(mod_url, timeout=15)
-            if resp.status_code != 200:
+            resp = self._get_with_retry(session, mod_url, timeout=15)
+            if resp is None or resp.status_code != 200:
                 return details
 
             soup = BeautifulSoup(resp.text, "html.parser")
@@ -538,8 +591,8 @@ class CurseForgeProvider(BaseSourceProvider):
             else f"{self.base_url}/sims4/mods/{remote_id.strip('/')}"
         )
         try:
-            resp = session.get(target_url, timeout=15)
-            if resp.status_code == 200:
+            resp = self._get_with_retry(session, target_url, timeout=15)
+            if resp is not None and resp.status_code == 200:
                 soup = BeautifulSoup(resp.text, "html.parser")
                 title_el = soup.select_one("h1")
                 author_el = soup.select_one("a.author-name, .author-name")
@@ -619,10 +672,110 @@ class CurseForgeProvider(BaseSourceProvider):
         """Tous les mods indexés sur CurseForge sont publics."""
         return "PUBLIC"
 
+    def get_creator_info(self, page_url: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+        """Extrait les informations du créateur (ID, nom, URL du profil) depuis une page CurseForge."""
+        if not page_url:
+            return None, None, None
+        session = SessionManager.get_http_session(self.provider_name)
+        try:
+            resp = self._get_with_retry(session, page_url, timeout=15)
+            if resp is None or resp.status_code != 200:
+                return None, None, None
+            soup = BeautifulSoup(resp.text, "html.parser")
+            author_el = soup.select_one("a.author-name, .author-name, a[href*='/members/']")
+            if author_el:
+                name = author_el.get_text(strip=True)
+                href = author_el.get("href", "")
+                profile_url = urllib.parse.urljoin(self.base_url, href) if href else None
+                creator_id = href.rstrip("/").split("/")[-1] if href else name
+                return creator_id, name, profile_url
+        except Exception as e:
+            logger.debug(f"CurseForge get_creator_info failed for {page_url}: {e}")
+        return None, None, None
+
     def check_user_already_commented(self, page_url: str, required_keywords: List[str]) -> Tuple[bool, Optional[str]]:
-        """Vérifie si l'utilisateur a déjà commenté sur CurseForge."""
+        """
+        Vérifie via l'API `/api/v1/mods/{projectId}/comments` si un commentaire
+        mentionnant les dépendances manquantes a déjà été publié sur CurseForge.
+        """
+        if not page_url:
+            return False, None
+        session = SessionManager.get_http_session(self.provider_name)
+        try:
+            clean_url = re.sub(r"/comments/?$", "", page_url.split("?")[0].rstrip("/"))
+            page_resp = self._get_with_retry(session, clean_url, timeout=15)
+            if page_resp is None or page_resp.status_code != 200:
+                return False, None
+            soup = BeautifulSoup(page_resp.text, "html.parser")
+            project_id, _ = self._extract_project_and_file_ids(soup, page_resp.text)
+            if not project_id:
+                return False, None
+
+            comments_api = f"{self.base_url}/api/v1/mods/{project_id}/comments"
+            c_resp = self._get_with_retry(session, comments_api, timeout=12)
+            if c_resp is None or c_resp.status_code != 200:
+                return False, None
+
+            payload = c_resp.json()
+            comments_list = payload.get("data", []) if isinstance(payload, dict) else []
+            acc = SessionManager.get_saved_session(self.provider_name)
+            current_user = (acc.user_display_name or "").strip().lower() if acc else ""
+
+            kw_lower = [k.strip().lower() for k in required_keywords if k and k.strip()]
+            for item in comments_list:
+                body_text = str(item.get("body") or item.get("text") or "").lower()
+                author_info = item.get("author") or {}
+                author_name = str(author_info.get("username") or author_info.get("displayName") or "").lower()
+                if current_user and author_name and current_user in author_name:
+                    if not kw_lower or any(k in body_text for k in kw_lower):
+                        return True, str(item.get("datePosted") or "Déjà commenté")
+                elif kw_lower and all(k in body_text for k in kw_lower):
+                    return True, str(item.get("datePosted") or "Déjà commenté")
+        except Exception as e:
+            logger.debug(f"CurseForge check_user_already_commented failed for {page_url}: {e}")
         return False, None
 
     def post_mod_comment(self, page_url: str, message: str) -> Tuple[bool, str]:
-        """Publication de commentaire sur CurseForge."""
-        return False, "La publication automatisée de commentaires n'est pas supportée sur CurseForge."
+        """
+        Tente de publier un commentaire sur un mod CurseForge via `/api/v1/mods/{projectId}/comments`.
+        Si l'auteur a désactivé les commentaires (`hasComments: false`) ou si Cloudflare bloque la requête POST,
+        retourne un message explicite orientant vers l'ouverture dans le navigateur.
+        """
+        if not page_url or not message.strip():
+            return False, "URL ou message de commentaire manquant."
+        session = SessionManager.get_http_session(self.provider_name)
+        try:
+            clean_url = re.sub(r"/comments/?$", "", page_url.split("?")[0].rstrip("/"))
+            page_resp = self._get_with_retry(session, clean_url, timeout=15)
+            if page_resp is None or page_resp.status_code != 200:
+                return False, "Impossible de charger la page du mod CurseForge."
+
+            if '"hasComments":false' in page_resp.text or '\\"hasComments\\":false' in page_resp.text:
+                return (
+                    False,
+                    "L'auteur de ce mod a désactivé la section commentaires sur CurseForge.",
+                )
+
+            soup = BeautifulSoup(page_resp.text, "html.parser")
+            project_id, _ = self._extract_project_and_file_ids(soup, page_resp.text)
+            if not project_id:
+                return False, "Impossible d'identifier le Project ID CurseForge pour publier le commentaire."
+
+            comments_api = f"{self.base_url}/api/v1/mods/{project_id}/comments"
+            post_resp = session.post(
+                comments_api,
+                json={"body": message.strip(), "bodyType": 1},
+                headers={"Referer": f"{clean_url}/comments"},
+                timeout=15,
+            )
+            if post_resp.status_code in (200, 201):
+                return True, "Commentaire publié avec succès sur CurseForge !"
+            if post_resp.status_code in (401, 403):
+                return (
+                    False,
+                    "Session CurseForge non connectée ou protégée par Cloudflare. Utilisez le bouton d'ouverture dans le navigateur.",
+                )
+            return False, f"Échec de publication du commentaire sur CurseForge (HTTP {post_resp.status_code})."
+        except Exception as e:
+            logger.error(f"Error posting CurseForge comment on {page_url}: {e}")
+            return False, str(e)

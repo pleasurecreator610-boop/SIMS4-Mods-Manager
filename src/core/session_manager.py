@@ -112,6 +112,21 @@ class SessionManager:
         if provider_name.lower() == "patreon":
             return bool(cookies.get("session_id") or cookies.get("patreon_session_id") or cookies.get("api_session_id"))
 
+        if provider_name.lower() == "thesimsresource":
+            return bool(
+                cookies.get("tsrmember")
+                or cookies.get("memberid")
+                or cookies.get("tsr_session")
+                or (acc.is_authenticated and acc.user_display_name)
+            )
+
+        if provider_name.lower() == "curseforge":
+            return bool(
+                cookies.get("CobaltSession")
+                or cookies.get("CurseForgeSession")
+                or (acc.is_authenticated and acc.user_display_name)
+            )
+
         return bool(acc.is_authenticated)
 
     @classmethod

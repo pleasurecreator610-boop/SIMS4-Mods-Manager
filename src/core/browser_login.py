@@ -161,6 +161,17 @@ class BrowserLoginHelper:
                         }
                     ]
                 )
+            elif "nsfwmods.com" in target_url:
+                context.add_cookies(
+                    [
+                        {
+                            "name": "ips4_hasAcceptedAge",
+                            "value": "1",
+                            "domain": ".nsfwmods.com",
+                            "path": "/",
+                        }
+                    ]
+                )
 
             try:
                 page.goto(target_url, timeout=60000, wait_until="domcontentloaded")
@@ -172,12 +183,20 @@ class BrowserLoginHelper:
             )
 
             start_time = time.time()
+            prov_lower = provider_name.lower()
+            member_logged_in = False
             while time.time() - start_time < timeout_seconds:
                 try:
                     if page.is_closed() or not context.pages:
                         break
 
-                    if provider_name == "loverslab":
+                    try:
+                        for c in context.cookies():
+                            cookies_dict[c["name"]] = c["value"]
+                    except Exception:
+                        pass
+
+                    if prov_lower in ("loverslab", "nsfwmods"):
                         if (
                             page.query_selector("#elUserNav")
                             or page.query_selector("a#elUserLink")
@@ -187,11 +206,45 @@ class BrowserLoginHelper:
                             user_elem = page.query_selector("a#elUserLink") or page.query_selector("#elUserNav strong")
                             if user_elem:
                                 display_name = user_elem.inner_text().strip()
-                    elif provider_name == "patreon":
+                        if cookies_dict.get("ips4_member_id") and cookies_dict.get("ips4_member_id") != "0":
+                            is_authenticated = True
+                            member_logged_in = True
+                    elif prov_lower == "patreon":
                         if page.query_selector("[data-tag='user-menu-btn']") or page.query_selector(
                             "nav[aria-label='User']"
                         ):
                             is_authenticated = True
+                            member_logged_in = True
+                    elif prov_lower == "thesimsresource":
+                        if (
+                            page.query_selector("a[href*='/account/logout']")
+                            or page.query_selector("#top_com")
+                            or cookies_dict.get("tsrmember")
+                            or cookies_dict.get("memberid")
+                        ):
+                            is_authenticated = True
+                            member_logged_in = bool(
+                                cookies_dict.get("tsrmember")
+                                or cookies_dict.get("memberid")
+                                or page.query_selector("a[href*='/account/logout']")
+                            )
+                    elif prov_lower == "curseforge":
+                        if (
+                            cookies_dict.get("CobaltSession")
+                            or cookies_dict.get("CurseForgeSession")
+                            or page.query_selector("a[href*='/account']")
+                        ):
+                            is_authenticated = True
+                            member_logged_in = True
+
+                    if member_logged_in:
+                        time.sleep(1.5)
+                        try:
+                            for c in context.cookies():
+                                cookies_dict[c["name"]] = c["value"]
+                        except Exception:
+                            pass
+                        break
 
                     time.sleep(1.0)
                 except Exception:
@@ -203,16 +256,26 @@ class BrowserLoginHelper:
                     cookies_dict[c["name"]] = c["value"]
                 logger.info(f"Extraction réussie de {len(cookies_dict)} cookie(s) depuis le navigateur.")
             except Exception as e:
-                logger.error(f"Erreur lors de l'extraction des cookies: {e}")
+                if not cookies_dict:
+                    logger.error(f"Erreur lors de l'extraction des cookies: {e}")
+                else:
+                    logger.info(
+                        f"Fenêtre fermée par l'utilisateur; {len(cookies_dict)} cookie(s) déjà capturé(s) en mémoire."
+                    )
 
-            context.close()
+            try:
+                context.close()
+            except Exception:
+                pass
 
         if cookies_dict:
-            if provider_name == "loverslab":
+            if provider_name.lower() in ("loverslab", "nsfwmods"):
                 if cookies_dict.get("ips4_member_id") and cookies_dict.get("ips4_member_id") != "0":
                     is_authenticated = True
                 elif "cf_clearance" in cookies_dict or "ips4_hasAcceptedAge" in cookies_dict:
                     is_authenticated = True
+            elif provider_name.lower() in ("thesimsresource", "curseforge"):
+                is_authenticated = True
 
             save_session_callback(
                 provider_name=provider_name,

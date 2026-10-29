@@ -279,6 +279,7 @@ class CatalogView(QWidget):
 
         is_patreon_auth = any(a.get("provider_name") == "patreon" and a.get("is_member") for a in accounts)
         is_loverslab_auth = any(a.get("provider_name") == "loverslab" and a.get("is_member") for a in accounts)
+        is_nsfwmods_auth = any(a.get("provider_name") == "nsfwmods" and a.get("is_member") for a in accounts)
 
         items = res.get("items", [])
         self.total_items = res.get("total", 0)
@@ -315,6 +316,7 @@ class CatalogView(QWidget):
                 has_update=m.get("has_update", False),
                 is_patreon_auth=is_patreon_auth,
                 is_loverslab_auth=is_loverslab_auth,
+                is_nsfwmods_auth=is_nsfwmods_auth,
             )
             card.install_requested.connect(self.install_mod)
             card.details_requested.connect(lambda d, inst=m.get("is_installed", False): self._show_mod_details(d, inst))

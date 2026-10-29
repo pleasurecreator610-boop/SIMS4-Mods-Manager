@@ -126,6 +126,7 @@
     "btn_already_installed": "✓ Already Installed",
     "btn_update_available": "🔄 Update",
     "btn_login_loverslab_required": "🔒 LoversLab Account Required",
+    "btn_login_nsfwmods_required": "🔒 NSFWMods Account Required",
     "btn_login_patreon_required": "🔒 Login Required",
     "btn_patreon_sub_required": "🔒 Subscription Required",
     "btn_details": "Details"

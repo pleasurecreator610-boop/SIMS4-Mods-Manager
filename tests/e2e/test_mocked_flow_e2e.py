@@ -2148,5 +2148,210 @@ def test_adult_content_disabled_by_default_and_multi_provider_drawer_e2e(e2e_env
     assert drawer.nm_card.drawer_progress_bar.value() > 0
 
 
+def test_nsfwmods_login_timeout_account_free_downloads_and_comments_e2e(tmp_path):
+    """
+    Vérifie :
+    1. Le timeout étendu dans `ApiClient.login_account` (>= timeout_seconds + 60s) et la détection de session `nsfwmods`.
+    2. Le téléchargement et l'activation du bouton d'installation sans compte pour `curseforge` et `thesimsresource`,
+       tandis que `loverslab`, `nsfwmods` et `patreon` exigent un compte.
+    3. La vérification et publication de commentaires sur `TheSimsResourceProvider` (`/feedback/ax-add-comment/`)
+       et `CurseForgeProvider` (`/api/v1/mods/{projectId}/comments`).
+    """
+    from unittest.mock import patch
+    from PySide6.QtWidgets import QApplication
+    from src.api.client import ApiClient
+    from src.core.session_manager import SessionManager
+    from src.ui.components.mod_card import ModCard
+    from plugins.curseforge.scraper import CurseForgeProvider
+    from plugins.thesimsresource.scraper import TheSimsResourceProvider
+
+    _app = QApplication.instance() or QApplication([])
+
+    # 1. Verify ApiClient.login_account passes extended timeout (>= 360s for 300s login)
+    client = ApiClient("http://127.0.0.1:8000")
+    captured_kwargs = {}
+
+    def _fake_post(url, **kwargs):
+        captured_kwargs["url"] = url
+        captured_kwargs.update(kwargs)
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.raise_for_status = MagicMock()
+        resp.json.return_value = {"success": True, "message": "OK", "cookies_count": 4}
+        return resp
+
+    with patch.object(client._client, "post", side_effect=_fake_post):
+        res = client.login_account("nsfwmods", timeout_seconds=300)
+        assert res["success"] is True
+        assert captured_kwargs["url"] == "/api/accounts/nsfwmods/login"
+        assert captured_kwargs["timeout"] >= 360.0
+
+    # 2. Verify SessionManager member auth detection for nsfwmods, thesimsresource, curseforge
+    SessionManager.save_session(
+        provider_name="nsfwmods",
+        cookies={"ips4_member_id": "998877", "ips4_hasAcceptedAge": "1"},
+        user_display_name="SimmerNSFW",
+        is_authenticated=True,
+    )
+    assert SessionManager.is_member_authenticated("nsfwmods") is True
+    assert SessionManager.is_session_ready("nsfwmods") is True
+
+    SessionManager.save_session(
+        provider_name="thesimsresource",
+        cookies={"tsrmember": "1", "memberid": "445566"},
+        user_display_name="SimmerTSR",
+        is_authenticated=True,
+    )
+    assert SessionManager.is_member_authenticated("thesimsresource") is True
+
+    # 3. Verify ModCard button states without any account logged in:
+    # CurseForge & TSR must be enabled without account, whereas LoversLab, NSFWMods, Patreon require login
+    for free_source in ("curseforge", "thesimsresource"):
+        card_free = ModCard(
+            {
+                "id": 1,
+                "source": free_source,
+                "remote_id": "free-mod-1",
+                "title": f"Free Mod {free_source}",
+                "author": "Creator",
+                "page_url": "https://example.com/mod",
+                "patreon_status": "PUBLIC",
+            },
+            is_installed=False,
+            has_update=False,
+            is_patreon_auth=False,
+            is_loverslab_auth=False,
+            is_nsfwmods_auth=False,
+        )
+        assert card_free.action_btn.isEnabled() is True
+
+    for auth_source in ("loverslab", "nsfwmods", "patreon"):
+        card_locked = ModCard(
+            {
+                "id": 2,
+                "source": auth_source,
+                "remote_id": "auth-mod-2",
+                "title": f"Auth Mod {auth_source}",
+                "author": "Creator",
+                "page_url": "https://example.com/mod",
+                "patreon_status": "PUBLIC",
+            },
+            is_installed=False,
+            has_update=False,
+            is_patreon_auth=False,
+            is_loverslab_auth=False,
+            is_nsfwmods_auth=False,
+        )
+        assert card_locked.action_btn.isEnabled() is False
+
+    # 4. Verify TSR comment checking and posting via /feedback/ax-add-comment/
+    tsr_provider = TheSimsResourceProvider()
+    mock_tsr_session = MagicMock()
+    tsr_page_html = """
+    <html><body>
+      <a class="creator-name" href="/artists/SimArtist/">SimArtist</a>
+      <div class="comments-area">
+        <div class="comment-list">
+          <div class="comment group">
+            <div class="comment-message">
+              <p><strong><a href="/members/SimmerTSR/">SimmerTSR</a></strong>
+              <span class="date-added">∙ Oct 29, 2026</span></p>
+              <p>Missing requirement XML Injector in description</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </body></html>
+    """
+
+    def _tsr_get(url, **kwargs):
+        r = MagicMock()
+        r.status_code = 200
+        r.text = tsr_page_html
+        return r
+
+    def _tsr_post(url, data=None, headers=None, **kwargs):
+        r = MagicMock()
+        r.status_code = 200
+        r.text = "OK"
+        return r
+
+    mock_tsr_session.get.side_effect = _tsr_get
+    mock_tsr_session.post.side_effect = _tsr_post
+
+    with patch.object(SessionManager, "get_http_session", return_value=mock_tsr_session):
+        cid, cname, curl = tsr_provider.get_creator_info("https://www.thesimsresource.com/downloads/details/id/1645520")
+        assert cname == "SimArtist"
+        already, date_str = tsr_provider.check_user_already_commented(
+            "https://www.thesimsresource.com/downloads/details/id/1645520",
+            ["XML Injector"],
+        )
+        assert already is True
+        assert "2026" in (date_str or "")
+
+        ok_post, msg_post = tsr_provider.post_mod_comment(
+            "https://www.thesimsresource.com/downloads/details/id/1645520",
+            "Hello, please list XML Injector as a required dependency!",
+        )
+        assert ok_post is True
+        assert "The Sims Resource" in msg_post
+
+    # 5. Verify CurseForge comment checking and posting via /api/v1/mods/{projectId}/comments
+    cf_provider = CurseForgeProvider()
+    mock_cf_session = MagicMock()
+    cf_page_html = """
+    <html><body>
+      <a class="author-name" href="/members/deaderpool">deaderpool</a>
+      <dt>Project ID</dt><dd>694283</dd>
+      <script>self.__next_f.push([1, '{"hasComments":true}'])</script>
+    </body></html>
+    """
+
+    def _cf_get(url, **kwargs):
+        r = MagicMock()
+        r.status_code = 200
+        if "/comments" in url:
+            r.json.return_value = {
+                "data": [
+                    {
+                        "id": 101,
+                        "body": "Requires Lot 51 Core Library to work.",
+                        "author": {"username": "simmercf", "displayName": "SimmerCF"},
+                        "datePosted": "2026-10-29",
+                    }
+                ],
+                "pagination": {"totalCount": 1},
+            }
+        else:
+            r.text = cf_page_html
+        return r
+
+    def _cf_post(url, json=None, **kwargs):
+        r = MagicMock()
+        r.status_code = 201
+        r.text = '{"id": 102}'
+        return r
+
+    mock_cf_session.get.side_effect = _cf_get
+    mock_cf_session.post.side_effect = _cf_post
+
+    with patch.object(SessionManager, "get_http_session", return_value=mock_cf_session):
+        cid_cf, cname_cf, _ = cf_provider.get_creator_info("https://www.curseforge.com/sims4/mods/xml-injector")
+        assert cname_cf == "deaderpool"
+        already_cf, _ = cf_provider.check_user_already_commented(
+            "https://www.curseforge.com/sims4/mods/xml-injector",
+            ["Lot 51 Core Library"],
+        )
+        assert already_cf is True
+
+        ok_cf_post, msg_cf_post = cf_provider.post_mod_comment(
+            "https://www.curseforge.com/sims4/mods/xml-injector",
+            "Thanks for updating!",
+        )
+        assert ok_cf_post is True
+        assert "CurseForge" in msg_cf_post
+
+
+
 
 

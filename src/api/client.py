@@ -73,7 +73,7 @@ class ApiClient:
         Returns:
             Résultat de l'opération test_account.
         """
-        resp = self._client.post(f"/api/accounts/{provider_name}/test")
+        resp = self._client.post(f"/api/accounts/{provider_name}/test", timeout=30.0)
         resp.raise_for_status()
         return resp.json()
 
@@ -100,7 +100,12 @@ class ApiClient:
         Returns:
             Résultat de l'opération login_account.
         """
-        resp = self._client.post(f"/api/accounts/{provider_name}/login", json={"timeout_seconds": timeout_seconds})
+        request_timeout = max(self.HEAVY_TIMEOUT, float(timeout_seconds) + 60.0)
+        resp = self._client.post(
+            f"/api/accounts/{provider_name}/login",
+            json={"timeout_seconds": timeout_seconds},
+            timeout=request_timeout,
+        )
         resp.raise_for_status()
         return resp.json()
 
