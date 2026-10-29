@@ -1,8 +1,10 @@
 """
-LoversLabDrawerCard: Encapsulates detailed scraping controls, subcategories, and progress for LoversLab.
+ProviderScraperDrawerCard & LoversLabDrawerCard:
+Encapsulates detailed scraping controls, subcategories, and progress for any catalog provider
+(CurseForge, The Sims Resource, LoversLab, NSFWMods).
 """
 
-from typing import Dict, Any, Tuple, Optional
+from typing import Dict, Any, Tuple, Optional, List
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -20,38 +22,111 @@ from src.ui.components.provider_drawer.drawer_styles import DrawerStyles
 from src.ui.components.provider_drawer.subcategory_row import SubcategoryRowWidget
 
 
-class LoversLabDrawerCard(QFrame):
-    """Encapsulates the detailed scraping controls, subcategories, and progress for LoversLab."""
+LOVERSLAB_SUBCATS: List[Tuple[str, str, str]] = [
+    ("174", "WickedWhims", "🔞"),
+    ("201", "Animations : WickedWhims", "💃"),
+    ("215", "Translations : WickedWhims", "🌐"),
+    ("202", "Animations : Other", "🎬"),
+    ("200", "Extensions", "🧩"),
+    ("203", "Clothing", "👗"),
+    ("204", "Accessories & Makeup", "💄"),
+    ("205", "Body Parts", "✨"),
+    ("206", "Objects", "🛋️"),
+    ("404", "Paintings & Posters", "🖼️"),
+    ("207", "Lots", "🏡"),
+    ("209", "Translations", "🌐"),
+    ("210", "Other", "📦"),
+    ("216", "Uncategorized", "📁"),
+]
+
+NSFWMODS_SUBCATS: List[Tuple[str, str, str]] = [
+    ("nm_287", "Sims Mods (Main)", "🔞"),
+    ("nm_288", "Animations", "💃"),
+    ("nm_289", "Gameplay Mods", "🎮"),
+    ("nm_290", "Adult Mods", "🔥"),
+    ("nm_291", "Clothes / CAS", "👗"),
+    ("nm_292", "Sliders & Presets", "✨"),
+    ("nm_293", "Translations & Other", "🌐"),
+]
+
+CURSEFORGE_SUBCATS: List[Tuple[str, str, str]] = [
+    ("cf_mods_gameplay", "Mods : Gameplay", "🎮"),
+    ("cf_mods_utilities", "Mods : Utilities", "🛠️"),
+    ("cf_mods_poses", "Poses & Animations", "💃"),
+    ("cf_create_a_sim", "Create a Sim (CAS)", "👗"),
+    ("cf_build_buy", "Build / Buy", "🛋️"),
+    ("cf_rooms_lots", "Rooms & Lots", "🏡"),
+    ("cf_sims_households", "Sims & Households", "👥"),
+    ("cf_worlds", "Worlds", "🌍"),
+    ("cf_translations", "Translations", "🌐"),
+]
+
+TSR_SUBCATS: List[Tuple[str, str, str]] = [
+    ("tsr_mods", "Mods (TSR)", "🧩"),
+    ("tsr_clothing", "Clothing", "👗"),
+    ("tsr_hair", "Hair", "💇"),
+    ("tsr_shoes", "Shoes", "👠"),
+    ("tsr_accessories", "Accessories", "💍"),
+    ("tsr_makeup", "Makeup", "💄"),
+    ("tsr_skintones", "Skintones", "✨"),
+    ("tsr_eyecolors", "Eye Colors", "👁️"),
+    ("tsr_objects", "Objects", "🛋️"),
+    ("tsr_sets", "Sets", "📦"),
+    ("tsr_lots_rooms", "Lots & Rooms", "🏡"),
+    ("tsr_sims", "Sims", "👤"),
+]
+
+
+class ProviderScraperDrawerCard(QFrame):
+    """Encapsulates the detailed scraping controls, subcategories, and progress for a mod provider."""
 
     start_requested = Signal(str)
     pause_requested = Signal(str)
     resume_requested = Signal(str)
     stop_requested = Signal(str)
 
-    def __init__(self, parent=None):
+    def __init__(
+        self,
+        provider_name: str = "loverslab",
+        display_name: str = "LoversLab",
+        subcategories_meta: Optional[List[Tuple[str, str, str]]] = None,
+        expanded_by_default: bool = True,
+        parent=None,
+    ):
         super().__init__(parent)
-        self._ll_is_expanded = True
+        self.provider_name = provider_name.lower()
+        self.display_name = display_name
+        self._subcategories_meta = subcategories_meta or LOVERSLAB_SUBCATS
+        self._ll_is_expanded = expanded_by_default
         self.subcat_widgets: Dict[str, SubcategoryRowWidget] = {}
         self.subcat_rows: Dict[str, Tuple[QLabel, QLabel, QLabel]] = {}
         self._current_is_paused = False
+        self.last_computed_pct = 0
+        self.last_computed_state = "OK"
         self._init_ui()
 
     def _init_ui(self):
-        self.setStyleSheet("""
-            QFrame {
+        frame_id = f"drawer_card_{self.provider_name}"
+        self.setObjectName(frame_id)
+        self.setStyleSheet(f"""
+            QFrame#{frame_id} {{
                 background-color: #13172e;
                 border: 1px solid #222d52;
                 border-radius: 8px;
-                padding: 4px;
-            }
+            }}
+            QFrame#{frame_id} QLabel {{
+                background-color: transparent;
+                border: none;
+                padding: 0px;
+            }}
         """)
         ll_layout = QVBoxLayout(self)
-        ll_layout.setContentsMargins(8, 8, 8, 8)
+        ll_layout.setContentsMargins(10, 10, 10, 10)
         ll_layout.setSpacing(8)
 
         # Header
         ll_header = QHBoxLayout()
-        ll_name = QLabel("LoversLab")
+        ll_name = QLabel(self.display_name)
         ll_name.setStyleSheet("font-size: 13px; font-weight: 700; color: #f8fafc;")
         ll_header.addWidget(ll_name)
         ll_header.addStretch()
@@ -60,7 +135,7 @@ class LoversLabDrawerCard(QFrame):
         self._style_status_pill("OK", tr("drawer.status_ready"))
         ll_header.addWidget(self.drawer_status_pill)
 
-        self.btn_collapse_ll = QPushButton("▼")
+        self.btn_collapse_ll = QPushButton("▼" if self._ll_is_expanded else "▲")
         self.btn_collapse_ll.setFixedSize(20, 20)
         self.btn_collapse_ll.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_collapse_ll.setStyleSheet("""
@@ -82,17 +157,19 @@ class LoversLabDrawerCard(QFrame):
         cs_layout = QVBoxLayout(self.ll_collapsed_summary)
         cs_layout.setContentsMargins(0, 2, 0, 2)
         cs_layout.setSpacing(4)
-        self.ll_collapsed_summary_lbl = QLabel(tr("drawer.summary", count=0))
+        self.ll_collapsed_summary_lbl = QLabel(
+            f"{len(self._subcategories_meta)} sous-catégories • 0 mods"
+        )
         self.ll_collapsed_summary_lbl.setStyleSheet("font-size: 11px; color: #94a3b8;")
         cs_layout.addWidget(self.ll_collapsed_summary_lbl)
-        self.ll_collapsed_summary.setVisible(False)
+        self.ll_collapsed_summary.setVisible(not self._ll_is_expanded)
         ll_layout.addWidget(self.ll_collapsed_summary)
 
         # Expanded Details
         self.ll_expanded_details = QWidget()
         ed_layout = QVBoxLayout(self.ll_expanded_details)
         ed_layout.setContentsMargins(0, 0, 0, 0)
-        ed_layout.setSpacing(8)
+        ed_layout.setSpacing(6)
 
         self.drawer_progress_bar = QProgressBar()
         self.drawer_progress_bar.setFixedHeight(8)
@@ -128,12 +205,12 @@ class LoversLabDrawerCard(QFrame):
         ed_layout.addWidget(self.drawer_lbl_last_sync)
 
         # Subcategories
-        self.lbl_subcats = QLabel(tr("drawer.subcats_title"))
+        self.lbl_subcats = QLabel(f"Sous-catégories ({len(self._subcategories_meta)}) :")
         self.lbl_subcats.setStyleSheet("font-size: 11px; font-weight: 700; color: #60a5fa; margin-top: 4px;")
         ed_layout.addWidget(self.lbl_subcats)
 
         subcats_scroll = QScrollArea()
-        subcats_scroll.setFixedHeight(180)
+        subcats_scroll.setFixedHeight(145)
         subcats_scroll.setWidgetResizable(True)
         subcats_scroll.setStyleSheet("""
             QScrollArea {
@@ -155,18 +232,18 @@ class LoversLabDrawerCard(QFrame):
         ctrl_layout = QVBoxLayout()
         ctrl_layout.setSpacing(6)
 
-        self.btn_resync = QPushButton(tr("drawer.btn_resync"))
-        self.btn_resync.setFixedHeight(32)
+        self.btn_resync = QPushButton(f"🔄 Relancer {self.display_name}")
+        self.btn_resync.setFixedHeight(30)
         self.btn_resync.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_resync.setStyleSheet(DrawerStyles.resync_button(False))
-        self.btn_resync.clicked.connect(lambda: self.start_requested.emit("loverslab"))
+        self.btn_resync.clicked.connect(lambda: self.start_requested.emit(self.provider_name))
         ctrl_layout.addWidget(self.btn_resync)
 
         btn_sub_row = QHBoxLayout()
         btn_sub_row.setSpacing(6)
 
         self.btn_pause_resume = QPushButton(tr("drawer.btn_pause"))
-        self.btn_pause_resume.setFixedHeight(30)
+        self.btn_pause_resume.setFixedHeight(28)
         self.btn_pause_resume.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_pause_resume.setStyleSheet(DrawerStyles.pause_button(False, disabled=True))
         self.btn_pause_resume.setEnabled(False)
@@ -174,37 +251,21 @@ class LoversLabDrawerCard(QFrame):
         btn_sub_row.addWidget(self.btn_pause_resume, stretch=1)
 
         self.btn_stop = QPushButton(tr("drawer.btn_stop"))
-        self.btn_stop.setFixedHeight(30)
+        self.btn_stop.setFixedHeight(28)
         self.btn_stop.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_stop.setStyleSheet(DrawerStyles.stop_button(disabled=True))
         self.btn_stop.setEnabled(False)
-        self.btn_stop.clicked.connect(lambda: self.stop_requested.emit("loverslab"))
+        self.btn_stop.clicked.connect(lambda: self.stop_requested.emit(self.provider_name))
         btn_sub_row.addWidget(self.btn_stop, stretch=1)
 
         ctrl_layout.addLayout(btn_sub_row)
         ed_layout.addLayout(ctrl_layout)
 
+        self.ll_expanded_details.setVisible(self._ll_is_expanded)
         ll_layout.addWidget(self.ll_expanded_details)
 
     def _init_subcategory_rows(self):
-        subcategories_meta = [
-            ("174", "WickedWhims", "🔞"),
-            ("201", "Animations : WickedWhims", "💃"),
-            ("215", "Translations : WickedWhims", "🌐"),
-            ("202", "Animations : Other", "🎬"),
-            ("200", "Extensions", "🧩"),
-            ("203", "Clothing", "👗"),
-            ("204", "Accessories & Makeup", "💄"),
-            ("205", "Body Parts", "✨"),
-            ("206", "Objects", "🛋️"),
-            ("404", "Paintings & Posters", "🖼️"),
-            ("207", "Lots", "🏡"),
-            ("209", "Translations", "🌐"),
-            ("210", "Other", "📦"),
-            ("216", "Uncategorized", "📁"),
-        ]
-
-        for cid, cname, cicon in subcategories_meta:
+        for cid, cname, cicon in self._subcategories_meta:
             row_widget = SubcategoryRowWidget(cid, cname, cicon, parent=self.subcats_container)
             self.subcats_layout.addWidget(row_widget)
             self.subcat_widgets[cid] = row_widget
@@ -218,9 +279,9 @@ class LoversLabDrawerCard(QFrame):
 
     def _on_pause_resume_clicked(self):
         if self._current_is_paused:
-            self.resume_requested.emit("loverslab")
+            self.resume_requested.emit(self.provider_name)
         else:
-            self.pause_requested.emit("loverslab")
+            self.pause_requested.emit(self.provider_name)
 
     def _style_status_pill(self, state: str, text: Optional[str] = None):
         if text:
@@ -228,34 +289,83 @@ class LoversLabDrawerCard(QFrame):
         self.drawer_status_pill.setStyleSheet(DrawerStyles.status_pill(state))
 
     def update_status(self, status: Dict[str, Any]):
-        """Exécute l'opération update status.
-
-        Args:
-            status: Paramètre status.
-        """
-        is_running = status.get("is_running", False)
-        is_paused = status.get("is_paused", False)
-        is_stopped = status.get("is_stopped", False)
-        pct = status.get("progress_percent", 0)
-        pages_done = status.get("pages_completed", 0)
-        total_pages = status.get("total_pages", 0)
-        cur_cat = status.get("current_category") or tr("common.ready")
+        """Updates provider-specific progress bar, subcategory rows, and control buttons."""
+        global_running = status.get("is_running", False)
+        global_paused = status.get("is_paused", False)
+        global_stopped = status.get("is_stopped", False)
         has_error = status.get("has_error", False)
-        total_scraped = status.get("total_scraped", 0)
         last_completed = status.get("last_completed_at") or ""
         categories_progress = status.get("categories_progress", [])
+        providers_status = status.get("providers_status", {}) or {}
+
+        prov_state_str = providers_status.get(self.provider_name, "")
+
+        # Extract subcategories belonging to this provider
+        my_cats = []
+        for cat_info in categories_progress:
+            cid = str(cat_info.get("id") if isinstance(cat_info, dict) else getattr(cat_info, "id", ""))
+            if cid in self.subcat_widgets:
+                my_cats.append(cat_info)
+
+        if my_cats:
+            pages_done = sum(
+                (c.get("pages_completed", 0) if isinstance(c, dict) else getattr(c, "pages_completed", 0))
+                for c in my_cats
+            )
+            total_pages = sum(
+                (c.get("total_pages", 0) if isinstance(c, dict) else getattr(c, "total_pages", 0))
+                for c in my_cats
+            )
+            total_scraped = sum(
+                (c.get("mods_count", 0) if isinstance(c, dict) else getattr(c, "mods_count", 0))
+                for c in my_cats
+            )
+            pct = int((pages_done / total_pages) * 100) if total_pages > 0 else 0
+            in_prog = [
+                (c.get("name", "") if isinstance(c, dict) else getattr(c, "name", ""))
+                for c in my_cats
+                if (c.get("status") if isinstance(c, dict) else getattr(c, "status", "")) == "IN_PROGRESS"
+            ]
+            any_in_prog = len(in_prog) > 0
+            all_completed = all(
+                (c.get("status") if isinstance(c, dict) else getattr(c, "status", "")) == "COMPLETED"
+                for c in my_cats
+            )
+            cur_cat = (
+                in_prog[0]
+                if in_prog
+                else (tr("common.completed") if all_completed else tr("common.ready"))
+            )
+            is_paused = global_paused and (prov_state_str == "PAUSED" or any_in_prog)
+            is_running = global_running and not is_paused and (prov_state_str == "RUNNING" or any_in_prog) and not all_completed
+            is_stopped = global_stopped or prov_state_str == "STOPPED"
+        else:
+            is_paused = global_paused
+            is_running = global_running and (not providers_status or prov_state_str == "RUNNING" or self.provider_name == "loverslab")
+            is_stopped = global_stopped
+            pct = status.get("progress_percent", 0) if is_running or is_paused else 0
+            pages_done = status.get("pages_completed", 0) if is_running or is_paused else 0
+            total_pages = status.get("total_pages", 0) if is_running or is_paused else 0
+            cur_cat = (status.get("current_category") or tr("common.ready")) if is_running else tr("common.ready")
+            total_scraped = status.get("total_scraped", 0) if self.provider_name == "loverslab" else 0
 
         self._current_is_paused = is_paused
+        self.last_computed_pct = pct
 
-        if has_error:
+        if has_error and prov_state_str == "ERROR":
+            self.last_computed_state = "ERROR"
             self._style_status_pill("ERROR", tr("drawer.status_error"))
         elif is_paused:
+            self.last_computed_state = "PAUSED"
             self._style_status_pill("PAUSED", f"{tr('drawer.status_paused')} ({pct}%)")
         elif is_running:
+            self.last_computed_state = "RUNNING"
             self._style_status_pill("RUNNING", f"{tr('drawer.status_running')} ({pct}%)")
         elif is_stopped:
+            self.last_computed_state = "STOPPED"
             self._style_status_pill("STOPPED", tr("drawer.status_stopped"))
         else:
+            self.last_computed_state = "OK"
             self._style_status_pill("OK", tr("drawer.status_ready"))
 
         self.drawer_progress_bar.setValue(pct)
@@ -268,7 +378,7 @@ class LoversLabDrawerCard(QFrame):
         self.ll_collapsed_summary_lbl.setText(
             f"{cur_cat} • {pct}% ({total_scraped} mods)"
             if is_running or is_paused
-            else tr("drawer.summary", count=total_scraped)
+            else f"{len(self._subcategories_meta)} sous-catégories • {total_scraped} mods"
         )
 
         if is_paused:
@@ -294,7 +404,7 @@ class LoversLabDrawerCard(QFrame):
             self.btn_stop.setEnabled(True)
             self.btn_stop.setStyleSheet(DrawerStyles.stop_button(disabled=False))
         else:
-            self.btn_resync.setText(tr("drawer.btn_resync"))
+            self.btn_resync.setText(f"🔄 Relancer {self.display_name}")
             self.btn_resync.setEnabled(True)
             self.btn_resync.setStyleSheet(DrawerStyles.resync_button(loading=False))
 
@@ -305,8 +415,8 @@ class LoversLabDrawerCard(QFrame):
             self.btn_stop.setEnabled(False)
             self.btn_stop.setStyleSheet(DrawerStyles.stop_button(disabled=True))
 
-        for cat_info in categories_progress:
-            cid = str(cat_info.get("id") or getattr(cat_info, "id", ""))
+        for cat_info in my_cats:
+            cid = str(cat_info.get("id") if isinstance(cat_info, dict) else getattr(cat_info, "id", ""))
             row_widget = self.subcat_widgets.get(cid)
             if not row_widget:
                 continue
@@ -337,13 +447,26 @@ class LoversLabDrawerCard(QFrame):
 
     def retranslate_ui(self):
         """Exécute l'opération retranslate ui."""
-        self.lbl_subcats.setText(tr("drawer.subcats_title"))
+        self.lbl_subcats.setText(f"Sous-catégories ({len(self._subcategories_meta)}) :")
         self._style_status_pill("OK", tr("drawer.status_ready"))
-        self.ll_collapsed_summary_lbl.setText(tr("drawer.summary", count=0))
+        self.ll_collapsed_summary_lbl.setText(f"{len(self._subcategories_meta)} sous-catégories • 0 mods")
         self.drawer_lbl_progress.setText(tr("drawer.progress", done=0, total=0, pct=0))
         self.drawer_lbl_category.setText(tr("drawer.category_current", cat=tr("common.ready")))
         self.drawer_lbl_mods.setText(tr("drawer.mods_count", count=0))
         self.drawer_lbl_last_sync.setText(tr("drawer.last_scan", time=tr("common.pending")))
-        self.btn_resync.setText(tr("drawer.btn_resync"))
+        self.btn_resync.setText(f"🔄 Relancer {self.display_name}")
         self.btn_pause_resume.setText(tr("drawer.btn_pause"))
         self.btn_stop.setText(tr("drawer.btn_stop"))
+
+
+class LoversLabDrawerCard(ProviderScraperDrawerCard):
+    """Backward-compatible LoversLab drawer card."""
+
+    def __init__(self, parent=None):
+        super().__init__(
+            provider_name="loverslab",
+            display_name="LoversLab",
+            subcategories_meta=LOVERSLAB_SUBCATS,
+            expanded_by_default=True,
+            parent=parent,
+        )

@@ -38,16 +38,20 @@ router.include_router(install_router)
 @router.get("", response_model=CatalogListResponse)
 def get_catalog(
     search: Optional[str] = None,
-    source: Optional[str] = Query(None, description="loverslab, patreon, all"),
+    source: Optional[str] = Query(None, description="loverslab, nsfwmods, curseforge, thesimsresource, patreon, all"),
     access: Optional[str] = Query(None, description="public, unlocked, locked, all"),
     status: Optional[str] = Query(None, description="all, installed, not_installed, updates_available"),
     mod_type: Optional[str] = Query(None, description="animation, clothing, hair, body_skin, etc."),
     sort: Optional[str] = Query("recent", description="recent, az"),
+    include_adult: Optional[bool] = Query(None, description="Include adult (+18) sources (LoversLab, NSFWMods)"),
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=200),
     session: Session = Depends(get_db),
 ):
     """Returns catalog mods with filtering, search, status, and pagination using SQL-level filtering."""
+    from src.core.config import AppConfig
+
+    effective_adult = include_adult if include_adult is not None else AppConfig.load().adult_content_enabled
     query = build_catalog_query(
         session=session,
         search=search,
@@ -56,6 +60,7 @@ def get_catalog(
         status=status,
         mod_type=mod_type,
         sort=sort,
+        include_adult=effective_adult,
     )
 
     total = query.count()
@@ -149,24 +154,38 @@ def get_catalog(
 @router.post("/sync", response_model=CatalogSyncStatusResponse)
 def start_sync(payload: CatalogSyncRequest, background_tasks: BackgroundTasks):
     """Triggers multi-source catalog synchronization."""
+    from src.core.config import AppConfig, ADULT_PROVIDERS
+
     if SyncTracker.is_running:
         resp = SyncTracker.to_response()
         resp.message = "Une synchronisation est déjà en cours d'exécution."
         return resp
 
+    adult_enabled = AppConfig.load().adult_content_enabled
     providers = ProviderRegistry.list_providers()
     categories = []
+    active_provider_names = []
     for p in providers:
+        p_name = getattr(p, "provider_name", "").lower()
+        if not adult_enabled and p_name in ADULT_PROVIDERS:
+            continue
         p_cats = getattr(p, "CATEGORIES", [])
         if p_cats:
             categories.extend(p_cats)
+            if p_name:
+                active_provider_names.append(p_name)
     initial_pages = (
         sum(c.get("default_pages", 1) for c in categories)
         if payload.max_pages <= 0
         else sum(min(payload.max_pages, c.get("default_pages", 1)) for c in categories)
     )
     page_msg = "toutes les pages détectées" if payload.max_pages <= 0 else f"{payload.max_pages} pages par source"
-    SyncTracker.start(initial_pages, categories_list=categories, max_pages_per_cat=payload.max_pages)
+    SyncTracker.start(
+        initial_pages,
+        categories_list=categories,
+        max_pages_per_cat=payload.max_pages,
+        active_providers=active_provider_names,
+    )
     SyncTracker.message = f"Synchronisation démarrée ({page_msg})."
     background_tasks.add_task(_run_catalog_sync, payload.max_pages)
     return SyncTracker.to_response()

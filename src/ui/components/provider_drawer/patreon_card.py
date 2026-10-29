@@ -20,16 +20,21 @@ class PatreonDrawerCard(QFrame):
         self._init_ui()
 
     def _init_ui(self):
+        self.setObjectName("PatreonDrawerCardFrame")
         self.setStyleSheet("""
-            QFrame {
+            QFrame#PatreonDrawerCardFrame {
                 background-color: #13172e;
                 border: 1px solid #222d52;
                 border-radius: 8px;
-                padding: 6px;
+            }
+            QFrame#PatreonDrawerCardFrame QLabel {
+                background-color: transparent;
+                border: none;
+                padding: 0px;
             }
         """)
         p_card_layout = QVBoxLayout(self)
-        p_card_layout.setContentsMargins(8, 8, 8, 8)
+        p_card_layout.setContentsMargins(10, 10, 10, 10)
         p_card_layout.setSpacing(4)
 
         p_header = QHBoxLayout()

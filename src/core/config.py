@@ -3,9 +3,10 @@ import os
 import threading
 from pathlib import Path
 from dataclasses import dataclass, fields
-from typing import Optional, ClassVar
+from typing import Optional, ClassVar, Tuple
 
 APP_DIR_NAME = ".sims4_mod_manager"
+ADULT_PROVIDERS: Tuple[str, ...] = ("loverslab", "nsfwmods")
 
 
 @dataclass
@@ -17,7 +18,7 @@ class AppConfig:
     cached_mods_dir: Optional[str] = None
     cached_game_exe: Optional[str] = None
     auto_backup: bool = True
-    adult_content_enabled: bool = True
+    adult_content_enabled: bool = False
     check_updates_on_startup: bool = True
     theme: str = "dark"
     language: str = "fr"

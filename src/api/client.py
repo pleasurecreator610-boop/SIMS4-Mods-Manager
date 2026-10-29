@@ -113,6 +113,7 @@ class ApiClient:
         status: Optional[str] = None,
         mod_type: Optional[str] = None,
         sort: Optional[str] = "recent",
+        include_adult: Optional[bool] = None,
         page: int = 1,
         limit: int = 100,
     ) -> Dict[str, Any]:
@@ -125,6 +126,7 @@ class ApiClient:
             status: Paramètre status.
             mod_type: Paramètre mod_type.
             sort: Paramètre sort.
+            include_adult: Paramètre include_adult.
             page: Paramètre page.
             limit: Paramètre limit.
 
@@ -144,6 +146,8 @@ class ApiClient:
             params["mod_type"] = mod_type
         if sort:
             params["sort"] = sort
+        if include_adult is not None:
+            params["include_adult"] = include_adult
 
         resp = self._client.get("/api/catalog", params=params)
         resp.raise_for_status()

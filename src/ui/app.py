@@ -154,8 +154,21 @@ class MainWindow(QMainWindow):
         self.installed_view.mods_changed.connect(self._on_mods_state_changed)
         self.updates_view.updates_applied.connect(self._on_mods_state_changed)
 
+        self.catalog_view.adult_content_changed.connect(self._on_adult_content_changed)
+        self.settings_view.adult_content_changed.connect(self._on_adult_content_changed)
+        self.accounts_view.adult_content_toggled.connect(self._on_adult_content_changed)
+
         self.current_origin_index = 1
         self.switch_page(0)
+
+    def _on_adult_content_changed(self, enabled: bool):
+        """Synchronizes adult content state across all views immediately."""
+        if hasattr(self.catalog_view, "set_adult_content_enabled"):
+            self.catalog_view.set_adult_content_enabled(enabled)
+        if hasattr(self.accounts_view, "set_adult_content_enabled"):
+            self.accounts_view.set_adult_content_enabled(enabled)
+        if hasattr(self.settings_view, "set_adult_content_enabled"):
+            self.settings_view.set_adult_content_enabled(enabled)
 
     # Backward compatible sidebar property accessors
     @property
@@ -426,26 +439,8 @@ class MainWindow(QMainWindow):
                 if status.get("is_running", False):
                     return True, False
 
-                acc_data = self.api_client.get_accounts()
-                accounts = acc_data if isinstance(acc_data, list) else acc_data.get("accounts", [])
-                is_connection_ok = False
-                for acc in accounts:
-                    if acc.get("is_ready", False) or acc.get("is_member", False):
-                        is_connection_ok = True
-                        break
-
-                if not is_connection_ok:
-                    try:
-                        test_res = self.api_client.test_account("loverslab")
-                        if test_res.get("success", False):
-                            is_connection_ok = True
-                    except Exception:
-                        pass
-
-                if is_connection_ok:
-                    self.api_client.start_catalog_sync(max_pages=0)
-                    return True, True
-                return False, False
+                self.api_client.start_catalog_sync(max_pages=0)
+                return True, True
             except Exception as e:
                 logger.debug(f"Vérification automatique de synchronisation au démarrage: {e}")
                 return False, False

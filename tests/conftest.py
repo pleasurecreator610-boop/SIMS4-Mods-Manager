@@ -79,9 +79,11 @@ def isolate_test_database(tmp_path_factory):
     test_dir = tmp_path_factory.mktemp("isolated_test_db")
     test_db = test_dir / "sims4_mods_test.db"
     test_config = test_dir / "config_test.json"
+    test_config.write_text('{"adult_content_enabled": true}', encoding="utf-8")
 
     orig_get_config_file_path = AppConfig.get_config_file_path
     AppConfig.get_config_file_path = classmethod(lambda cls: test_config)  # type: ignore[method-assign]
+    AppConfig._instance = None
 
     old_env = os.environ.get("SIMS4_DB_PATH")
     os.environ["SIMS4_DB_PATH"] = str(test_db)

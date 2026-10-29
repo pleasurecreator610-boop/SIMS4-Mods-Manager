@@ -5,12 +5,17 @@ AccountsView: Manages site sessions, interactive Cloudflare solving, tests and r
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
+    QHBoxLayout,
     QLabel,
+    QPushButton,
     QMessageBox,
+    QScrollArea,
+    QFrame,
 )
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Signal, Qt
 
 from src.api.client import get_api_client
+from src.core.config import AppConfig
 from src.ui.components.progress_dialog import ProgressDialog
 from src.ui.components.account_card import AccountCardWidget, LoginWorker
 from src.ui.workers.generic_runnable import run_async_ui_task
@@ -25,18 +30,34 @@ class AccountsView(QWidget):
     """View to manage site sessions, interactive Cloudflare solving, tests and resets via API."""
 
     login_successful = Signal(str)  # provider_name
+    adult_content_toggled = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.api_client = get_api_client()
         self.card_widgets = {}
+        self._adult_enabled = AppConfig.load().adult_content_enabled
         self.init_ui()
 
     def init_ui(self):
         """Exécute l'opération init ui."""
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(20)
+        root_layout = QVBoxLayout(self)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
+
+        self.scroll_area = QScrollArea(self)
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        self.scroll_area.setStyleSheet("QScrollArea { background-color: transparent; border: none; }")
+
+        container = QWidget()
+        container.setStyleSheet("background-color: transparent;")
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(24, 24, 24, 28)
+        layout.setSpacing(18)
+
+        self.scroll_area.setWidget(container)
+        root_layout.addWidget(self.scroll_area)
 
         # Title
         self.title_lbl = QLabel(tr("accounts.title"))
@@ -121,6 +142,49 @@ class AccountsView(QWidget):
         }
 
         layout.addLayout(self.cards_layout)
+
+        # Subtle banner when adult (+18) platforms are hidden by default
+        self.adult_banner = QFrame(self)
+        self.adult_banner.setObjectName("AdultHiddenBanner")
+        self.adult_banner.setStyleSheet("""
+            QFrame#AdultHiddenBanner {
+                background-color: #131726;
+                border: 1px dashed #334155;
+                border-radius: 10px;
+            }
+            QFrame#AdultHiddenBanner QLabel {
+                background: transparent;
+                border: none;
+                padding: 0px;
+            }
+        """)
+        ab_layout = QHBoxLayout(self.adult_banner)
+        ab_layout.setContentsMargins(16, 12, 16, 12)
+        ab_layout.setSpacing(12)
+
+        self.adult_banner_lbl = QLabel(tr("accounts.adult_hidden_notice"))
+        self.adult_banner_lbl.setWordWrap(True)
+        self.adult_banner_lbl.setStyleSheet("font-size: 12px; color: #94a3b8;")
+        ab_layout.addWidget(self.adult_banner_lbl, stretch=1)
+
+        self.btn_enable_adult = QPushButton(tr("accounts.btn_enable_adult"))
+        self.btn_enable_adult.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_enable_adult.setStyleSheet("""
+            QPushButton {
+                background-color: #312e81;
+                color: #e0e7ff;
+                border: 1px solid #6366f1;
+                border-radius: 6px;
+                padding: 6px 14px;
+                font-size: 12px;
+                font-weight: 700;
+            }
+            QPushButton:hover { background-color: #4338ca; color: #ffffff; }
+        """)
+        self.btn_enable_adult.clicked.connect(lambda: self._on_toggle_adult_clicked(True))
+        ab_layout.addWidget(self.btn_enable_adult)
+        layout.addWidget(self.adult_banner)
+
         layout.addStretch()
 
         # Backward compatibility dictionary for card_widgets
@@ -141,12 +205,29 @@ class AccountsView(QWidget):
                 "login_btn": card.login_btn,
             }
 
+        self.set_adult_content_enabled(self._adult_enabled)
         self.refresh_statuses()
+
+    def _on_toggle_adult_clicked(self, enabled: bool):
+        self.set_adult_content_enabled(enabled)
+        run_async_ui_task(lambda: self.api_client.update_settings({"adult_content_enabled": enabled}))
+        self.adult_content_toggled.emit(enabled)
+
+    def set_adult_content_enabled(self, enabled: bool):
+        """Shows or hides LoversLab and NSFWMods credential cards based on adult content setting."""
+        self._adult_enabled = bool(enabled)
+        self.loverslab_card.setVisible(self._adult_enabled)
+        self.nsfwmods_card.setVisible(self._adult_enabled)
+        if hasattr(self, "adult_banner"):
+            self.adult_banner.setVisible(not self._adult_enabled)
 
     def retranslate_ui(self):
         """Retranslates all text in AccountsView dynamically."""
         self.title_lbl.setText(tr("accounts.title"))
         self.subtitle_lbl.setText(tr("accounts.subtitle"))
+        if hasattr(self, "adult_banner_lbl"):
+            self.adult_banner_lbl.setText(tr("accounts.adult_hidden_notice"))
+            self.btn_enable_adult.setText(tr("accounts.btn_enable_adult"))
         for card in self.cards_by_provider.values():
             card.retranslate_ui()
         self.refresh_statuses()

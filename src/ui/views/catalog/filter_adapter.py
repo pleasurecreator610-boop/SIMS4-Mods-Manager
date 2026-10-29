@@ -60,7 +60,7 @@ def build_catalog_api_params(
     elif "Mises à jour" in stat_text:
         status_param = "updates_available"
 
-    return {
+    params: Dict[str, Any] = {
         "search": filter_state.get("search") or None,
         "source": source_param,
         "access": access_param,
@@ -70,3 +70,6 @@ def build_catalog_api_params(
         "page": current_page,
         "limit": page_size,
     }
+    if "include_adult" in filter_state and filter_state["include_adult"] is not None:
+        params["include_adult"] = bool(filter_state["include_adult"])
+    return params

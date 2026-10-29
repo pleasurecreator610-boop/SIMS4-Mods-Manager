@@ -57,7 +57,7 @@
     "folder_invalid": "⚠️ Dossier non détecté",
     "options_section": "Options & Sauvegardes",
     "auto_backup": "Créer automatiquement une sauvegarde (.zip) de l'ancienne version avant mise à jour",
-    "adult_content": "Activer les contenus adultes / NSFW (+18 ans) sur LoversLab",
+    "adult_content": "Activer les contenus adultes / NSFW (+18 ans) pour LoversLab et NSFWMods",
     "backups_path": "Emplacement des sauvegardes : {path}",
     "clear_cache": "🗑️ Vider le cache des miniatures",
     "clear_cache_title": "Cache Vidé",
@@ -247,7 +247,9 @@
     "login_dlg_status": "Ouverture du navigateur pour {provider}...",
     "login_dlg_details": "Passez Cloudflare ou connectez-vous, puis fermez simplement la fenêtre du navigateur.",
     "login_success_title": "Session Enregistrée",
-    "login_success_msg": "{msg}\n\nLa synchronisation du catalogue a démarré en arrière-plan !"
+    "login_success_msg": "{msg}\n\nLa synchronisation du catalogue a démarré en arrière-plan !",
+    "adult_hidden_notice": "🔞 Les plateformes pour adultes (LoversLab, NSFWMods) sont actuellement masquées (désactivées par défaut).",
+    "btn_enable_adult": "Activer le contenu +18"
   },
   "logs": {
     "title": "📋 Journaux d'Exécution & Logs",
@@ -348,7 +350,8 @@
     "all_statuses": "Toutes les installations",
     "status_not_installed": "Non installés",
     "status_installed": "Déjà installés",
-    "status_updates_available": "Mises à jour disponibles"
+    "status_updates_available": "Mises à jour disponibles",
+    "adult_toggle_tip": "Afficher ou masquer les mods et plateformes adultes (+18 : LoversLab, NSFWMods)"
   },
   "dependencies": {
     "dlg_title_partial": "Installation Partielle",

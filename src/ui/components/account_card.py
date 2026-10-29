@@ -60,21 +60,33 @@ class AccountCardWidget(QFrame):
         self._init_ui()
 
     def _init_ui(self):
-        self.setStyleSheet("""
-            QFrame {
+        card_id = f"card_{self.provider_name}"
+        self.setObjectName(card_id)
+        self.setMinimumHeight(132)
+        self.setStyleSheet(f"""
+            QFrame#{card_id} {{
                 background-color: #161824;
                 border: 1px solid #282e44;
                 border-radius: 12px;
-                padding: 16px;
-            }
+            }}
+            QFrame#{card_id} QLabel {{
+                background-color: transparent;
+                border: none;
+                padding: 0px;
+            }}
         """)
         c_layout = QVBoxLayout(self)
-        c_layout.setSpacing(12)
+        c_layout.setContentsMargins(20, 16, 20, 16)
+        c_layout.setSpacing(10)
 
         # Header
         h_layout = QHBoxLayout()
+        h_layout.setSpacing(12)
         self.title_lbl = QLabel(tr(self.title_key))
-        self.title_lbl.setStyleSheet("font-size: 15px; font-weight: 600; color: #f8fafc;")
+        self.title_lbl.setMinimumHeight(22)
+        self.title_lbl.setStyleSheet(
+            "font-size: 15px; font-weight: 700; color: #f8fafc; background: transparent; border: none; padding: 0px;"
+        )
         h_layout.addWidget(self.title_lbl)
 
         h_layout.addStretch()
@@ -82,7 +94,7 @@ class AccountCardWidget(QFrame):
         self.status_badge = QLabel(tr("accounts.status_unconfigured"))
         self.status_badge.setObjectName(f"status_{self.provider_name}")
         self.status_badge.setStyleSheet(
-            "background-color: #334155; color: #94a3b8; border-radius: 10px; padding: 4px 14px; font-weight: 600; font-size: 12px;"
+            "background-color: #334155; color: #94a3b8; border: none; border-radius: 10px; padding: 4px 14px; font-weight: 600; font-size: 12px;"
         )
         h_layout.addWidget(self.status_badge)
         c_layout.addLayout(h_layout)
@@ -90,7 +102,10 @@ class AccountCardWidget(QFrame):
         # Description
         self.desc_lbl = QLabel(tr(self.desc_key))
         self.desc_lbl.setWordWrap(True)
-        self.desc_lbl.setStyleSheet("font-size: 12px; color: #94a3b8;")
+        self.desc_lbl.setMinimumHeight(20)
+        self.desc_lbl.setStyleSheet(
+            "font-size: 13px; color: #94a3b8; background: transparent; border: none; padding: 0px;"
+        )
         c_layout.addWidget(self.desc_lbl)
 
         # Action Buttons Row

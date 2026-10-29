@@ -40,6 +40,7 @@ def e2e_env(tmp_path, monkeypatch):
     fake_config = AppConfig(
         custom_mods_dir=str(fake_mods_dir),
         auto_backup=True,
+        adult_content_enabled=True,
     )
     monkeypatch.setattr(AppConfig, "load", classmethod(lambda cls: fake_config))
     monkeypatch.setattr(AppConfig, "get_backups_dir", classmethod(lambda cls: fake_backup_dir))
@@ -1966,6 +1967,186 @@ def test_session_manager_thread_isolated_http_sessions_e2e(e2e_env):
 
     assert len(set(session_ids)) == 8
     SessionManager.close_all_http_sessions()
+
+
+def test_adult_content_disabled_by_default_and_multi_provider_drawer_e2e(e2e_env, qapp):
+    """
+    Verifies:
+    1. AppConfig().adult_content_enabled is False by default.
+    2. When adult_content_enabled is False, GET /api/catalog automatically hides 'loverslab'
+       and 'nsfwmods' mods while returning 'curseforge' and 'thesimsresource' mods.
+    3. Toggling adult_content_enabled to True via PATCH /api/settings exposes all 4 platforms.
+    4. AccountCardWidget labels are styled without inner borders/padding, and AccountsView,
+       FilterBar, and ProviderDrawer properly hide/show adult platforms and track all 4 scrapers.
+    """
+    from src.ui.components.account_card import AccountCardWidget
+    from src.ui.components.filter_bar import FilterBar
+    from src.ui.components.provider_drawer import ProviderDrawer
+
+    client = e2e_env["client"]
+    db = e2e_env["db"]
+
+    # 1. Verify default AppConfig has adult_content_enabled = False
+    default_cfg = AppConfig()
+    assert default_cfg.adult_content_enabled is False
+
+    # Seed 1 mod per platform into CatalogMod
+    with db.get_session() as s:
+        s.query(CatalogMod).delete()
+        s.add_all(
+            [
+                CatalogMod(
+                    source="curseforge",
+                    remote_id="cf_1",
+                    title="CurseForge Safe Mod",
+                    author="CFAuthor",
+                    category="Gameplay",
+                    page_url="https://www.curseforge.com/sims4/mods/cf-1",
+                ),
+                CatalogMod(
+                    source="thesimsresource",
+                    remote_id="tsr_1",
+                    title="TSR Safe Hair",
+                    author="TSRAuthor",
+                    category="Sims 4 Hair",
+                    page_url="https://www.thesimsresource.com/downloads/1",
+                ),
+                CatalogMod(
+                    source="loverslab",
+                    remote_id="ll_1",
+                    title="LoversLab Adult Mod",
+                    author="LLAuthor",
+                    category="Adult",
+                    page_url="https://www.loverslab.com/files/file/1-ll/",
+                ),
+                CatalogMod(
+                    source="nsfwmods",
+                    remote_id="nm_1",
+                    title="NSFWMods Adult Mod",
+                    author="NMAuthor",
+                    category="Adult",
+                    page_url="https://nsfwmods.com/files/file/1-nm/",
+                ),
+            ]
+        )
+        s.commit()
+
+    # 2. Disable adult content via PATCH /api/settings and verify catalog hides loverslab & nsfwmods
+    patch_off = client.patch("/api/settings", json={"adult_content_enabled": False})
+    assert patch_off.status_code == 200
+    assert patch_off.json()["adult_content_enabled"] is False
+
+    cat_safe = client.get("/api/catalog").json()
+    safe_sources = {item["source"] for item in cat_safe["items"]}
+    assert safe_sources == {"curseforge", "thesimsresource"}
+    assert "loverslab" not in safe_sources
+    assert "nsfwmods" not in safe_sources
+
+    # 3. Re-enable adult content via PATCH /api/settings and verify all 4 platforms appear
+    patch_on = client.patch("/api/settings", json={"adult_content_enabled": True})
+    assert patch_on.status_code == 200
+    assert patch_on.json()["adult_content_enabled"] is True
+
+    cat_all = client.get("/api/catalog").json()
+    all_sources = {item["source"] for item in cat_all["items"]}
+    assert all_sources == {"curseforge", "thesimsresource", "loverslab", "nsfwmods"}
+
+    # 4. Verify UI widgets: AccountCardWidget readability, FilterBar +18 toggle, ProviderDrawer 4 scrapers
+    card = AccountCardWidget("curseforge", "CurseForge Title", "CurseForge Description")
+    assert card.objectName() == "card_curseforge"
+    assert "QFrame#card_curseforge" in card.styleSheet()
+    assert "QLabel {\n                background-color: transparent;\n                border: none;" in card.styleSheet()
+    assert card.title_lbl.text() == "CurseForge Title"
+    assert card.desc_lbl.text() == "CurseForge Description"
+
+    fb = FilterBar()
+    fb.set_adult_content_enabled(False)
+    assert fb.adult_toggle_btn.isChecked() is False
+    sources_safe = [fb.source_combo.itemText(i) for i in range(fb.source_combo.count())]
+    assert "LoversLab" not in sources_safe
+    assert "NSFWMods" not in sources_safe
+    assert "CurseForge" in sources_safe
+    assert "The Sims Resource" in sources_safe
+
+    fb.set_adult_content_enabled(True)
+    assert fb.adult_toggle_btn.isChecked() is True
+    sources_all = [fb.source_combo.itemText(i) for i in range(fb.source_combo.count())]
+    assert "LoversLab" in sources_all
+    assert "NSFWMods" in sources_all
+
+    drawer = ProviderDrawer()
+    drawer.set_adult_content_enabled(False)
+    assert drawer.ll_card.isHidden() is True
+    assert drawer.nm_card.isHidden() is True
+    assert drawer.cf_card.isHidden() is False
+    assert drawer.tsr_card.isHidden() is False
+
+    drawer.set_adult_content_enabled(True)
+    assert drawer.ll_card.isHidden() is False
+    assert drawer.nm_card.isHidden() is False
+
+    # Update drawer with multi-provider status payload matching SyncTracker.get_status_dict()
+    drawer.update_sync_status(
+        {
+            "is_running": True,
+            "is_paused": False,
+            "pages_completed": 8,
+            "total_pages": 20,
+            "progress_percent": 40,
+            "total_scraped": 160,
+            "current_category": "Hair",
+            "categories_progress": [
+                {
+                    "id": "cf_gameplay",
+                    "name": "Gameplay",
+                    "pages_completed": 2,
+                    "total_pages": 5,
+                    "mods_count": 40,
+                    "status": "IN_PROGRESS",
+                },
+                {
+                    "id": "tsr_hair",
+                    "name": "Hair",
+                    "pages_completed": 3,
+                    "total_pages": 5,
+                    "mods_count": 60,
+                    "status": "IN_PROGRESS",
+                },
+                {
+                    "id": "161",
+                    "name": "Les Sims 4 (Racine)",
+                    "pages_completed": 2,
+                    "total_pages": 5,
+                    "mods_count": 40,
+                    "status": "IN_PROGRESS",
+                },
+                {
+                    "id": "287",
+                    "name": "Sims Mods (Racine)",
+                    "pages_completed": 1,
+                    "total_pages": 5,
+                    "mods_count": 20,
+                    "status": "IN_PROGRESS",
+                },
+            ],
+            "providers_status": {
+                "curseforge": "RUNNING",
+                "thesimsresource": "RUNNING",
+                "loverslab": "RUNNING",
+                "nsfwmods": "RUNNING",
+                "patreon": "OK",
+            },
+        }
+    )
+    assert drawer.cf_card.last_computed_state == "RUNNING"
+    assert drawer.tsr_card.last_computed_state == "RUNNING"
+    assert drawer.ll_card.last_computed_state == "RUNNING"
+    assert drawer.nm_card.last_computed_state == "RUNNING"
+    assert drawer.cf_card.drawer_progress_bar.value() > 0
+    assert drawer.tsr_card.drawer_progress_bar.value() > 0
+    assert drawer.ll_card.drawer_progress_bar.value() > 0
+    assert drawer.nm_card.drawer_progress_bar.value() > 0
+
 
 
 

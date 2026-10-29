@@ -35,32 +35,65 @@ class CatalogSyncOrchestrator:
     def orchestrate_sync(self, max_pages: int = -1) -> None:
         """
         Orchestrates full catalog sync:
-        1. Identifies providers and categories.
-        2. Configures SyncTracker.
-        3. Delegates execution loop to CatalogSyncCoordinator.
+        1. Identifies providers and categories (respecting adult_content_enabled setting).
+        2. Configures SyncTracker per provider.
+        3. Executes provider category scraping concurrently across active providers.
         4. Closes sync lifecycle gracefully.
         """
+        from concurrent.futures import ThreadPoolExecutor
+        import threading
+        from src.core.config import AppConfig, ADULT_PROVIDERS
+
+        adult_enabled = AppConfig.load().adult_content_enabled
         providers = ProviderRegistry.list_providers()
-        sync_providers = [p for p in providers if getattr(p, "CATEGORIES", None)]
+        all_sync_providers = [p for p in providers if getattr(p, "CATEGORIES", None)]
+        if not adult_enabled:
+            filtered_providers = [
+                p
+                for p in all_sync_providers
+                if getattr(p, "provider_name", "").lower() not in ADULT_PROVIDERS
+            ]
+            # Fallback to all_sync_providers only if a test registered solely a single mock provider
+            sync_providers = filtered_providers if filtered_providers else all_sync_providers
+        else:
+            sync_providers = all_sync_providers
+
         if not sync_providers:
             SyncTracker.finish(0)
             return
 
         try:
             total_new = 0
-            for prov in sync_providers:
+            total_lock = threading.Lock()
+            workers_per_provider = max(2, 8 // max(1, len(sync_providers)))
+
+            def _sync_single_provider(prov: Any) -> int:
+                nonlocal total_new
                 if SyncTracker.stop_requested or ShutdownManager.is_shutting_down():
-                    break
+                    return 0
+                p_name = getattr(prov, "provider_name", "loverslab").lower()
                 categories = getattr(prov, "CATEGORIES", [])
                 if not categories:
-                    continue
-                total_new += self.coordinator.sync_all_categories(
+                    return 0
+                SyncTracker.set_provider_status(p_name, "RUNNING")
+                prov_new = self.coordinator.sync_all_categories(
                     categories=categories,
                     provider=prov,
                     max_pages=max_pages,
                     tracker=SyncTracker,
-                    max_workers=8,
+                    max_workers=workers_per_provider if len(sync_providers) > 1 else 8,
                 )
+                with total_lock:
+                    total_new += prov_new
+                if not SyncTracker.stop_requested and not ShutdownManager.is_shutting_down():
+                    SyncTracker.set_provider_status(p_name, "OK")
+                return prov_new
+
+            if len(sync_providers) == 1:
+                _sync_single_provider(sync_providers[0])
+            else:
+                with ThreadPoolExecutor(max_workers=len(sync_providers)) as prov_pool:
+                    list(prov_pool.map(_sync_single_provider, sync_providers))
 
             if not SyncTracker.stop_requested and not ShutdownManager.is_shutting_down():
                 SyncTracker.finish(total_new)

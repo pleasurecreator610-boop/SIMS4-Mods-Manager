@@ -3,6 +3,7 @@
 from typing import Optional
 from sqlalchemy.orm import Session, Query as OrmQuery
 
+from src.core.config import ADULT_PROVIDERS
 from src.database.models import CatalogMod, InstalledMod
 from src.utils.mod_type_classifier import ModTypeClassifier
 
@@ -20,9 +21,13 @@ def build_catalog_query(
     status: Optional[str] = None,
     mod_type: Optional[str] = None,
     sort: Optional[str] = "recent",
+    include_adult: Optional[bool] = None,
 ) -> OrmQuery:
     """Builds and returns the SQLAlchemy Query with all filter and sort criteria applied."""
     query = session.query(CatalogMod)
+
+    if include_adult is False:
+        query = query.filter(~CatalogMod.source.in_(list(ADULT_PROVIDERS)))
 
     if search:
         s_clean = escape_like_term(search.strip())

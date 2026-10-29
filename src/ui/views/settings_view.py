@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QFrame,
 )
+from PySide6.QtCore import Signal
 
 from src.api.client import get_api_client
 from src.ui.workers.generic_runnable import run_async_ui_task
@@ -32,6 +33,8 @@ from src.ui.views.settings.settings_cards import (
 
 class SettingsView(QWidget):
     """Settings page orchestrating language, game paths, launcher, and backup cards."""
+
+    adult_content_changed = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -117,6 +120,7 @@ class SettingsView(QWidget):
         )
         self.backup_chk = self.pref_card.backup_chk
         self.adult_chk = self.pref_card.adult_chk
+        self.adult_chk.clicked.connect(self._on_adult_checkbox_clicked)
         self.cache_lbl = self.pref_card.cache_lbl
         self.clear_cache_btn = self.pref_card.clear_cache_btn
         self.storage_lbl = self.pref_card.storage_lbl
@@ -152,6 +156,19 @@ class SettingsView(QWidget):
 
         layout.addStretch()
         self.load_settings()
+
+    def _on_adult_checkbox_clicked(self, checked: bool):
+        run_async_ui_task(
+            lambda: self.api_client.update_settings({"adult_content_enabled": checked}),
+            on_error=lambda err: logger.error(f"Erreur API sauvegarde adult_content_enabled: {err}"),
+        )
+        self.adult_content_changed.emit(checked)
+
+    def set_adult_content_enabled(self, enabled: bool):
+        """Updates the adult_chk checkbox without re-triggering API calls."""
+        self.adult_chk.blockSignals(True)
+        self.adult_chk.setChecked(bool(enabled))
+        self.adult_chk.blockSignals(False)
 
     def _on_language_selected(self, lang_code: str):
         if lang_code == self.i18n.get_language():
@@ -200,7 +217,7 @@ class SettingsView(QWidget):
             self.mods_path_input.setText(mods_dir)
             self.exe_path_input.setText(exe_path)
             self.backup_chk.setChecked(settings.get("auto_backup", True))
-            self.adult_chk.setChecked(settings.get("adult_content_enabled", True))
+            self.adult_chk.setChecked(settings.get("adult_content_enabled", False))
 
             self._backups_dir = settings.get("backups_dir", "")
             self.cache_lbl.setText(tr("settings.backups_path", path=self._backups_dir or "-"))
@@ -335,6 +352,7 @@ class SettingsView(QWidget):
             return self.api_client.update_settings(payload)
 
         def _on_saved(res):
+            self.adult_content_changed.emit(self.adult_chk.isChecked())
             QMessageBox.information(self, tr("settings.save_success_title"), tr("settings.save_success_msg"))
             self.load_settings()
 

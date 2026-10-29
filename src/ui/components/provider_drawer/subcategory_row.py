@@ -16,16 +16,22 @@ class SubcategoryRowWidget(QFrame):
         self.name = name
         self.icon = icon
 
-        self.setStyleSheet("""
-            QFrame {
+        row_id = f"subcat_row_{cat_id}"
+        self.setObjectName(row_id)
+        self.setStyleSheet(f"""
+            QFrame#{row_id} {{
                 background-color: #0e1224;
                 border: 1px solid #161e38;
                 border-radius: 4px;
-                padding: 2px 4px;
-            }
+            }}
+            QFrame#{row_id} QLabel {{
+                background-color: transparent;
+                border: none;
+                padding: 0px;
+            }}
         """)
         r_layout = QHBoxLayout(self)
-        r_layout.setContentsMargins(4, 2, 4, 2)
+        r_layout.setContentsMargins(6, 3, 6, 3)
         r_layout.setSpacing(6)
 
         self.lbl_icon = QLabel(icon)

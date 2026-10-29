@@ -57,7 +57,7 @@
     "folder_invalid": "⚠️ Folder not detected",
     "options_section": "Options & Backups",
     "auto_backup": "Automatically create a backup (.zip) of previous version before updating",
-    "adult_content": "Enable adult / NSFW (+18) content on LoversLab",
+    "adult_content": "Enable adult / NSFW (+18) content for LoversLab and NSFWMods",
     "backups_path": "Backups location: {path}",
     "clear_cache": "🗑️ Clear thumbnail cache",
     "clear_cache_title": "Cache Cleared",
@@ -247,7 +247,9 @@
     "login_dlg_status": "Opening browser for {provider}...",
     "login_dlg_details": "Pass Cloudflare or log in, then simply close the browser window.",
     "login_success_title": "Session Saved",
-    "login_success_msg": "{msg}\n\nCatalog sync has started in the background!"
+    "login_success_msg": "{msg}\n\nCatalog sync has started in the background!",
+    "adult_hidden_notice": "🔞 Adult platforms (LoversLab, NSFWMods) are currently hidden (disabled by default).",
+    "btn_enable_adult": "Enable +18 Content"
   },
   "logs": {
     "title": "📋 Execution Logs & History",
@@ -348,7 +350,8 @@
     "all_statuses": "All install statuses",
     "status_not_installed": "Not installed",
     "status_installed": "Already installed",
-    "status_updates_available": "Updates available"
+    "status_updates_available": "Updates available",
+    "adult_toggle_tip": "Show or hide adult mods and platforms (+18: LoversLab, NSFWMods)"
   },
   "dependencies": {
     "dlg_title_partial": "Partial Installation",

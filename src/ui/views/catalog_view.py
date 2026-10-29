@@ -38,6 +38,7 @@ class CatalogView(QWidget):
     download_requested = Signal(dict)
     view_downloads_requested = Signal()
     install_finished = Signal(bool, str)
+    adult_content_changed = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -86,6 +87,7 @@ class CatalogView(QWidget):
 
         self.filter_bar = FilterBar()
         self.filter_bar.filters_changed.connect(self._on_filters_changed)
+        self.filter_bar.adult_content_toggled.connect(self._on_adult_filter_toggled)
         layout.addWidget(self.filter_bar)
 
         self.scroll_area = QScrollArea()
@@ -219,6 +221,21 @@ class CatalogView(QWidget):
             Résultat de l'opération lbl_page_info.
         """
         return self.pagination_bar.lbl_page_info
+
+    def _on_adult_filter_toggled(self, enabled: bool):
+        self.provider_drawer.set_adult_content_enabled(enabled)
+        run_async_ui_task(
+            lambda: self.api_client.update_settings({"adult_content_enabled": enabled}),
+            on_error=lambda e: logger.debug(f"Erreur sauvegarde adult_content_enabled: {e}"),
+        )
+        self.adult_content_changed.emit(enabled)
+
+    def set_adult_content_enabled(self, enabled: bool):
+        """Synchronizes FilterBar, ProviderDrawer, and catalog items with the adult content setting."""
+        self.filter_bar.set_adult_content_enabled(enabled)
+        self.provider_drawer.set_adult_content_enabled(enabled)
+        self.current_page = 1
+        self.refresh_catalog()
 
     def _on_filters_changed(self):
         self.current_page = 1

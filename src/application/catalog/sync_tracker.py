@@ -54,6 +54,7 @@ class SyncTracker:
         max_pages: int,
         categories_list: Optional[List[Dict[str, Any]]] = None,
         max_pages_per_cat: int = 0,
+        active_providers: Optional[List[str]] = None,
     ) -> None:
         """Exécute l'opération start.
 
@@ -61,6 +62,7 @@ class SyncTracker:
             max_pages: Paramètre max_pages.
             categories_list: Paramètre categories_list.
             max_pages_per_cat: Paramètre max_pages_per_cat.
+            active_providers: Liste optionnelle des providers actifs en cours de synchro.
 
         Returns:
             Résultat de l'opération start.
@@ -80,7 +82,9 @@ class SyncTracker:
             cls.has_error = False
             cls.error_message = None
             cls.page1_ready = False
-            cls.providers_status["loverslab"] = "RUNNING"
+            targets = active_providers or ["loverslab"]
+            for p_name in targets:
+                cls.providers_status[p_name.lower()] = "RUNNING"
             try:
                 cls._cached_db_count = DatabaseManager.get_instance().get_catalog_mods_count()
                 cls._last_count_time = time.time()
@@ -104,6 +108,12 @@ class SyncTracker:
                 }
 
     @classmethod
+    def set_provider_status(cls, provider_name: str, status: str) -> None:
+        """Updates the scraping status for a specific provider."""
+        with cls._lock:
+            cls.providers_status[provider_name.lower()] = status
+
+    @classmethod
     def pause(cls, provider: Optional[str] = None) -> None:
         """Pauses background scraping workers non-CPU-intensively."""
         with cls._lock:
@@ -111,8 +121,12 @@ class SyncTracker:
                 return
             cls.is_paused = True
             cls._pause_event.clear()
-            target_provider = provider or "loverslab"
-            cls.providers_status[target_provider] = "PAUSED"
+            if provider:
+                cls.providers_status[provider.lower()] = "PAUSED"
+            for k, v in list(cls.providers_status.items()):
+                if v == "RUNNING":
+                    cls.providers_status[k] = "PAUSED"
+            target_provider = provider or "all"
             cls.message = "Synchronisation en pause."
             logger.info(f"Synchronisation mise en pause pour {target_provider}.")
 
@@ -124,8 +138,12 @@ class SyncTracker:
                 return
             cls.is_paused = False
             cls._pause_event.set()
-            target_provider = provider or "loverslab"
-            cls.providers_status[target_provider] = "RUNNING"
+            if provider:
+                cls.providers_status[provider.lower()] = "RUNNING"
+            for k, v in list(cls.providers_status.items()):
+                if v == "PAUSED":
+                    cls.providers_status[k] = "RUNNING"
+            target_provider = provider or "all"
             cls.message = "Synchronisation reprise."
             logger.info(f"Synchronisation reprise pour {target_provider}.")
 
@@ -241,7 +259,8 @@ class SyncTracker:
             cls.is_running = False
             cls.is_paused = False
             cls.is_stopped = False
-            cls.providers_status["loverslab"] = "OK"
+            for k in list(cls.providers_status.keys()):
+                cls.providers_status[k] = "OK"
             try:
                 cls._cached_db_count = DatabaseManager.get_instance().get_catalog_mods_count()
                 cls._last_count_time = time.time()
@@ -262,7 +281,10 @@ class SyncTracker:
             cls._pause_event.set()  # Unblock workers waiting in pause so they exit immediately
             target_provider = provider or "loverslab"
             if not cls.has_error:
-                cls.providers_status[target_provider] = "STOPPED"
+                cls.providers_status[target_provider.lower()] = "STOPPED"
+                for k, v in list(cls.providers_status.items()):
+                    if v in ("RUNNING", "PAUSED"):
+                        cls.providers_status[k] = "STOPPED"
             cls.message = "Synchronisation arrêtée."
             logger.info(f"Synchronisation arrêtée pour {target_provider}.")
 
