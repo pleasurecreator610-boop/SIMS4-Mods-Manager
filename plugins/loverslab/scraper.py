@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Tuple, Optional, Callable
 from bs4 import BeautifulSoup
 
-from src.providers.base import BaseSourceProvider
+from src.providers.common.ips_base import BaseIPSForumProvider
 from plugins.patreon import PatreonProvider
 from .downloader import (
     download_loverslab_file,
@@ -23,7 +23,7 @@ from src.utils.logger import logger
 
 
 @ProviderRegistry.register_provider("loverslab")
-class LoversLabProvider(BaseSourceProvider):
+class LoversLabProvider(BaseIPSForumProvider):
     """
     Provider for scraping LoversLab The Sims 4 files category (161),
     extracting attachments, adult content handling, and identifying external/Patreon links.

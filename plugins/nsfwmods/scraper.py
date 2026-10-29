@@ -23,15 +23,15 @@ from plugins.loverslab.requirements_extractor import (
 from plugins.patreon import PatreonProvider
 from src.core.session_manager import SessionManager
 from src.core.shutdown_manager import ShutdownManager
-from src.providers.base import BaseSourceProvider
+from src.providers.common.ips_base import BaseIPSForumProvider
 from src.providers.registry import ProviderRegistry
 from src.utils.logger import logger
 
 
 @ProviderRegistry.register_provider("nsfwmods")
-class NSFWModsProvider(BaseSourceProvider):
-    """
-    Provider for scraping NSFWMods Sims Mods category (287) and all 10 Sims subcategories,
+class NSFWModsProvider(BaseIPSForumProvider):
+    """Provider for scraping NSFWMods Sims Mods category (287) and all 10 Sims subcategories,
+
     extracting attachments, requirements, and handling IPS4 downloads and forum interactions.
     """
 
@@ -126,30 +126,7 @@ class NSFWModsProvider(BaseSourceProvider):
     def __init__(self) -> None:
         super().__init__()
         self.patreon_provider = PatreonProvider()
-        self._category_pages_cache: Dict[str, int] = {c["id"]: c["default_pages"] for c in self.CATEGORIES}
-        self.current_category_info: str = "Sims Mods (NSFWMods)"
-
-    def update_category_detected_pages(self, cat_id: str, detected_pages: int) -> None:
-        """Met à jour le nombre de pages détectées pour une catégorie NSFWMods."""
-        if detected_pages > 0:
-            self._category_pages_cache[cat_id] = detected_pages
-
-    def _get_category_page_counts(self) -> List[Tuple[Dict[str, Any], int]]:
-        return [(cat, self._category_pages_cache.get(cat["id"], cat["default_pages"])) for cat in self.CATEGORIES]
-
-    def get_total_pages(self) -> int:
-        """Retourne le nombre total de pages sur l'ensemble des catégories NSFWMods."""
-        return sum(pages for _, pages in self._get_category_page_counts())
-
-    def _resolve_category_page(self, global_page: int) -> Tuple[Dict[str, Any], int, int]:
-        counts = self._get_category_page_counts()
-        remaining = max(1, global_page)
-        for cat, num_pages in counts:
-            if remaining <= num_pages:
-                return cat, remaining, num_pages
-            remaining -= num_pages
-        last_cat, last_pages = counts[-1]
-        return last_cat, max(1, remaining), last_pages
+        self.current_category_info = "Sims Mods (NSFWMods)"
 
     def scrape_category_page(
         self, category: Dict[str, Any], page: int = 1, limit: int = 25
@@ -439,4 +416,3 @@ class NSFWModsProvider(BaseSourceProvider):
         return LoversLabForumService.send_private_message(
             creator_id, creator_name, subject, message, provider_name=self.provider_name, base_url=self.base_url
         )
-

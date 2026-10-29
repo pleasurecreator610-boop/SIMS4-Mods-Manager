@@ -4,190 +4,45 @@ extracting project metadata, dependencies (/relations/dependencies + description
 via CurseForge's CDN (edge.forgecdn.net / /api/v1/mods/{projectId}/files/{fileId}/download).
 """
 
-import re
+from pathlib import Path
 import threading
 import time
-import urllib.parse
-from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from bs4 import BeautifulSoup
-from dateutil import parser as date_parser
+import requests
 
+from plugins.curseforge.comments import (
+    check_user_already_commented as _cf_check_commented,
+    delete_mod_comment as _cf_delete_comment,
+    get_creator_info as _cf_get_creator_info,
+    post_mod_comment as _cf_post_comment,
+)
+from plugins.curseforge.downloader import download_curseforge_file
+from plugins.curseforge.parsers import (
+    CURSEFORGE_KNOWN_DEPENDENCIES,
+    extract_project_and_file_ids as _cf_extract_ids,
+    extract_requirements as _cf_extract_reqs,
+    parse_curseforge_search_html,
+)
 from plugins.loverslab.parsers import sanitize_description_html
 from src.core.session_manager import SessionManager
 from src.core.shutdown_manager import ShutdownManager
 from src.providers.base import BaseSourceProvider
 from src.providers.registry import ProviderRegistry
 from src.utils.logger import logger
-from src.utils.network import stream_download
 
-
-CURSEFORGE_KNOWN_DEPENDENCIES: List[Tuple[str, Dict[str, str]]] = [
-    (
-        "xml injector",
-        {
-            "source": "curseforge",
-            "remote_id": "xml-injector",
-            "title": "XML Injector",
-            "url": "https://www.curseforge.com/sims4/mods/xml-injector",
-        },
-    ),
-    (
-        "lot 51 core library",
-        {
-            "source": "curseforge",
-            "remote_id": "lot-51-core-library",
-            "title": "Lot 51 Core Library",
-            "url": "https://www.curseforge.com/sims4/mods/lot-51-core-library",
-        },
-    ),
-    (
-        "lot51 core library",
-        {
-            "source": "curseforge",
-            "remote_id": "lot-51-core-library",
-            "title": "Lot 51 Core Library",
-            "url": "https://www.curseforge.com/sims4/mods/lot-51-core-library",
-        },
-    ),
-    (
-        "smart core script",
-        {
-            "source": "curseforge",
-            "remote_id": "smart-core-script",
-            "title": "Smart Core Script",
-            "url": "https://www.curseforge.com/sims4/mods/smart-core-script",
-        },
-    ),
-    (
-        "sims 4 community library",
-        {
-            "source": "nsfwmods",
-            "remote_id": "742",
-            "title": "Sims 4 Community Library",
-            "url": "https://nsfwmods.com/files/file/742-sims-4-community-library/",
-        },
-    ),
+__all__ = [
+    "CURSEFORGE_KNOWN_DEPENDENCIES",
+    "CurseForgeProvider",
+    "download_curseforge_file",
+    "parse_curseforge_search_html",
 ]
-
-
-def parse_curseforge_search_html(
-    soup_or_html: Any,
-    category: Any = None,
-    base_url: str = "https://www.curseforge.com",
-    page: int = 1,
-    category_name: Optional[str] = None,
-    source: str = "curseforge",
-) -> Tuple[List[Dict[str, Any]], Optional[int]]:
-    """
-    Parses a CurseForge Sims 4 search/category HTML page to extract `.project-card` entries
-    and detected pagination count.
-    """
-    soup = (
-        BeautifulSoup(soup_or_html, "html.parser")
-        if isinstance(soup_or_html, str)
-        else soup_or_html
-    )
-    cat_dict: Dict[str, Any] = (
-        category
-        if isinstance(category, dict)
-        else {"name": category_name or (str(category) if category else "Mods (CurseForge)")}
-    )
-    detected_pages: Optional[int] = None
-    if page == 1:
-        page_nums: List[int] = []
-        for a in soup.select("a[href*='page=']"):
-            m = re.search(r"[?&]page=(\d+)", a.get("href", ""))
-            if m:
-                page_nums.append(int(m.group(1)))
-        for btn in soup.select(".pagination-item, [class*='pagination'] button, [class*='pagination'] a"):
-            txt = btn.get_text(strip=True)
-            if txt.isdigit():
-                page_nums.append(int(txt))
-        if page_nums:
-            detected_pages = min(max(page_nums), 50)
-
-    cards = soup.select(".project-card")
-    results: List[Dict[str, Any]] = []
-
-    for card in cards:
-        name_el = card.select_one("a.name, a.overlay-link")
-        if not name_el or not name_el.get("href"):
-            continue
-
-        raw_href = name_el["href"].split("?")[0].rstrip("/")
-        page_url = urllib.parse.urljoin(base_url, raw_href)
-        slug = raw_href.split("/")[-1]
-        remote_id = slug
-
-        title = name_el.get_text(strip=True)
-        if not title and name_el.get("title"):
-            title = re.sub(r"^Go to\s+|\s+Project Page$", "", name_el["title"], flags=re.IGNORECASE).strip()
-        if not title:
-            title = slug.replace("-", " ").title()
-
-        author_el = card.select_one("a.author-name, .author-name")
-        author = author_el.get_text(strip=True) if author_el else "Unknown"
-
-        thumb_el = card.select_one(".art img, img#row-image, img")
-        thumbnail_url = ""
-        if thumb_el:
-            thumbnail_url = thumb_el.get("src") or thumb_el.get("data-src") or ""
-            if thumbnail_url.startswith("/"):
-                thumbnail_url = urllib.parse.urljoin(base_url, thumbnail_url)
-
-        updated_date = None
-        date_el = card.select_one("li.detail-updated .date-full, li.detail-updated")
-        if date_el:
-            try:
-                updated_date = date_parser.parse(date_el.get_text(strip=True)).replace(tzinfo=None)
-            except Exception:
-                pass
-
-        version_el = card.select_one("li.detail-game-version")
-        version_str = version_el.get_text(strip=True) if version_el else ""
-
-        tags: List[str] = []
-        for cat_tag in card.select(".class-tag-overlay, li.detail-category a"):
-            t_txt = cat_tag.get_text(strip=True)
-            if t_txt and t_txt not in tags:
-                tags.append(t_txt)
-        if cat_dict.get("name") and cat_dict["name"] not in tags:
-            tags.append(cat_dict["name"])
-
-        dl_cta = card.select_one("a.download-cta[href*='/download/']")
-        dl_file_id = ""
-        if dl_cta and dl_cta.get("href"):
-            m_fid = re.search(r"/download/(\d+)", dl_cta["href"])
-            if m_fid:
-                dl_file_id = m_fid.group(1)
-
-        entry: Dict[str, Any] = {
-            "source": source,
-            "remote_id": remote_id,
-            "title": title,
-            "author": author,
-            "category": cat_dict.get("name", "Mods (CurseForge)"),
-            "tags": tags,
-            "page_url": page_url,
-            "thumbnail_url": thumbnail_url,
-            "updated_date": updated_date,
-            "published_date": updated_date,
-            "version_str": version_str,
-            "patreon_status": "NONE",
-            "patreon_tier": "",
-        }
-        if dl_file_id:
-            entry["latest_file_id"] = dl_file_id
-        results.append(entry)
-
-    return results, detected_pages
 
 
 @ProviderRegistry.register_provider("curseforge")
 class CurseForgeProvider(BaseSourceProvider):
-    """
-    Provider for scraping CurseForge The Sims 4 mods and CC categories,
+    """Provider for scraping CurseForge The Sims 4 mods and CC categories,
+
     extracting project details and dependencies, and downloading archives from ForgeCDN.
     """
 
@@ -275,52 +130,48 @@ class CurseForgeProvider(BaseSourceProvider):
 
     @classmethod
     def _pace_request(cls, session: Any) -> None:
-        """Applique un espacement minimal entre les requêtes concurrentes vers CurseForge pour éviter le HTTP 429."""
-        if "MagicMock" in type(session).__name__:
+        if getattr(session, "_is_mock", False):
             return
         with cls._cf_request_lock:
             now = time.monotonic()
             elapsed = now - cls._last_request_ts
             if elapsed < cls._min_request_interval:
-                wait_time = cls._min_request_interval - elapsed
-                if not ShutdownManager.is_shutting_down():
-                    time.sleep(wait_time)
+                time.sleep(cls._min_request_interval - elapsed)
             cls._last_request_ts = time.monotonic()
 
-    @classmethod
     def _get_with_retry(
-        cls,
+        self,
         session: Any,
         url: str,
-        timeout: int = 20,
+        timeout: int = 15,
         max_retries: int = 3,
-        **kwargs: Any,
-    ) -> Any:
-        """Exécute un GET avec limitation de débit et retry exponentiel en cas de HTTP 429."""
-        is_mock = "MagicMock" in type(session).__name__
-        resp = None
-        for attempt in range(max_retries):
+        backoff_factor: float = 1.2,
+    ) -> Optional[requests.Response]:
+        for attempt in range(max_retries + 1):
             if ShutdownManager.is_shutting_down():
-                break
-            cls._pace_request(session)
-            resp = session.get(url, timeout=timeout, **kwargs)
-            if getattr(resp, "status_code", 200) != 429:
+                return None
+            self._pace_request(session)
+            try:
+                resp = session.get(url, timeout=timeout)
+                if resp.status_code == 429:
+                    if attempt < max_retries:
+                        retry_after_hdr = resp.headers.get("Retry-After")
+                        delay = float(retry_after_hdr) if retry_after_hdr and retry_after_hdr.isdigit() else backoff_factor * (2**attempt)
+                        logger.warning(
+                            f"CurseForge request rate-limited (429) for {url}, backing off {delay:.1f}s (tentative {attempt + 1}/{max_retries})"
+                        )
+                        time.sleep(delay)
+                        continue
                 return resp
-            if is_mock or attempt >= max_retries - 1:
-                break
-            retry_after_hdr = ""
-            if hasattr(resp, "headers") and isinstance(resp.headers, dict):
-                retry_after_hdr = str(resp.headers.get("Retry-After", ""))
-            backoff = float(retry_after_hdr) if retry_after_hdr.isdigit() else (1.5 * (attempt + 1))
-            backoff = min(backoff, 6.0)
-            logger.info(
-                f"CurseForge HTTP 429 sur {url} - nouvel essai {attempt + 1}/{max_retries - 1} dans {backoff:.1f}s..."
-            )
-            time.sleep(backoff)
-        return resp
+            except Exception as exc:
+                if attempt < max_retries:
+                    time.sleep(backoff_factor * (2**attempt))
+                    continue
+                logger.debug(f"CurseForge GET failed for {url}: {exc}")
+                return None
+        return None
 
     def update_category_detected_pages(self, cat_id: str, detected_pages: int) -> None:
-        """Met à jour le nombre de pages détectées pour une catégorie CurseForge."""
         if detected_pages > 0:
             self._category_pages_cache[cat_id] = detected_pages
 
@@ -328,7 +179,6 @@ class CurseForgeProvider(BaseSourceProvider):
         return [(cat, self._category_pages_cache.get(cat["id"], cat["default_pages"])) for cat in self.CATEGORIES]
 
     def get_total_pages(self) -> int:
-        """Retourne le nombre total de pages sur l'ensemble des catégories CurseForge."""
         return sum(pages for _, pages in self._get_category_page_counts())
 
     def _resolve_category_page(self, global_page: int) -> Tuple[Dict[str, Any], int, int]:
@@ -343,15 +193,14 @@ class CurseForgeProvider(BaseSourceProvider):
 
     @staticmethod
     def _build_paginated_url(base_cat_url: str, page: int) -> str:
-        if "page=" in base_cat_url:
-            return re.sub(r"([?&])page=\d+", rf"\g<1>page={page}", base_cat_url)
+        if page <= 1:
+            return base_cat_url
         sep = "&" if "?" in base_cat_url else "?"
         return f"{base_cat_url}{sep}page={page}"
 
     def scrape_category_page(
         self, category: Dict[str, Any], page: int = 1, limit: int = 20
     ) -> Tuple[List[Dict[str, Any]], Optional[int]]:
-        """Scrape une page de catégorie CurseForge Sims 4."""
         url = self._build_paginated_url(category["url"], page)
         session = SessionManager.get_http_session(self.provider_name)
 
@@ -364,14 +213,15 @@ class CurseForgeProvider(BaseSourceProvider):
 
         try:
             resp = self._get_with_retry(session, url, timeout=20)
-            if resp is None or resp.status_code != 200:
-                code = getattr(resp, "status_code", "N/A")
-                logger.warning(f"CurseForge request returned status {code} for {url}")
+            if resp is None:
+                return results, detected_pages
+            if resp.status_code != 200:
+                logger.warning(f"CurseForge request returned status {resp.status_code} for {url}")
                 return results, detected_pages
 
-            soup = BeautifulSoup(resp.text, "html.parser")
-            results, detected_pages = parse_curseforge_search_html(soup, category, self.base_url, page)
-
+            results, detected_pages = parse_curseforge_search_html(
+                resp.text, category, self.base_url, page, source=self.provider_name
+            )
             if detected_pages and page == 1:
                 self.update_category_detected_pages(category["id"], detected_pages)
 
@@ -384,7 +234,6 @@ class CurseForgeProvider(BaseSourceProvider):
         return results, detected_pages
 
     def scrape_catalog(self, page: int = 1, limit: int = 20) -> List[Dict[str, Any]]:
-        """Scrape une page globale du catalogue CurseForge."""
         cat, local_page, total_cat_pages = self._resolve_category_page(page)
         self.current_category_info = f"{cat['name']} (p. {local_page}/{total_cat_pages})"
         results, _ = self.scrape_category_page(cat, local_page, limit)
@@ -392,128 +241,16 @@ class CurseForgeProvider(BaseSourceProvider):
 
     @staticmethod
     def _extract_project_and_file_ids(soup: BeautifulSoup, html_text: str) -> Tuple[Optional[str], Optional[str]]:
-        """Extrait le Project ID numérique et le dernier File ID depuis une page de mod CurseForge."""
-        project_id: Optional[str] = None
-        for dt in soup.find_all(["dt", "span", "div", "li", "section", "dl"]):
-            txt = dt.get_text(" ", strip=True)
-            m_pid = re.search(r"Project\s+ID\s*[:#]?\s*(\d{4,10})", txt, re.IGNORECASE)
-            if m_pid:
-                project_id = m_pid.group(1)
-                break
-        if not project_id:
-            m_raw = re.search(r"Project\s+ID</dt>\s*<dd[^>]*>\s*(\d{4,10})\s*</dd>", html_text, re.IGNORECASE)
-            if m_raw:
-                project_id = m_raw.group(1)
-        if not project_id:
-            m_api = re.search(r"/api/v1/mods/(\d{4,10})", html_text)
-            if m_api:
-                project_id = m_api.group(1)
-        if not project_id:
-            m_json_pid = re.search(r'"project"\s*:\s*\{[^}]*"id"\s*:\s*(\d{4,10})', html_text)
-            if m_json_pid:
-                project_id = m_json_pid.group(1)
-
-        file_id: Optional[str] = None
-        for a in soup.find_all("a", href=True):
-            href = a["href"]
-            m_f = re.search(r"/(?:files|download)/(\d{5,12})(?:[/?#]|$)", href)
-            if m_f:
-                file_id = m_f.group(1)
-                break
-        if not file_id:
-            m_f_raw = re.search(r"/(?:files|download)/(\d{5,12})", html_text)
-            if m_f_raw:
-                file_id = m_f_raw.group(1)
-        if not file_id:
-            m_json_fid = re.search(r'"mainFile"\s*:\s*\{[^}]*"id"\s*:\s*(\d{5,12})', html_text)
-            if m_json_fid:
-                file_id = m_json_fid.group(1)
-
-        return project_id, file_id
+        return _cf_extract_ids(soup, html_text)
 
     def extract_requirements(
         self,
         soup: BeautifulSoup,
-        mod_url: str = "",
-        fetch_relations: bool = True,
+        rel_soup: Optional[BeautifulSoup] = None,
     ) -> Tuple[Optional[str], str, List[Dict[str, Any]]]:
-        """
-        Extrait les dépendances d'un mod CurseForge depuis :
-        1. L'onglet `/relations/dependencies` (si disponible)
-        2. Les liens et mentions de prérequis dans `.project-description`
-        """
-        req_mods: List[Dict[str, Any]] = []
-        seen_keys: set[str] = set()
-
-        def _add_req(dep_dict: Dict[str, str]) -> None:
-            key = dep_dict["title"].strip().lower()
-            if key and key not in seen_keys:
-                seen_keys.add(key)
-                req_mods.append(dep_dict)
-
-        # 1. Check /relations/dependencies if mod_url is provided
-        if fetch_relations and mod_url and mod_url.startswith("http"):
-            rel_url = f"{mod_url.rstrip('/')}/relations/dependencies"
-            session = SessionManager.get_http_session(self.provider_name)
-            try:
-                rel_resp = session.get(rel_url, timeout=8)
-                if rel_resp.status_code == 200:
-                    rel_soup = BeautifulSoup(rel_resp.text, "html.parser")
-                    for card in rel_soup.select(".project-card"):
-                        name_el = card.select_one("a.name")
-                        if name_el and name_el.get("href"):
-                            href = name_el["href"].split("?")[0].rstrip("/")
-                            slug = href.split("/")[-1]
-                            t_name = name_el.get_text(strip=True) or slug.replace("-", " ").title()
-                            _add_req(
-                                {
-                                    "source": "curseforge",
-                                    "remote_id": slug,
-                                    "title": t_name,
-                                    "url": urllib.parse.urljoin(self.base_url, href),
-                                }
-                            )
-            except Exception as e:
-                logger.debug(f"CurseForge relations check skipped for {rel_url}: {e}")
-
-        # 2. Check description links & known dependency mentions
-        desc_el = soup.select_one(".project-description, #project-description, article")
-        if desc_el:
-            desc_text_lower = desc_el.get_text(" ", strip=True).lower()
-            own_slug = mod_url.rstrip("/").split("/")[-1].lower() if mod_url else ""
-
-            for a in desc_el.find_all("a", href=True):
-                href = a["href"].split("?")[0].rstrip("/")
-                m_cf = re.search(r"curseforge\.com/sims4/mods/([a-z0-9-]+)|^/sims4/mods/([a-z0-9-]+)$", href)
-                if m_cf:
-                    dep_slug = (m_cf.group(1) or m_cf.group(2) or "").strip()
-                    if dep_slug and dep_slug.lower() != own_slug:
-                        link_title = a.get_text(strip=True)
-                        if not link_title or link_title.lower() in {"here", "link", "curseforge", "download"}:
-                            link_title = dep_slug.replace("-", " ").title()
-                        _add_req(
-                            {
-                                "source": "curseforge",
-                                "remote_id": dep_slug,
-                                "title": link_title,
-                                "url": f"https://www.curseforge.com/sims4/mods/{dep_slug}",
-                            }
-                        )
-
-            for kw, dep_info in CURSEFORGE_KNOWN_DEPENDENCIES:
-                if dep_info["remote_id"].lower() == own_slug:
-                    continue
-                if kw in desc_text_lower:
-                    _add_req(dict(dep_info))
-
-        if not req_mods:
-            return None, "NONE", []
-
-        req_text = "\n".join(m["title"] for m in req_mods)
-        return req_text, "FOUND", req_mods
+        return _cf_extract_reqs(soup, rel_soup)
 
     def get_mod_details(self, mod_url: str) -> Dict[str, Any]:
-        """Extrait les détails complets, captures, dépendances et URL de téléchargement directe d'un mod CurseForge."""
         session = SessionManager.get_http_session(self.provider_name)
         details: Dict[str, Any] = {
             "description": "",
@@ -562,20 +299,35 @@ class CurseForgeProvider(BaseSourceProvider):
                     }
                 )
 
-            desc_el = soup.select_one(".project-description, #project-description")
-            if desc_el:
-                clean_body_html, body_imgs = sanitize_description_html(desc_el, self.base_url)
-                details["description"] = clean_body_html
-                details["screenshots"] = body_imgs
+            gallery_imgs: List[str] = []
+            for img in soup.select(".gallery-item img, .project-screenshot img, .carousel img, .screenshots img"):
+                src = img.get("src") or img.get("data-src") or ""
+                if src and src.startswith("http") and src not in gallery_imgs:
+                    gallery_imgs.append(src)
 
-            req_text, req_status, req_mods = self.extract_requirements(soup, mod_url=mod_url)
+            content_elem = soup.select_one(".project-description, .description, article, .tab-description")
+            if content_elem:
+                clean_body_html, body_imgs = sanitize_description_html(content_elem, self.base_url)
+                for src in body_imgs:
+                    if src.startswith("http") and src not in gallery_imgs:
+                        gallery_imgs.append(src)
+                details["description"] = clean_body_html
+                details["screenshots"] = gallery_imgs
+            else:
+                details["screenshots"] = gallery_imgs
+
+            rel_url = f"{mod_url.rstrip('/')}/relations/dependencies"
+            rel_resp = self._get_with_retry(session, rel_url, timeout=10)
+            rel_soup = BeautifulSoup(rel_resp.text, "html.parser") if rel_resp and rel_resp.status_code == 200 else None
+
+            req_text, req_status, req_mods = self.extract_requirements(soup, rel_soup=rel_soup)
             details["requirements_text"] = req_text
             details["requirements_status"] = req_status
             details["requirements_mods"] = req_mods
 
-            v_el = soup.select_one("li.detail-game-version, .game-version")
-            if v_el:
-                details["version_str"] = v_el.get_text(strip=True)
+            v_elem = soup.select_one(".version, span.file-name, .project-details .date")
+            if v_elem:
+                details["version_str"] = v_elem.get_text(strip=True)
 
         except Exception as e:
             logger.error(f"Error extracting CurseForge details for {mod_url}: {e}", exc_info=True)
@@ -583,29 +335,24 @@ class CurseForgeProvider(BaseSourceProvider):
         return details
 
     def fetch_mod_by_id(self, remote_id: str) -> Optional[Dict[str, Any]]:
-        """Récupère les métadonnées d'un mod CurseForge par son slug ou ID."""
         session = SessionManager.get_http_session(self.provider_name)
-        target_url = (
-            remote_id
-            if remote_id.startswith("http")
-            else f"{self.base_url}/sims4/mods/{remote_id.strip('/')}"
-        )
+        target_url = f"{self.base_url}/sims4/mods/{remote_id}"
         try:
             resp = self._get_with_retry(session, target_url, timeout=15)
-            if resp is not None and resp.status_code == 200:
+            if resp and resp.status_code == 200:
                 soup = BeautifulSoup(resp.text, "html.parser")
-                title_el = soup.select_one("h1")
-                author_el = soup.select_one("a.author-name, .author-name")
+                title_elem = soup.select_one("h1.project-title, h1.name, h1")
+                author_elem = soup.select_one("a.author-name, .author-name, a[href*='/members/']")
                 return {
                     "source": self.provider_name,
                     "remote_id": str(remote_id),
-                    "title": title_el.get_text(strip=True) if title_el else str(remote_id),
-                    "author": author_el.get_text(strip=True) if author_el else "Unknown",
+                    "title": title_elem.get_text(strip=True) if title_elem else f"Mod {remote_id}",
+                    "author": author_elem.get_text(strip=True) if author_elem else "CurseForge Creator",
                     "page_url": target_url,
                     "version_str": "",
                 }
         except Exception as e:
-            logger.debug(f"CurseForge fetch_mod_by_id failed for {remote_id}: {e}")
+            logger.debug(f"fetch_mod_by_id failed for {remote_id}: {e}")
         return None
 
     def download_mod_file(
@@ -615,225 +362,31 @@ class CurseForgeProvider(BaseSourceProvider):
         progress_callback: Optional[Callable[[int, str, str], None]] = None,
         **kwargs,
     ) -> Tuple[bool, str]:
-        """
-        Télécharge l'archive d'un mod CurseForge en résolvant l'endpoint
-        `/api/v1/mods/{projectId}/files/{fileId}/download` vers `edge.forgecdn.net`.
-        """
-        target_url = download_url or kwargs.get("mod_url", "")
-        target_path = dest_path or kwargs.get("dest_folder") or kwargs.get("dest_path")
-        if not target_url or not target_path:
-            return False, "URL de téléchargement ou chemin de destination manquant."
-
         session = SessionManager.get_http_session(self.provider_name)
-        target_path = Path(target_path)
-        target_path.parent.mkdir(parents=True, exist_ok=True)
-
-        try:
-            if progress_callback:
-                progress_callback(5, "Connexion à CurseForge...", "Résolution de l'archive sur ForgeCDN...")
-
-            resolved_api_url = target_url
-            if "/api/v1/mods/" not in target_url and "forgecdn.net" not in target_url:
-                page_url = re.sub(r"/(?:download|install|files)(?:/\d+)?/?$", "", target_url.split("?")[0])
-                m_fid = re.search(r"/(?:download|install|files)/(\d+)", target_url)
-                explicit_fid = m_fid.group(1) if m_fid else None
-
-                page_resp = session.get(page_url, timeout=20)
-                if page_resp.status_code != 200:
-                    return False, f"Impossible de charger la page CurseForge (HTTP {page_resp.status_code})"
-
-                soup = BeautifulSoup(page_resp.text, "html.parser")
-                project_id, detected_fid = self._extract_project_and_file_ids(soup, page_resp.text)
-                file_id = explicit_fid or detected_fid
-                if not project_id or not file_id:
-                    return False, "Impossible d'extraire Project ID / File ID depuis la page CurseForge."
-                resolved_api_url = f"{self.base_url}/api/v1/mods/{project_id}/files/{file_id}/download"
-
-            resp = session.get(resolved_api_url, stream=True, timeout=180, allow_redirects=True)
-            if resp.status_code != 200:
-                return False, f"Échec du téléchargement CurseForge (Code HTTP {resp.status_code})"
-
-            content_type = resp.headers.get("Content-Type", "").lower()
-            content_disp = resp.headers.get("Content-Disposition", "").lower()
-            if "html" not in content_type or "attachment" in content_disp or "filename=" in content_disp:
-                if isinstance(getattr(resp, "content", None), (bytes, bytearray)) and len(resp.content) > 0:
-                    target_path.write_bytes(resp.content)
-                    if progress_callback:
-                        progress_callback(100, "Téléchargement CurseForge terminé", target_path.name)
-                    return True, str(target_path)
-                return stream_download(resp, target_path, progress_callback, "Téléchargement CurseForge")
-
-            return False, "La réponse CurseForge n'est pas une archive binaire valide."
-        except Exception as e:
-            logger.error(f"Exception lors du téléchargement CurseForge ({target_url}): {e}", exc_info=True)
-            return False, str(e)
+        return download_curseforge_file(
+            download_url=download_url,
+            dest_path=dest_path,
+            session=session,
+            base_url=self.base_url,
+            progress_callback=progress_callback,
+            **kwargs,
+        )
 
     def check_access(self, mod_data: Dict[str, Any]) -> str:
-        """Tous les mods indexés sur CurseForge sont publics."""
         return "PUBLIC"
 
     def get_creator_info(self, page_url: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
-        """Extrait les informations du créateur (ID, nom, URL du profil) depuis une page CurseForge."""
-        if not page_url:
-            return None, None, None
         session = SessionManager.get_http_session(self.provider_name)
-        try:
-            resp = self._get_with_retry(session, page_url, timeout=15)
-            if resp is None or resp.status_code != 200:
-                return None, None, None
-            soup = BeautifulSoup(resp.text, "html.parser")
-            author_el = soup.select_one("a.author-name, .author-name, a[href*='/members/']")
-            if author_el:
-                name = author_el.get_text(strip=True)
-                href = author_el.get("href", "")
-                profile_url = urllib.parse.urljoin(self.base_url, href) if href else None
-                creator_id = href.rstrip("/").split("/")[-1] if href else name
-                return creator_id, name, profile_url
-        except Exception as e:
-            logger.debug(f"CurseForge get_creator_info failed for {page_url}: {e}")
-        return None, None, None
+        return _cf_get_creator_info(page_url, session, self.base_url, self._get_with_retry)
 
     def check_user_already_commented(self, page_url: str, required_keywords: List[str]) -> Tuple[bool, Optional[str]]:
-        """
-        Vérifie via l'API `/api/v1/mods/{projectId}/comments` si un commentaire
-        mentionnant les dépendances manquantes a déjà été publié sur CurseForge.
-        """
-        if not page_url:
-            return False, None
         session = SessionManager.get_http_session(self.provider_name)
-        try:
-            clean_url = re.sub(r"/comments/?$", "", page_url.split("?")[0].rstrip("/"))
-            page_resp = self._get_with_retry(session, clean_url, timeout=15)
-            if page_resp is None or page_resp.status_code != 200:
-                return False, None
-            soup = BeautifulSoup(page_resp.text, "html.parser")
-            project_id, _ = self._extract_project_and_file_ids(soup, page_resp.text)
-            if not project_id:
-                return False, None
-
-            comments_api = f"{self.base_url}/api/v1/mods/{project_id}/comments"
-            c_resp = self._get_with_retry(session, comments_api, timeout=12)
-            if c_resp is None or c_resp.status_code != 200:
-                return False, None
-
-            payload = c_resp.json()
-            comments_list = payload.get("data", []) if isinstance(payload, dict) else []
-            acc = SessionManager.get_saved_session(self.provider_name)
-            current_user = (acc.user_display_name or "").strip().lower() if acc else ""
-
-            kw_lower = [k.strip().lower() for k in required_keywords if k and k.strip()]
-            for item in comments_list:
-                body_text = str(item.get("body") or item.get("text") or "").lower()
-                author_info = item.get("author") or {}
-                author_name = str(author_info.get("username") or author_info.get("displayName") or "").lower()
-                if current_user and author_name and current_user in author_name:
-                    if not kw_lower or any(k in body_text for k in kw_lower):
-                        return True, str(item.get("datePosted") or "Déjà commenté")
-                elif kw_lower and all(k in body_text for k in kw_lower):
-                    return True, str(item.get("datePosted") or "Déjà commenté")
-        except Exception as e:
-            logger.debug(f"CurseForge check_user_already_commented failed for {page_url}: {e}")
-        return False, None
+        return _cf_check_commented(page_url, required_keywords, session, self.base_url, self.provider_name, self._get_with_retry)
 
     def post_mod_comment(self, page_url: str, message: str) -> Tuple[bool, str]:
-        """
-        Tente de publier un commentaire sur un mod CurseForge via `/api/v1/mods/{projectId}/comments`.
-        Si l'auteur a désactivé les commentaires (`hasComments: false`) ou si Cloudflare bloque la requête POST,
-        retourne un message explicite orientant vers l'ouverture dans le navigateur.
-        """
-        if not page_url or not message.strip():
-            return False, "URL ou message de commentaire manquant."
         session = SessionManager.get_http_session(self.provider_name)
-        try:
-            clean_url = re.sub(r"/comments/?$", "", page_url.split("?")[0].rstrip("/"))
-            page_resp = self._get_with_retry(session, clean_url, timeout=15)
-            if page_resp is None or page_resp.status_code != 200:
-                return False, "Impossible de charger la page du mod CurseForge."
-
-            if '"hasComments":false' in page_resp.text or '\\"hasComments\\":false' in page_resp.text:
-                return (
-                    False,
-                    "L'auteur de ce mod a désactivé la section commentaires sur CurseForge.",
-                )
-
-            soup = BeautifulSoup(page_resp.text, "html.parser")
-            project_id, _ = self._extract_project_and_file_ids(soup, page_resp.text)
-            if not project_id:
-                return False, "Impossible d'identifier le Project ID CurseForge pour publier le commentaire."
-
-            comments_api = f"{self.base_url}/api/v1/mods/{project_id}/comments"
-            post_resp = session.post(
-                comments_api,
-                json={"body": message.strip(), "bodyType": 1},
-                headers={"Referer": f"{clean_url}/comments"},
-                timeout=15,
-            )
-            if post_resp.status_code in (200, 201):
-                return True, "Commentaire publié avec succès sur CurseForge !"
-            if post_resp.status_code in (401, 403):
-                return (
-                    False,
-                    "Session CurseForge non connectée ou protégée par Cloudflare. Utilisez le bouton d'ouverture dans le navigateur.",
-                )
-            return False, f"Échec de publication du commentaire sur CurseForge (HTTP {post_resp.status_code})."
-        except Exception as e:
-            logger.error(f"Error posting CurseForge comment on {page_url}: {e}")
-            return False, str(e)
+        return _cf_post_comment(page_url, message, session, self.base_url, self._get_with_retry)
 
     def delete_mod_comment(self, page_url: str, required_keywords: Optional[List[str]] = None) -> Tuple[bool, str]:
-        """
-        Supprime un commentaire publié par l'utilisateur sur CurseForge via
-        `DELETE /api/v1/mods/{projectId}/comments/{commentId}`.
-        """
-        if not page_url:
-            return False, "URL de la page manquante."
         session = SessionManager.get_http_session(self.provider_name)
-        try:
-            clean_url = re.sub(r"/comments/?$", "", page_url.split("?")[0].rstrip("/"))
-            page_resp = self._get_with_retry(session, clean_url, timeout=15)
-            if page_resp is None or page_resp.status_code != 200:
-                return False, "Impossible de charger la page du mod CurseForge."
-
-            soup = BeautifulSoup(page_resp.text, "html.parser")
-            project_id, _ = self._extract_project_and_file_ids(soup, page_resp.text)
-            if not project_id:
-                return False, "Impossible d'identifier le Project ID CurseForge."
-
-            comments_api = f"{self.base_url}/api/v1/mods/{project_id}/comments"
-            c_resp = self._get_with_retry(session, comments_api, timeout=12)
-            if c_resp is None or c_resp.status_code != 200:
-                return False, "Impossible de récupérer les commentaires CurseForge."
-
-            payload = c_resp.json()
-            comments_list = payload.get("data", []) if isinstance(payload, dict) else []
-            acc = SessionManager.get_saved_session(self.provider_name)
-            current_user = (acc.user_display_name or "").strip().lower() if acc else ""
-
-            kw_lower = [k.strip().lower() for k in (required_keywords or []) if k and k.strip()]
-            target_comment_id = None
-
-            for item in comments_list:
-                cid = item.get("id")
-                body_text = str(item.get("body") or item.get("text") or "").lower()
-                author_info = item.get("author") or {}
-                author_name = str(author_info.get("username") or author_info.get("displayName") or "").lower()
-
-                if current_user and author_name and current_user in author_name:
-                    if not kw_lower or any(k in body_text for k in kw_lower):
-                        target_comment_id = cid
-                        break
-                elif kw_lower and all(k in body_text for k in kw_lower):
-                    target_comment_id = cid
-                    break
-
-            if not target_comment_id:
-                return False, "Aucun commentaire supprimable correspondant trouvé sur CurseForge."
-
-            del_url = f"{self.base_url}/api/v1/mods/{project_id}/comments/{target_comment_id}"
-            del_resp = session.delete(del_url, timeout=15)
-            if del_resp.status_code in (200, 204):
-                return True, "Commentaire supprimé avec succès sur CurseForge."
-            return False, f"Échec de suppression du commentaire sur CurseForge (HTTP {del_resp.status_code})."
-        except Exception as e:
-            logger.error(f"Error deleting CurseForge comment on {page_url}: {e}")
-            return False, str(e)
+        return _cf_delete_comment(page_url, session, self.base_url, required_keywords, self.provider_name, self._get_with_retry)

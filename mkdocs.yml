@@ -48,6 +48,10 @@ nav:
       - Modules & Classes: modules_and_classes.md
   - Cas d'Usage Métier:
       - Services & Providers: services_and_providers.md
+      - Provider CurseForge: providers/curseforge.md
+      - Provider The Sims Resource: providers/thesimsresource.md
+      - Provider NSFWMods: providers/nsfwmods.md
+      - Internationalisation (i18n): i18n.md
       - Classification Dépendances: dependency_classification_and_noise.md
   - API REST:
       - Spécification REST: api/REST_API.md
