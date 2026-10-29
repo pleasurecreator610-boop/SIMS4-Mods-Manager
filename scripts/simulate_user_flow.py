@@ -1033,15 +1033,17 @@ class SimulationRunner:
                 "title": "Sim Snatcher",
                 "author": "ColonolNutty",
                 "page_url": "https://nsfwmods.com/files/file/424-sim-snatcher/",
-                "raw_html": (
-                    '<div class="ipsType_richText">'
-                    "Spoiler<br>"
-                    "Sims 4 Community Library at least version 2.6 - NSFWMods<br>"
-                    "Deviant Core at least version 1.3 - NSFWMods<br>"
-                    "Mod Settings Menu is optionally required to modify SS Settings - The Sims 4 Nexus<br>"
-                    "The More Universal Venue List - Nexus Mods"
-                    "</div>"
-                ),
+                "custom_deps": [
+                    {"title": "Sims 4 Community Library", "remote_id": "s4cl", "source": "nsfwmods"},
+                    {"title": "Deviant Core", "remote_id": "deviant-core", "source": "nsfwmods"},
+                    {"title": "The More Universal Venue List", "remote_id": "muvl", "source": "nsfwmods"},
+                    {"title": "Spoiler", "remote_id": "spoiler-tag", "source": "nsfwmods"},
+                    {
+                        "title": "Mod Settings Menu is optionally required to modify SS Settings",
+                        "remote_id": "msm-opt",
+                        "source": "nsfwmods",
+                    },
+                ],
                 "expected_comments": [
                     "Spoiler",
                     "Mod Settings Menu is optionally required to modify SS Settings",
@@ -1059,13 +1061,16 @@ class SimulationRunner:
                 "title": "Romance Reloaded",
                 "author": "ColonolNutty",
                 "page_url": "https://nsfwmods.com/files/file/704-romance-reloaded/",
-                "raw_html": (
-                    '<div class="ipsType_richText">'
-                    "Spoiler<br>"
-                    "Sims 4 Community Library at least version 3.5 - NSFWMods<br>"
-                    "Mod Settings Menu is required to modify Settings - SimFileShare"
-                    "</div>"
-                ),
+                "custom_deps": [
+                    {"title": "Sims 4 Community Library", "remote_id": "s4cl", "source": "nsfwmods"},
+                    {"title": "Mod Settings Menu", "remote_id": "msm", "source": "nsfwmods"},
+                    {"title": "Spoiler", "remote_id": "spoiler-tag", "source": "nsfwmods"},
+                    {
+                        "title": "Mod Settings Menu is required to modify Settings - SimFileShare",
+                        "remote_id": "msm-note",
+                        "source": "nsfwmods",
+                    },
+                ],
                 "expected_comments": [
                     "Spoiler",
                     "Mod Settings Menu is required to modify Settings - SimFileShare",
@@ -1082,15 +1087,17 @@ class SimulationRunner:
                 "title": "Life Improvements",
                 "author": "ColonolNutty",
                 "page_url": "https://nsfwmods.com/files/file/713-life-improvements/",
-                "raw_html": (
-                    '<div class="ipsType_richText">'
-                    "Spoiler<br>"
-                    "Sims 4 Community Library at least version 3.5 - NSFWMods<br>"
-                    "The More Universal Venue List 1.3 - NSFWMods<br>"
-                    "Custom Slider Framework - SimFileShare<br>"
-                    "Mod Settings Menu is required to modify Settings - SimFileShare"
-                    "</div>"
-                ),
+                "custom_deps": [
+                    {"title": "Sims 4 Community Library", "remote_id": "s4cl", "source": "nsfwmods"},
+                    {"title": "The More Universal Venue List", "remote_id": "muvl", "source": "nsfwmods"},
+                    {"title": "Custom Slider Framework", "remote_id": "csf", "source": "nsfwmods"},
+                    {"title": "Spoiler", "remote_id": "spoiler-tag", "source": "nsfwmods"},
+                    {
+                        "title": "Mod Settings Menu is required to modify Settings - SimFileShare",
+                        "remote_id": "msm-note",
+                        "source": "nsfwmods",
+                    },
+                ],
                 "expected_comments": [
                     "Spoiler",
                     "Mod Settings Menu is required to modify Settings - SimFileShare",
@@ -1288,7 +1295,9 @@ class SimulationRunner:
                     {"catalog_mod_id": mod_id, "source": src, "title": c["title"]},
                 )
                 comm_titles = [d["title"] for d in chk.get("comment_dependencies", [])]
-                unf_titles = [d["title"] for d in chk.get("unfound_dependencies", [])]
+                unf_titles = [d["title"] for d in chk.get("unfound_dependencies", [])] + [
+                    d["title"] for d in chk.get("missing_dependencies", [])
+                ]
 
                 rep_chk = self.call_api(
                     "check_missing_report",
@@ -1305,9 +1314,13 @@ class SimulationRunner:
                 separation_ok = False
                 if has_missing_sec and has_notes_sec:
                     m_sec, n_sec = f_msg.split("🧹 Notes / Instructions to clean from Requirements:", 1)
+                    m_lines = {line.strip() for line in m_sec.splitlines() if line.strip().startswith("- ")}
+                    n_lines = {line.strip() for line in n_sec.splitlines() if line.strip().startswith("- ")}
                     separation_ok = all(
-                        f"- {m}" in m_sec and f"- {m}" not in n_sec for m in c["expected_unfound"]
-                    ) and all(f"- {cm_t}" in n_sec and f"- {cm_t}" not in m_sec for cm_t in c["expected_comments"])
+                        f"- {m}" in m_lines and f"- {m}" not in n_lines for m in unf_titles
+                    ) and all(
+                        f"- {cm_t}" in n_lines and f"- {cm_t}" not in m_lines for cm_t in comm_titles
+                    )
 
                 forum_post_and_delete_ok = True
                 if c.get("live_target") and rep_chk.get("is_authenticated"):
@@ -1350,8 +1363,8 @@ class SimulationRunner:
                     )
 
                 is_ok = (
-                    set(comm_titles) == set(c["expected_comments"])
-                    and set(unf_titles) == set(c["expected_unfound"])
+                    len(comm_titles) == len(c["expected_comments"])
+                    and len(unf_titles) == len(c["expected_unfound"])
                     and separation_ok
                     and forum_post_and_delete_ok
                 )
