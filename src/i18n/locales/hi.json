@@ -253,7 +253,9 @@
     "login_success_msg": "{provider} सत्र सफलतापूर्वक सहेजा गया!",
     "adult_hidden_notice": "🔞 वयस्क सामग्री (+18) डिफ़ॉल्ट रूप से छिपी हुई है।",
     "btn_enable_adult": "वयस्क सामग्री सक्षम करें (+18)",
-    "test_btn": "🔄 सत्र जांचें"
+    "test_btn": "🔄 सत्र जांचें",
+    "modthesims_title": "ModTheSims खाता",
+    "modthesims_desc": "ModTheSims.info पर प्रतिक्रिया संदेश पोस्ट करने और रचनाकारों से संपर्क करने की अनुमति देता है।"
   },
   "logs": {
     "title": "सिस्टम लॉग्स",

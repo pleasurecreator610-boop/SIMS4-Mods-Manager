@@ -253,7 +253,9 @@
     "login_success_msg": "{msg}\n\nLa synchronisation du catalogue a démarré en arrière-plan !",
     "adult_hidden_notice": "🔞 Les plateformes pour adultes (LoversLab, NSFWMods) sont actuellement masquées (désactivées par défaut).",
     "btn_enable_adult": "Activer le contenu +18",
-    "test_btn": "🔄 Tester la session"
+    "test_btn": "🔄 Tester la session",
+    "modthesims_title": "Compte ModTheSims",
+    "modthesims_desc": "Permet de poster des commentaires de retour et d'interpeller les créateurs sur ModTheSims.info."
   },
   "logs": {
     "title": "📋 Journaux d'Exécution & Logs",

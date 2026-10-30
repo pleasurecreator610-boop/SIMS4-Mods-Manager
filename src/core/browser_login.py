@@ -221,13 +221,32 @@ class BrowserLoginHelper:
                             or page.query_selector("#top_com")
                             or cookies_dict.get("tsrmember")
                             or cookies_dict.get("memberid")
+                            or cookies_dict.get("MemberID")
                         ):
                             is_authenticated = True
+                            member_id = cookies_dict.get("MemberID") or cookies_dict.get("memberid")
+                            if member_id and not display_name:
+                                display_name = f"TSR Membre #{member_id}"
                             member_logged_in = bool(
                                 cookies_dict.get("tsrmember")
                                 or cookies_dict.get("memberid")
+                                or cookies_dict.get("MemberID")
                                 or page.query_selector("a[href*='/account/logout']")
                             )
+                    elif prov_lower == "modthesims":
+                        if (
+                            cookies_dict.get("bbsessionhash")
+                            or cookies_dict.get("bbpassword")
+                            or cookies_dict.get("bbuserid")
+                            or page.query_selector("a[href*='login.php?do=logout']")
+                        ):
+                            is_authenticated = True
+                            user_elem = page.query_selector("a[href*='/m/'], a[href*='/member/']")
+                            if user_elem:
+                                display_name = user_elem.inner_text().strip()
+                            elif cookies_dict.get("bbuserid"):
+                                display_name = f"MTS Membre #{cookies_dict['bbuserid']}"
+                            member_logged_in = True
                     elif prov_lower == "curseforge":
                         if (
                             cookies_dict.get("CobaltSession")
@@ -235,6 +254,8 @@ class BrowserLoginHelper:
                             or page.query_selector("a[href*='/account']")
                         ):
                             is_authenticated = True
+                            if not display_name:
+                                display_name = "CurseForge User"
                             member_logged_in = True
 
                     if member_logged_in:
@@ -274,8 +295,17 @@ class BrowserLoginHelper:
                     is_authenticated = True
                 elif "cf_clearance" in cookies_dict or "ips4_hasAcceptedAge" in cookies_dict:
                     is_authenticated = True
-            elif provider_name.lower() in ("thesimsresource", "curseforge"):
+            elif provider_name.lower() in ("thesimsresource", "curseforge", "modthesims"):
                 is_authenticated = True
+                if not display_name:
+                    if provider_name.lower() == "thesimsresource":
+                        mid = cookies_dict.get("MemberID") or cookies_dict.get("memberid")
+                        display_name = f"TSR Membre #{mid}" if mid else "TSR User"
+                    elif provider_name.lower() == "modthesims":
+                        uid = cookies_dict.get("bbuserid")
+                        display_name = f"MTS Membre #{uid}" if uid else "MTS User"
+                    elif provider_name.lower() == "curseforge":
+                        display_name = "CurseForge User"
 
             save_session_callback(
                 provider_name=provider_name,

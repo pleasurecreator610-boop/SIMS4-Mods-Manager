@@ -253,7 +253,9 @@
     "login_success_msg": "{msg}\n\nCatalog sync has started in the background!",
     "adult_hidden_notice": "🔞 Adult platforms (LoversLab, NSFWMods) are currently hidden (disabled by default).",
     "btn_enable_adult": "Enable +18 Content",
-    "test_btn": "🔄 Test session"
+    "test_btn": "🔄 Test session",
+    "modthesims_title": "ModTheSims Account",
+    "modthesims_desc": "Allows posting feedback comments and reaching out to mod creators on ModTheSims.info."
   },
   "logs": {
     "title": "📋 Execution Logs & History",

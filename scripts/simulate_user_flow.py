@@ -954,7 +954,7 @@ class SimulationRunner:
            et '🧹 Notes / Instructions to clean from Requirements', ainsi que le cycle de publication et suppression.
         """
         print(
-            "\n[ÉTAPE 3.8] Validation E2E : Dépendances ambiguës, commentaires & interpellation (12 mods sur 4 plateformes)..."
+            "\n[ÉTAPE 3.8] Validation E2E : Dépendances ambiguës, commentaires & interpellation (15 mods sur 5 plateformes)..."
         )
         from bs4 import BeautifulSoup
         from plugins.loverslab.requirements_extractor import extract_loverslab_requirements
@@ -1243,6 +1243,63 @@ class SimulationRunner:
                     "XML Injector",
                     "Maternity Shop Epi Mod",
                     "Parenting Styles Mod",
+                ],
+                "live_target": False,
+            },
+            # --- 5. MODTHESIMS (3 mods) ---
+            {
+                "source": "modthesims",
+                "remote_id": "e2e_amb_mts_701053",
+                "title": "Not Now Stereo Auto Shutoff",
+                "author": "SuoSoup",
+                "page_url": "https://modthesims.info/d/701053/not-now-stereo-auto-shutoff.html",
+                "custom_deps": [
+                    {"title": "XML Injector v4", "remote_id": "xml-inj", "source": "modthesims"},
+                    {"title": "Requires PC version 1.127 or higher", "remote_id": "patch-note", "source": "modthesims"},
+                    {"title": "Scumbumbo - Tuning Error Notifier", "remote_id": "tuning-err", "source": "modthesims"},
+                ],
+                "expected_comments": [
+                    "Requires PC version 1.127 or higher",
+                ],
+                "expected_unfound": [
+                    "XML Injector v4",
+                    "Scumbumbo - Tuning Error Notifier",
+                ],
+                "live_target": True,
+            },
+            {
+                "source": "modthesims",
+                "remote_id": "e2e_amb_mts_701054",
+                "title": "Straight To Pajamas",
+                "author": "SuoSoup",
+                "page_url": "https://modthesims.info/d/701054/straight-to-pajamas-v-1-3-update.html",
+                "custom_deps": [
+                    {"title": "Custom Traits Framework", "remote_id": "ctf", "source": "modthesims"},
+                    {"title": "Tested on Mac and Windows PC", "remote_id": "tested-note", "source": "modthesims"},
+                ],
+                "expected_comments": [
+                    "Tested on Mac and Windows PC",
+                ],
+                "expected_unfound": [
+                    "Custom Traits Framework",
+                ],
+                "live_target": False,
+            },
+            {
+                "source": "modthesims",
+                "remote_id": "e2e_amb_mts_701052",
+                "title": "Irresistible Aura",
+                "author": "SimsModeler",
+                "page_url": "https://modthesims.info/d/701052/irresistible-aura.html",
+                "custom_deps": [
+                    {"title": "Lumpinou Mood Pack", "remote_id": "mood-pack", "source": "modthesims"},
+                    {"title": "Make sure to delete localthumbcache.package before launching", "remote_id": "cache-note", "source": "modthesims"},
+                ],
+                "expected_comments": [
+                    "Make sure to delete localthumbcache.package before launching",
+                ],
+                "expected_unfound": [
+                    "Lumpinou Mood Pack",
                 ],
                 "live_target": False,
             },

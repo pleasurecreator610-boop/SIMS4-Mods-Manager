@@ -8,6 +8,7 @@ via TSR's AJAX ticket flow (`/ajax.php?c=downloads&a=initDownload` -> `/ajax.php
 
 from pathlib import Path
 import re
+import threading
 import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
 import urllib.parse
@@ -145,10 +146,25 @@ class TheSimsResourceProvider(BaseSourceProvider):
         },
     ]
 
+    _tsr_request_lock = threading.Lock()
+    _last_request_ts: float = 0.0
+    _min_request_interval: float = 0.6
+
     def __init__(self) -> None:
         super().__init__()
         self._category_pages_cache: Dict[str, int] = {c["id"]: c["default_pages"] for c in self.CATEGORIES}
         self.current_category_info: str = "Clothing (TSR)"
+
+    @classmethod
+    def _pace_request(cls, session: Any) -> None:
+        if getattr(session, "_is_mock", False):
+            return
+        with cls._tsr_request_lock:
+            now = time.monotonic()
+            elapsed = now - cls._last_request_ts
+            if elapsed < cls._min_request_interval:
+                time.sleep(cls._min_request_interval - elapsed)
+            cls._last_request_ts = time.monotonic()
 
     def update_category_detected_pages(self, cat_id: str, detected_pages: int) -> None:
         if detected_pages > 0:
@@ -191,8 +207,13 @@ class TheSimsResourceProvider(BaseSourceProvider):
         results: List[Dict[str, Any]] = []
         detected_pages: Optional[int] = None
 
+        self._pace_request(session)
         try:
             resp = session.get(url, timeout=20)
+            if resp.status_code == 429:
+                logger.warning(f"TSR rate-limited (429) on {url}, backing off 3.0s...")
+                time.sleep(3.0)
+                resp = session.get(url, timeout=20)
             if resp.status_code != 200:
                 logger.warning(f"TSR request returned status {resp.status_code} for {url}")
                 return results, detected_pages

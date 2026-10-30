@@ -121,7 +121,7 @@ class CurseForgeProvider(BaseSourceProvider):
 
     _cf_request_lock = threading.Lock()
     _last_request_ts: float = 0.0
-    _min_request_interval: float = 0.45
+    _min_request_interval: float = 1.0
 
     def __init__(self) -> None:
         super().__init__()
@@ -143,9 +143,9 @@ class CurseForgeProvider(BaseSourceProvider):
         self,
         session: Any,
         url: str,
-        timeout: int = 15,
-        max_retries: int = 3,
-        backoff_factor: float = 1.2,
+        timeout: int = 20,
+        max_retries: int = 5,
+        backoff_factor: float = 2.0,
     ) -> Optional[requests.Response]:
         for attempt in range(max_retries + 1):
             if ShutdownManager.is_shutting_down():
@@ -156,7 +156,10 @@ class CurseForgeProvider(BaseSourceProvider):
                 if resp.status_code == 429:
                     if attempt < max_retries:
                         retry_after_hdr = resp.headers.get("Retry-After")
-                        delay = float(retry_after_hdr) if retry_after_hdr and retry_after_hdr.isdigit() else backoff_factor * (2**attempt)
+                        delay = float(retry_after_hdr) if retry_after_hdr and retry_after_hdr.isdigit() else backoff_factor * (1.8**attempt)
+                        # Augmenter l'intervalle global pour calmer le serveur
+                        with self._cf_request_lock:
+                            self._min_request_interval = min(3.0, self._min_request_interval + 0.3)
                         logger.warning(
                             f"CurseForge request rate-limited (429) for {url}, backing off {delay:.1f}s (tentative {attempt + 1}/{max_retries})"
                         )
@@ -165,7 +168,7 @@ class CurseForgeProvider(BaseSourceProvider):
                 return resp
             except Exception as exc:
                 if attempt < max_retries:
-                    time.sleep(backoff_factor * (2**attempt))
+                    time.sleep(backoff_factor * (1.5**attempt))
                     continue
                 logger.debug(f"CurseForge GET failed for {url}: {exc}")
                 return None

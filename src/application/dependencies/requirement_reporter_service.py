@@ -34,6 +34,7 @@ class RequirementReporterService:
         author: str,
         missing_modules: Optional[List[str]] = None,
         unnecessary_modules: Optional[List[str]] = None,
+        sender_username: Optional[str] = None,
     ) -> str:
         """
         Builds a polite, professional, and well-structured English message introducing
@@ -80,8 +81,9 @@ class RequirementReporterService:
             "Sims 4 Mods Manager automatically scans mod requirement lists to notify players when prerequisite packages are missing from their game. Keeping the Requirements list strictly limited to real dependency mods (with recognizable names or direct links) helps thousands of players avoid missing files, broken animations, or false-positive errors."
         )
 
+        user_signature = f"A Sims 4 Mods Manager user ({sender_username})" if sender_username else "A Sims 4 Mods Manager user"
         closing = (
-            "Thank you very much for your wonderful work and creations!\n\nBest regards,\nA Sims 4 Mods Manager user"
+            f"Thank you very much for your wonderful work and creations!\n\nBest regards,\n{user_signature}"
         )
 
         body = "\n\n".join(sections)
@@ -103,12 +105,17 @@ class RequirementReporterService:
         Also resolves creator profile info and compose PM URL.
         """
         clean_author = cls.format_author_mention(author)
+        # 1. Check member authentication
+        acc = SessionManager.get_saved_session(source)
+        sender_username = (acc.user_display_name or "").strip() if acc else None
+
         missing_mods = missing_modules or []
         unnecessary_mods = unnecessary_modules or []
-        formatted_message = cls.build_english_message(mod_title, author, missing_mods, unnecessary_mods)
+        formatted_message = cls.build_english_message(
+            mod_title, author, missing_mods, unnecessary_mods, sender_username=sender_username
+        )
         formatted_subject = cls.build_english_subject(mod_title)
 
-        # 1. Check member authentication
         if not SessionManager.is_member_authenticated(source):
             return {
                 "can_report": False,

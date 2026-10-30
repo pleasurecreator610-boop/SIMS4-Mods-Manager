@@ -121,7 +121,19 @@ class AccountsView(QWidget):
         self.tsr_card.login_requested.connect(self.open_login_window)
         self.cards_layout.addWidget(self.tsr_card)
 
-        # 5. Patreon Card
+        # 5. ModTheSims Card
+        self.modthesims_card = AccountCardWidget(
+            provider_name="modthesims",
+            title_key="accounts.modthesims_title",
+            desc_key="accounts.modthesims_desc",
+            parent=self,
+        )
+        self.modthesims_card.clear_requested.connect(self._on_clear_clicked)
+        self.modthesims_card.test_requested.connect(self._on_test_clicked)
+        self.modthesims_card.login_requested.connect(self.open_login_window)
+        self.cards_layout.addWidget(self.modthesims_card)
+
+        # 6. Patreon Card
         self.patreon_card = AccountCardWidget(
             provider_name="patreon",
             title_key="accounts.patreon_title",
@@ -138,6 +150,7 @@ class AccountsView(QWidget):
             "nsfwmods": self.nsfwmods_card,
             "curseforge": self.curseforge_card,
             "thesimsresource": self.tsr_card,
+            "modthesims": self.modthesims_card,
             "patreon": self.patreon_card,
         }
 
@@ -193,6 +206,7 @@ class AccountsView(QWidget):
             self.nsfwmods_card,
             self.curseforge_card,
             self.tsr_card,
+            self.modthesims_card,
             self.patreon_card,
         ]:
             self.card_widgets[card.provider_name] = {
