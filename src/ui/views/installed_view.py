@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QMessageBox,
 )
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QTimer, Signal
 
 from src.api.client import get_api_client
 from src.ui.components.installed_card import InstalledCard
@@ -37,6 +37,10 @@ class InstalledView(QWidget):
         self._fetch_worker = None
         self._scan_worker = None
         self._conflicts_worker = None
+        self._search_debounce_timer = QTimer(self)
+        self._search_debounce_timer.setSingleShot(True)
+        self._search_debounce_timer.setInterval(150)
+        self._search_debounce_timer.timeout.connect(self._filter_cards)
         self.init_ui()
 
     def init_ui(self):
@@ -84,7 +88,7 @@ class InstalledView(QWidget):
                 border-color: #6366f1;
             }
         """)
-        self.search_input.textChanged.connect(self._filter_cards)
+        self.search_input.textChanged.connect(lambda _text: self._search_debounce_timer.start())
         header_layout.addWidget(self.search_input)
 
         # Conflicts Diagnostic Button
@@ -189,22 +193,26 @@ class InstalledView(QWidget):
         ]
         self._populate_grid(filtered)
 
+    def _create_installed_card(self, m: dict) -> InstalledCard:
+        """Crée et connecte une nouvelle instance InstalledCard pour le pool de la grille."""
+        card = InstalledCard(m, parent=self)
+        card.delete_requested.connect(self._on_delete_mod)
+        card.toggle_requested.connect(self._on_toggle_mod)
+        card.restore_requested.connect(self._on_restore_mod)
+        card.open_folder_requested.connect(self.open_mod_folder)
+        card.details_requested.connect(self.details_requested.emit)
+        return card
+
     def _populate_grid(self, mods_list: list):
         if not mods_list:
             self.card_grid.set_empty_message(tr("installed.empty_desc"))
             return
 
-        new_cards = []
-        for m in mods_list:
-            card = InstalledCard(m, parent=self)
-            card.delete_requested.connect(self._on_delete_mod)
-            card.toggle_requested.connect(self._on_toggle_mod)
-            card.restore_requested.connect(self._on_restore_mod)
-            card.open_folder_requested.connect(self.open_mod_folder)
-            card.details_requested.connect(self.details_requested.emit)
-            new_cards.append(card)
-
-        self.card_grid.set_cards(new_cards)
+        self.card_grid.update_pool(
+            items_data=mods_list,
+            factory_fn=self._create_installed_card,
+            update_fn=lambda card, m: card.update_data(m),
+        )
 
     def _on_toggle_mod(self, mod_data: dict):
         """Active ou désactive un mod via l'API en arrière-plan sans bloquer la GUI."""

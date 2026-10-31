@@ -498,7 +498,7 @@ class SessionManager:
         cls,
         provider_name: str,
         target_url: str,
-        success_indicator_selector: Optional[str] = None,
+        _success_indicator_selector: Optional[str] = None,
         timeout_seconds: int = 180,
     ) -> Tuple[bool, str, Dict[str, str]]:
         """Launches a visible browser window via Playwright to log in and capture cookies."""

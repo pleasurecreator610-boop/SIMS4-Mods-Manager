@@ -11,7 +11,7 @@ def test_mod_toggle_enable_disable_lifecycle(tmp_path, monkeypatch):
 
     mods_dir = tmp_path / "Mods"
     mods_dir.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setattr(GameDetector, "detect_mods_dir", classmethod(lambda cls, custom=None: mods_dir))
+    monkeypatch.setattr(GameDetector, "detect_mods_dir", classmethod(lambda cls, _custom=None: mods_dir))
 
     # Create dummy mod folder and files
     mod_folder = mods_dir / "loverslab_ToggleTest_123"
@@ -82,7 +82,7 @@ def test_mod_toggle_errors(tmp_path, monkeypatch):
     # Mod exists in DB, but folder missing on disk
     mods_dir = tmp_path / "Mods"
     mods_dir.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setattr(GameDetector, "detect_mods_dir", classmethod(lambda cls, custom=None: mods_dir))
+    monkeypatch.setattr(GameDetector, "detect_mods_dir", classmethod(lambda cls, _custom=None: mods_dir))
 
     with db_mgr.get_session() as session:
         imod = InstalledMod(

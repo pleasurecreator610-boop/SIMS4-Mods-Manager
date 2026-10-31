@@ -1,10 +1,13 @@
 """
 Level 3: Atomic Actions for Dependency Resolution.
 Contains single-responsibility, atomic functions and classes for DLC detection,
-comment classification, special case lookup, and atomic database lookups.
+comment classification, special case lookup, and atomic database lookups with LRU caching.
 """
 
-from typing import Any, Dict, Optional, Set, Tuple
+from collections import OrderedDict
+import re
+import threading
+from typing import Any, Dict, List, Optional, Set, Tuple
 from sqlalchemy.orm import Session, defer
 
 from src.application.dependencies.dependency_normalizer import (
@@ -19,9 +22,23 @@ from src.infrastructure.database.models import CatalogMod
 from src.utils.game_dlc_matcher import GameDlcMatcher
 from src.utils.mod_matcher import ModMatcher
 
+_LEADING_THE_RE = re.compile(r"(?i)^the\s+")
+
 
 class DependencyActions:
     """Atomic actions for dependency matching, classification, and lookups."""
+
+    _catalog_match_cache: OrderedDict[Tuple[int, str, str], Tuple[Optional[str], Optional[str], str, str]] = (
+        OrderedDict()
+    )
+    _cache_lock = threading.Lock()
+    _MAX_CACHE_SIZE = 512
+
+    @classmethod
+    def clear_cache(cls) -> None:
+        """Vide le cache LRU de résolution de dépendances sur le catalogue."""
+        with cls._cache_lock:
+            cls._catalog_match_cache.clear()
 
     def clean_title(self, title: str) -> str:
         """Cleans and standardizes raw dependency title string."""
@@ -61,24 +78,39 @@ class DependencyActions:
         self, title: str, session: Session, source: str = "loverslab"
     ) -> Tuple[Optional[str], Optional[str], str, str]:
         """
-        Finds matching catalog mod by similarity or exact match.
+        Finds matching catalog mod by similarity or exact match with LRU caching.
         Returns (remote_id, page_url, title, source).
         """
+        bind_id = id(getattr(session, "bind", session))
+        cache_key = (bind_id, (title or "").strip().lower(), (source or "loverslab").lower())
+
+        with self._cache_lock:
+            if cache_key in self._catalog_match_cache:
+                self._catalog_match_cache.move_to_end(cache_key)
+                return self._catalog_match_cache[cache_key]
+
         match_res = ModMatcher.find_best_catalog_match(title, session, min_threshold=0.70)
         if match_res:
             cat_match, _ = match_res
-            return cat_match.remote_id, cat_match.page_url, cat_match.title or title, cat_match.source or source
+            res = (cat_match.remote_id, cat_match.page_url, cat_match.title or title, cat_match.source or source)
+        else:
+            cat_match = (
+                session.query(CatalogMod)
+                .options(defer(CatalogMod.description), defer(CatalogMod.requirements_text))
+                .filter((CatalogMod.title.ilike(title)) | (CatalogMod.remote_id == title))
+                .first()
+            )
+            if cat_match and isinstance(getattr(cat_match, "remote_id", None), str):
+                res = (cat_match.remote_id, cat_match.page_url, cat_match.title or title, cat_match.source or source)
+            else:
+                res = (None, None, title, source)
 
-        cat_match = (
-            session.query(CatalogMod)
-            .options(defer(CatalogMod.description), defer(CatalogMod.requirements_text))
-            .filter((CatalogMod.title.ilike(title)) | (CatalogMod.remote_id == title))
-            .first()
-        )
-        if cat_match and isinstance(getattr(cat_match, "remote_id", None), str):
-            return cat_match.remote_id, cat_match.page_url, cat_match.title or title, cat_match.source or source
+        with self._cache_lock:
+            self._catalog_match_cache[cache_key] = res
+            if len(self._catalog_match_cache) > self._MAX_CACHE_SIZE:
+                self._catalog_match_cache.popitem(last=False)
 
-        return None, None, title, source
+        return res
 
     def check_installed(
         self,
@@ -94,18 +126,33 @@ class DependencyActions:
         if title.lower() in installed_by_title:
             return True
 
-        installed_list = list(installed_by_remote.values()) + list(installed_by_title.values())
-        import re
+        # Deduplicate installed objects by identity
+        seen_ids: Set[int] = set()
+        installed_list: List[Any] = []
+        for im in (*installed_by_remote.values(), *installed_by_title.values()):
+            obj_id = id(im)
+            if obj_id not in seen_ids:
+                seen_ids.add(obj_id)
+                installed_list.append(im)
 
         title_str = title if isinstance(title, str) else str(title or "")
-        stripped_t = re.sub(r"(?i)^the\s+", "", title_str.strip())
+        stripped_t = _LEADING_THE_RE.sub("", title_str.strip())
         t_fp = ModMatcher.canonical_fingerprint(ModMatcher.clean_mod_title(stripped_t) or stripped_t)
         for im in installed_list:
-            if getattr(im, "title", None) and isinstance(im.title, str):
-                im_s = re.sub(r"(?i)^the\s+", "", im.title.strip())
-                im_fp = ModMatcher.canonical_fingerprint(ModMatcher.clean_mod_title(im_s) or im_s)
-                if im_fp and im_fp == t_fp:
-                    return True
+            im_fp = getattr(im, "_cached_title_fp", None)
+            if im_fp is None:
+                im_title = getattr(im, "title", None)
+                if im_title and isinstance(im_title, str):
+                    im_s = _LEADING_THE_RE.sub("", im_title.strip())
+                    im_fp = ModMatcher.canonical_fingerprint(ModMatcher.clean_mod_title(im_s) or im_s)
+                else:
+                    im_fp = ""
+                try:
+                    im._cached_title_fp = im_fp
+                except Exception:
+                    pass
+            if im_fp and im_fp == t_fp:
+                return True
 
         im_match = ModMatcher.find_best_installed_match(title, installed_list, min_threshold=0.85)
         return bool(im_match)

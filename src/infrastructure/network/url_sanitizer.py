@@ -110,7 +110,7 @@ def validate_download_url(
 
     # Protection contre les accès localhost / loopback en production
     if not allow_local:
-        if hostname_lower in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
+        if hostname_lower in ("localhost", "127.0.0.1", "::1", str(ipaddress.IPv4Address(0))):
             return False
         if is_ip_private_or_reserved(hostname_lower):
             return False

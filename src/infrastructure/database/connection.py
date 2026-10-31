@@ -22,7 +22,7 @@ def create_db_engine(db_path: Optional[str] = None) -> Engine:
     engine = create_engine(f"sqlite:///{path}", echo=False)
 
     @event.listens_for(engine, "connect")
-    def set_sqlite_pragma(dbapi_connection, connection_record):
+    def set_sqlite_pragma(dbapi_connection, _connection_record):
         """Active le mode WAL et les pragmas SQLite optimaux."""
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA journal_mode=WAL")

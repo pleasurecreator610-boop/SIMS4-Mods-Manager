@@ -129,7 +129,7 @@ def test_catalog_fetch_worker_cancel(qapp):
     assert worker._is_cancelled is True
 
     ready_results = []
-    worker.data_ready.connect(lambda res, accs, fid: ready_results.append(fid))
+    worker.data_ready.connect(lambda _res, _accs, fid: ready_results.append(fid))
     worker.run()
     assert len(ready_results) == 0
     mock_api.get_catalog.assert_not_called()

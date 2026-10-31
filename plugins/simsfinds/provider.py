@@ -301,11 +301,11 @@ class SimsFindsProvider(BaseSourceProvider):
         session = SessionManager.get_http_session(self.provider_name)
         return _sfinds_delete_comment(page_url, "1", session, self.base_url, self.provider_name)
 
-    def send_private_message(self, recipient_username: str, subject: str, message: str) -> Tuple[bool, str]:
+    def send_private_message(self, _recipient_username: str, _subject: str, _message: str) -> Tuple[bool, str]:
         return False, "Les messages privés SimsFinds ne sont pas configurés."
 
     def check_user_already_sent_pm(
-        self, recipient_username: str, required_keywords: List[str]
+        self, _recipient_username: str, _required_keywords: List[str]
     ) -> Tuple[bool, Optional[str]]:
         return False, None
 

@@ -47,7 +47,7 @@ def e2e_env(tmp_path, monkeypatch):
 
     from src.application.game.game_service import GameDetector
 
-    monkeypatch.setattr(GameDetector, "detect_mods_dir", classmethod(lambda cls, custom=None: fake_mods_dir))
+    monkeypatch.setattr(GameDetector, "detect_mods_dir", classmethod(lambda cls, _custom=None: fake_mods_dir))
 
     # 3. Security auth bypass for test client
     import os

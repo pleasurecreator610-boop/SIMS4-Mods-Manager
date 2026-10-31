@@ -1,5 +1,6 @@
 # Hoisted imports (auto)
 import json
+import time
 
 import httpx
 from typing import Optional, Dict, Any, List, Union
@@ -14,6 +15,7 @@ class ApiClient:
     FAST_TIMEOUT: float = 10.0
     DEFAULT_TIMEOUT: float = 30.0
     HEAVY_TIMEOUT: float = 360.0
+    ACCOUNTS_CACHE_TTL: float = 30.0
 
     def __init__(self, base_url: str = "http://127.0.0.1:8000", token: Optional[str] = None):
         self.base_url = base_url.rstrip("/")
@@ -25,6 +27,13 @@ class ApiClient:
             headers["X-Internal-Token"] = self.token
         # Default 30s timeout with fine-grained per-method timeouts to avoid freezing background workers
         self._client = httpx.Client(base_url=self.base_url, headers=headers, timeout=self.DEFAULT_TIMEOUT)
+        self._accounts_cache: Optional[List[Dict[str, Any]]] = None
+        self._accounts_cache_ts: float = 0.0
+
+    def invalidate_accounts_cache(self) -> None:
+        """Invalide le cache mémoire local des comptes."""
+        self._accounts_cache = None
+        self._accounts_cache_ts = 0.0
 
     def close(self) -> None:
         """Closes the underlying httpx.Client and releases connection resources."""
@@ -42,7 +51,7 @@ class ApiClient:
     def __enter__(self) -> "ApiClient":
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(self, _exc_type, _exc_val, _exc_tb) -> None:
         self.close()
 
     # --- System & Health ---
@@ -57,15 +66,22 @@ class ApiClient:
         return resp.json()
 
     # --- Accounts ---
-    def get_accounts(self) -> List[Dict[str, Any]]:
-        """Exécute l'opération get accounts.
+    def get_accounts(self, force_refresh: bool = False) -> List[Dict[str, Any]]:
+        """Récupère la liste des comptes avec cache mémoire TTL (30s) pour accélérer la navigation catalogue."""
+        now = time.monotonic()
+        if (
+            not force_refresh
+            and self._accounts_cache is not None
+            and (now - self._accounts_cache_ts) < self.ACCOUNTS_CACHE_TTL
+        ):
+            return list(self._accounts_cache)
 
-        Returns:
-            Résultat de l'opération get_accounts.
-        """
         resp = self._client.get("/api/accounts", timeout=self.FAST_TIMEOUT)
         resp.raise_for_status()
-        return resp.json().get("accounts", [])
+        accounts = resp.json().get("accounts", [])
+        self._accounts_cache = list(accounts)
+        self._accounts_cache_ts = now
+        return accounts
 
     def test_account(self, provider_name: str) -> Dict[str, Any]:
         """Exécute l'opération test account.
@@ -76,6 +92,7 @@ class ApiClient:
         Returns:
             Résultat de l'opération test_account.
         """
+        self.invalidate_accounts_cache()
         resp = self._client.post(f"/api/accounts/{provider_name}/test", timeout=30.0)
         resp.raise_for_status()
         return resp.json()
@@ -89,12 +106,14 @@ class ApiClient:
         Returns:
             Résultat de l'opération clear_account.
         """
+        self.invalidate_accounts_cache()
         resp = self._client.delete(f"/api/accounts/{provider_name}")
         resp.raise_for_status()
         return resp.json()
 
     def set_nexusmods_api_key(self, api_key: str) -> Dict[str, Any]:
         """Enregistre et valide une clé API personnelle Nexus Mods."""
+        self.invalidate_accounts_cache()
         resp = self._client.post(
             "/api/accounts/nexusmods/api-key",
             json={"api_key": api_key},
@@ -113,6 +132,7 @@ class ApiClient:
         Returns:
             Résultat de l'opération login_account.
         """
+        self.invalidate_accounts_cache()
         request_timeout = max(self.HEAVY_TIMEOUT, float(timeout_seconds) + 60.0)
         resp = self._client.post(
             f"/api/accounts/{provider_name}/login",
