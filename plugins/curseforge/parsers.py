@@ -72,11 +72,7 @@ def parse_curseforge_search_html(
 
     and detected pagination count.
     """
-    soup = (
-        BeautifulSoup(soup_or_html, "html.parser")
-        if isinstance(soup_or_html, str)
-        else soup_or_html
-    )
+    soup = BeautifulSoup(soup_or_html, "html.parser") if isinstance(soup_or_html, str) else soup_or_html
     cat_dict: Dict[str, Any] = (
         category
         if isinstance(category, dict)
@@ -175,9 +171,7 @@ def parse_curseforge_search_html(
     return results, detected_pages
 
 
-def extract_project_and_file_ids(
-    soup: BeautifulSoup, html_text: str
-) -> Tuple[Optional[str], Optional[str]]:
+def extract_project_and_file_ids(soup: BeautifulSoup, html_text: str) -> Tuple[Optional[str], Optional[str]]:
     """Extracts numeric Project ID and latest File ID from a CurseForge mod page."""
     project_id: Optional[str] = None
     for dt in soup.find_all(["dt", "span", "div", "li", "section", "dl"]):
@@ -232,9 +226,7 @@ def extract_requirements(
     for s in soups_to_check:
         if s is None:
             continue
-        rel_cards = s.select(
-            ".dependency-card, .relation-card, div[data-relation-type='required'], a.relation-item"
-        )
+        rel_cards = s.select(".dependency-card, .relation-card, div[data-relation-type='required'], a.relation-item")
         for rc in rel_cards:
             name_el = rc.select_one(".name, h3, strong, .title")
             url_el = rc.select_one("a[href*='/sims4/']") or (rc if rc.name == "a" else None)

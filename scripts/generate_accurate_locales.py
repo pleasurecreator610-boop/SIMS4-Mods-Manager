@@ -22,14 +22,14 @@ ZH = {
         "error": "错误",
         "ready": "就绪",
         "pending": "等待中",
-        "completed": "已完成"
+        "completed": "已完成",
     },
     "app": {
         "title": "模拟人生 4",
         "subtitle": "模组管理器",
         "window_title": "SIMS 4 Mods Manager",
         "browser_required_title": "防机器人验证需要浏览器",
-        "browser_required_msg": "未检测到适用于 Playwright 的兼容浏览器（Chromium、Edge 或 Chrome）。\n\n要启用自动登录和绕过 Cloudflare，请运行：\n\nuv run playwright install chromium"
+        "browser_required_msg": "未检测到适用于 Playwright 的兼容浏览器（Chromium、Edge 或 Chrome）。\n\n要启用自动登录和绕过 Cloudflare，请运行：\n\nuv run playwright install chromium",
     },
     "browser": {
         "dialog_title": "更新 Chromium 浏览器",
@@ -38,7 +38,7 @@ ZH = {
         "starting_download": "开始下载...",
         "install_success": "Chromium 已成功安装并完成配置。",
         "install_error": "下载或安装 Chromium 失败",
-        "cancelling": "正在取消..."
+        "cancelling": "正在取消...",
     },
     "nav": {
         "accounts": "🌐  账号与防机器人",
@@ -57,7 +57,7 @@ ZH = {
         "launch_game": "▶ 启动模拟人生 4",
         "launch_game_title": "启动游戏",
         "launch_game_success": "游戏启动成功。",
-        "launch_game_error": "启动游戏失败：{error}"
+        "launch_game_error": "启动游戏失败：{error}",
     },
     "settings": {
         "title": "应用程序设置",
@@ -104,7 +104,7 @@ ZH = {
         "cleanup_confirm_msg": "是否清理临时缓存和下载以释放磁盘空间？",
         "cleanup_done_title": "清理完成",
         "cleanup_done_msg": "磁盘空间已成功释放：{freed} MB\n（已清理 {count} 个文件）",
-        "cleanup_error": "清理出错：{error}"
+        "cleanup_error": "清理出错：{error}",
     },
     "catalog": {
         "title": "统一模组目录",
@@ -171,7 +171,7 @@ ZH = {
         "sync_success_title": "同步完成",
         "sync_success_msg": "目录已成功同步！新增或更新了 {count} 个模组。",
         "sync_error_title": "同步错误",
-        "sync_error_msg": "同步目录时发生错误：{error}"
+        "sync_error_msg": "同步目录时发生错误：{error}",
     },
     "installed": {
         "title": "已安装模组管理",
@@ -222,7 +222,7 @@ ZH = {
         "btn_toggle_on": "启用",
         "btn_toggle_off": "禁用",
         "scan_success_title": "扫描完毕",
-        "scan_success_msg": "扫描完成！检测到 {count} 个模组。"
+        "scan_success_msg": "扫描完成！检测到 {count} 个模组。",
     },
     "updates": {
         "title": "模组更新中心",
@@ -265,7 +265,7 @@ ZH = {
         "th_new_version": "最新可用版本",
         "badge_checking": "检查中...",
         "checking_progress_title": "正在检查更新",
-        "checking_progress_desc": "正在对比本地模组与各大平台最新版本..."
+        "checking_progress_desc": "正在对比本地模组与各大平台最新版本...",
     },
     "accounts": {
         "title": "账号、会话与防机器人验证",
@@ -299,7 +299,7 @@ ZH = {
         "login_success_title": "会话保存成功",
         "login_success_msg": "{provider} 的会话已成功验证并保存！",
         "adult_hidden_notice": "🔞 成人与绅士平台 (+18) 当前已默认隐藏保护。",
-        "btn_enable_adult": "开启成人内容 (+18)"
+        "btn_enable_adult": "开启成人内容 (+18)",
     },
     "logs": {
         "title": "系统与操作日志",
@@ -314,7 +314,7 @@ ZH = {
         "btn_clear": "清空日志",
         "btn_copy": "复制日志",
         "btn_export": "导出日志文件",
-        "filter_warning": "警告 (WARN)"
+        "filter_warning": "警告 (WARN)",
     },
     "mod_detail": {
         "title": "模组详细档案",
@@ -359,7 +359,7 @@ ZH = {
         "loading_details": "正在加载详细信息...",
         "no_requirements": "该模组无需任何额外前置依赖即可运行。",
         "file_primary": "主文件",
-        "file_optional": "可选附件"
+        "file_optional": "可选附件",
     },
     "drawer": {
         "title": "抓取与同步抽屉",
@@ -388,7 +388,7 @@ ZH = {
         "cf_title": "CurseForge 官方目录",
         "tsr_title": "The Sims Resource 模组库",
         "ll_title": "LoversLab 社区 (18+)",
-        "nm_title": "NSFWMods 社区 (18+)"
+        "nm_title": "NSFWMods 社区 (18+)",
     },
     "filter_bar": {
         "category_all": "全部分类",
@@ -402,7 +402,7 @@ ZH = {
         "all_sources": "全部来源",
         "sort_by": "排序方式 :",
         "adult_on": "🔞 +18 : 开启",
-        "adult_off": "🔞 +18 : 关闭"
+        "adult_off": "🔞 +18 : 关闭",
     },
     "dependencies": {
         "title": "前置依赖与冲突分析",
@@ -422,7 +422,7 @@ ZH = {
         "btn_classify_mod": "设为必需模组",
         "btn_report_author": "向创作者反馈需求列表",
         "dialog_report_title": "向创作者发送依赖优化建议",
-        "summary_title": "前置依赖总结"
+        "summary_title": "前置依赖总结",
     },
     "report_dialog": {
         "dialog_title": "反馈模组需求清单",
@@ -447,7 +447,7 @@ ZH = {
         "send_success_title": "反馈已提交",
         "send_success_msg": "您的建议消息已成功发送给作者！",
         "send_error_title": "提交失败",
-        "send_error_msg": "发送消息时发生错误：{error}"
+        "send_error_msg": "发送消息时发生错误：{error}",
     },
     "image_viewer": {
         "dialog_title": "图片预览",
@@ -455,7 +455,7 @@ ZH = {
         "btn_prev": "上一张",
         "btn_next": "下一张",
         "btn_close": "关闭",
-        "title": "图片预览"
+        "title": "图片预览",
     },
     "downloads": {
         "title": "下载管理",
@@ -480,7 +480,7 @@ ZH = {
         "btn_resume_all": "全部继续",
         "empty_active": "当前没有正在进行的下载任务。",
         "empty_history": "暂无已完成的下载历史。",
-        "th_size": "大小"
+        "th_size": "大小",
     },
     "dialogs": {
         "confirm_title": "确认操作",
@@ -501,7 +501,7 @@ ZH = {
         "warning": "警告",
         "error": "错误",
         "info": "提示",
-        "success": "成功"
+        "success": "成功",
     },
     "mod_types": {
         "script": "TS4 脚本模组",
@@ -514,7 +514,7 @@ ZH = {
         "object": "家具与建造物体",
         "animation": "人物交互动作",
         "pose": "动作与姿态包",
-        "ui_mod": "界面优化模组"
+        "ui_mod": "界面优化模组",
     },
     "conflicts": {
         "title": "模组冲突分析报告",
@@ -530,8 +530,8 @@ ZH = {
         "severity_medium": "中等 (部分重叠)",
         "severity_low": "微弱 (可忽略)",
         "summary_no_conflicts": "✓ 太好了！未在 Mods 文件夹中检测到任何资源冲突。",
-        "summary_conflicts_found": "⚠️ 检测到 {count} 处潜在模组文件冲突"
-    }
+        "summary_conflicts_found": "⚠️ 检测到 {count} 处潜在模组文件冲突",
+    },
 }
 
 # Dictionnaire HINDI complet
@@ -546,14 +546,14 @@ HI = {
         "error": "त्रुटि",
         "ready": "तैयार",
         "pending": "प्रतीक्षारत",
-        "completed": "पूर्ण"
+        "completed": "पूर्ण",
     },
     "app": {
         "title": "सिम्स 4",
         "subtitle": "मॉड्स प्रबंधक",
         "window_title": "SIMS 4 Mods Manager",
         "browser_required_title": "एंटी-बॉट के लिए ब्राउज़र आवश्यक",
-        "browser_required_msg": "Playwright के लिए कोई संगत ब्राउज़र (Chromium, Edge या Chrome) नहीं मिला।\n\nलॉगिन और Cloudflare सुरक्षा के लिए कृपया चलाएं:\n\nuv run playwright install chromium"
+        "browser_required_msg": "Playwright के लिए कोई संगत ब्राउज़र (Chromium, Edge या Chrome) नहीं मिला।\n\nलॉगिन और Cloudflare सुरक्षा के लिए कृपया चलाएं:\n\nuv run playwright install chromium",
     },
     "browser": {
         "dialog_title": "Chromium ब्राउज़र अपडेट करें",
@@ -562,7 +562,7 @@ HI = {
         "starting_download": "डाउनलोड शुरू हो रहा है...",
         "install_success": "Chromium सफलतापूर्वक इंस्टॉल हो गया है।",
         "install_error": "Chromium का डाउनलोड या इंस्टॉलेशन विफल रहा",
-        "cancelling": "रद्द किया जा रहा है..."
+        "cancelling": "रद्द किया जा रहा है...",
     },
     "nav": {
         "accounts": "🌐  खाते और एंटी-बॉट",
@@ -581,7 +581,7 @@ HI = {
         "launch_game": "▶ सिम्स 4 शुरू करें",
         "launch_game_title": "गेम लॉन्च",
         "launch_game_success": "गेम सफलतापूर्वक शुरू हुआ।",
-        "launch_game_error": "गेम शुरू करने में विफल: {error}"
+        "launch_game_error": "गेम शुरू करने में विफल: {error}",
     },
     "settings": {
         "title": "एप्लिकेशन सेटिंग्स",
@@ -628,7 +628,7 @@ HI = {
         "cleanup_confirm_msg": "क्या आप अस्थायी कैशे और डाउनलोड साफ़ करना चाहते हैं?",
         "cleanup_done_title": "सफाई पूर्ण",
         "cleanup_done_msg": "डिस्क स्थान खाली हुआ: {freed} MB\n({count} फ़ाइलें साफ़)",
-        "cleanup_error": "सफाई में त्रुटि: {error}"
+        "cleanup_error": "सफाई में त्रुटि: {error}",
     },
     "catalog": {
         "title": "एकीकृत मॉड कैटलॉग",
@@ -695,7 +695,7 @@ HI = {
         "sync_success_title": "सिंक पूर्ण",
         "sync_success_msg": "कैटलॉग सफलतापूर्वक सिंक हुआ! {count} मॉड्स मिले।",
         "sync_error_title": "सिंक त्रुटि",
-        "sync_error_msg": "कैटलॉग सिंक करते समय त्रुटि: {error}"
+        "sync_error_msg": "कैटलॉग सिंक करते समय त्रुटि: {error}",
     },
     "installed": {
         "title": "इंस्टॉल किए गए मॉड्स प्रबंधन",
@@ -746,7 +746,7 @@ HI = {
         "btn_toggle_on": "सक्षम करें",
         "btn_toggle_off": "अक्षम करें",
         "scan_success_title": "स्कैन पूर्ण",
-        "scan_success_msg": "{count} मॉड्स का पता चला।"
+        "scan_success_msg": "{count} मॉड्स का पता चला।",
     },
     "updates": {
         "title": "मॉड अपडेट केंद्र",
@@ -789,7 +789,7 @@ HI = {
         "th_new_version": "नया संस्करण",
         "badge_checking": "जांच जारी...",
         "checking_progress_title": "अपडेट जाँचे जा रहे हैं",
-        "checking_progress_desc": "कृपया प्रतीक्षा करें..."
+        "checking_progress_desc": "कृपया प्रतीक्षा करें...",
     },
     "accounts": {
         "title": "खाते, सत्र और एंटी-बॉट",
@@ -823,7 +823,7 @@ HI = {
         "login_success_title": "लॉगिन सफल",
         "login_success_msg": "{provider} सत्र सफलतापूर्वक सहेजा गया!",
         "adult_hidden_notice": "🔞 वयस्क सामग्री (+18) डिफ़ॉल्ट रूप से छिपी हुई है।",
-        "btn_enable_adult": "वयस्क सामग्री सक्षम करें (+18)"
+        "btn_enable_adult": "वयस्क सामग्री सक्षम करें (+18)",
     },
     "logs": {
         "title": "सिस्टम लॉग्स",
@@ -838,7 +838,7 @@ HI = {
         "btn_clear": "लॉग साफ़ करें",
         "btn_copy": "कॉपी करें",
         "btn_export": "फ़ाइल निर्यात करें",
-        "filter_warning": "केवल WARN"
+        "filter_warning": "केवल WARN",
     },
     "mod_detail": {
         "title": "मॉड विवरण",
@@ -883,7 +883,7 @@ HI = {
         "loading_details": "विवरण लोड हो रहा है...",
         "no_requirements": "इस मॉड के लिए कोई पूर्व आवश्यकता नहीं है।",
         "file_primary": "मुख्य फ़ाइल",
-        "file_optional": "वैकल्पिक फ़ाइल"
+        "file_optional": "वैकल्पिक फ़ाइल",
     },
     "drawer": {
         "title": "सिंक ड्रावर",
@@ -912,7 +912,7 @@ HI = {
         "cf_title": "CurseForge आधिकारिक",
         "tsr_title": "The Sims Resource",
         "ll_title": "LoversLab (+18)",
-        "nm_title": "NSFWMods (+18)"
+        "nm_title": "NSFWMods (+18)",
     },
     "filter_bar": {
         "category_all": "सभी श्रेणियां",
@@ -926,7 +926,7 @@ HI = {
         "all_sources": "सभी स्रोत",
         "sort_by": "क्रमबद्ध करें :",
         "adult_on": "🔞 +18 : चालू",
-        "adult_off": "🔞 +18 : बंद"
+        "adult_off": "🔞 +18 : बंद",
     },
     "dependencies": {
         "title": "निर्भरता और संघर्ष जांच",
@@ -946,7 +946,7 @@ HI = {
         "btn_classify_mod": "आवश्यक मॉड के रूप में चिह्नित करें",
         "btn_report_author": "निर्माता को सूचित करें",
         "dialog_report_title": "निर्भरता फीडबैक भेजें",
-        "summary_title": "निर्भरता सारांश"
+        "summary_title": "निर्भरता सारांश",
     },
     "report_dialog": {
         "dialog_title": "निर्माता फीडबैक",
@@ -971,7 +971,7 @@ HI = {
         "send_success_title": "सफलता",
         "send_success_msg": "संदेश सफलतापूर्वक भेजा गया!",
         "send_error_title": "त्रुटि",
-        "send_error_msg": "संदेश भेजने में त्रुटि: {error}"
+        "send_error_msg": "संदेश भेजने में त्रुटि: {error}",
     },
     "image_viewer": {
         "dialog_title": "चित्र पूर्वावलोकन",
@@ -979,7 +979,7 @@ HI = {
         "btn_prev": "पिछला",
         "btn_next": "अगला",
         "btn_close": "बंद करें",
-        "title": "चित्र पूर्वावलोकन"
+        "title": "चित्र पूर्वावलोकन",
     },
     "downloads": {
         "title": "डाउनलोड प्रबंधन",
@@ -1004,7 +1004,7 @@ HI = {
         "btn_resume_all": "सभी पुनः शुरू करें",
         "empty_active": "कोई सक्रिय डाउनलोड नहीं है।",
         "empty_history": "डाउनलोड इतिहास खाली है।",
-        "th_size": "आकार"
+        "th_size": "आकार",
     },
     "dialogs": {
         "confirm_title": "पुष्टि करें",
@@ -1025,7 +1025,7 @@ HI = {
         "warning": "चेतावनी",
         "error": "त्रुटि",
         "info": "जानकारी",
-        "success": "सफल"
+        "success": "सफल",
     },
     "mod_types": {
         "script": "स्क्रिप्ट मॉड",
@@ -1038,7 +1038,7 @@ HI = {
         "object": "फर्नीचर और वस्तुएं",
         "animation": "एनीमेशन",
         "pose": "पोज़ पैक",
-        "ui_mod": "UI मॉड"
+        "ui_mod": "UI मॉड",
     },
     "conflicts": {
         "title": "संघर्ष रिपोर्ट",
@@ -1054,8 +1054,8 @@ HI = {
         "severity_medium": "मध्यम",
         "severity_low": "निम्न",
         "summary_no_conflicts": "✓ कोई फ़ाइल टकराव नहीं मिला!",
-        "summary_conflicts_found": "⚠️ {count} संभावित फ़ाइल टकराव मिले"
-    }
+        "summary_conflicts_found": "⚠️ {count} संभावित फ़ाइल टकराव मिले",
+    },
 }
 
 # Enregistrer zh.json et hi.json

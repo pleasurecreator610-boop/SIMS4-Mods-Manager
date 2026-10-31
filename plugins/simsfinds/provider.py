@@ -146,22 +146,6 @@ class SimsFindsProvider(BaseSourceProvider):
         """Vérifie le type d'accès pour un mod SimsFinds."""
         return "PUBLIC"
 
-    def _get_category_page_counts(self) -> List[Tuple[Dict[str, Any], int]]:
-        return [(cat, cat.get("default_pages", 3)) for cat in self.CATEGORIES]
-
-    def get_total_pages(self) -> int:
-        return sum(pages for _, pages in self._get_category_page_counts())
-
-    def _resolve_category_page(self, global_page: int) -> Tuple[Dict[str, Any], int, int]:
-        counts = self._get_category_page_counts()
-        remaining = max(1, global_page)
-        for cat, num_pages in counts:
-            if remaining <= num_pages:
-                return cat, remaining, num_pages
-            remaining -= num_pages
-        last_cat, last_pages = counts[-1]
-        return last_cat, max(1, remaining), last_pages
-
     def scrape_category_page(
         self, category: Dict[str, Any], page: int = 1, limit: int = 20
     ) -> Tuple[List[Dict[str, Any]], Optional[int]]:
@@ -185,8 +169,7 @@ class SimsFindsProvider(BaseSourceProvider):
             target_url = base_cat_url
         else:
             target_url = (
-                f"https://s8.simsfinds.com/cached/files/downloads/funcoes/carregar-downloads.php"
-                f"?g=62&h={hid}&p={page}"
+                f"https://s8.simsfinds.com/cached/files/downloads/funcoes/carregar-downloads.php?g=62&h={hid}&p={page}"
             )
 
         logger.info(f"Scraping SimsFinds [{cat_name}] page {page}: {target_url}")
@@ -306,9 +289,7 @@ class SimsFindsProvider(BaseSourceProvider):
         session = SessionManager.get_http_session(self.provider_name)
         return _sfinds_get_creator_info(page_url, session, self.base_url)
 
-    def check_user_already_commented(
-        self, page_url: str, required_keywords: List[str]
-    ) -> Tuple[bool, Optional[str]]:
+    def check_user_already_commented(self, page_url: str, required_keywords: List[str]) -> Tuple[bool, Optional[str]]:
         session = SessionManager.get_http_session(self.provider_name)
         return _sfinds_check_commented(page_url, required_keywords, session, self.base_url, self.provider_name)
 
@@ -316,9 +297,7 @@ class SimsFindsProvider(BaseSourceProvider):
         session = SessionManager.get_http_session(self.provider_name)
         return _sfinds_post_comment(page_url, message, session, self.base_url, self.provider_name)
 
-    def delete_mod_comment(
-        self, page_url: str, required_keywords: Optional[List[str]] = None
-    ) -> Tuple[bool, str]:
+    def delete_mod_comment(self, page_url: str, required_keywords: Optional[List[str]] = None) -> Tuple[bool, str]:
         session = SessionManager.get_http_session(self.provider_name)
         return _sfinds_delete_comment(page_url, "1", session, self.base_url, self.provider_name)
 

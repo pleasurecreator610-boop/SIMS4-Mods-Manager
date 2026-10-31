@@ -75,18 +75,20 @@ def parse_simsfinds_browse_html(
 
                 unified_cat = CategoryMappingService.get_unified_category(source, category.get("id", ""))
 
-                mods.append({
-                    "remote_id": f"simsfinds_{mid}",
-                    "title": title,
-                    "description": it.get("description", ""),
-                    "page_url": page_url,
-                    "author": str(it.get("creator", "SimsFinds Creator")),
-                    "category": unified_cat,
-                    "native_category_id": category.get("id", ""),
-                    "thumbnail_url": thumb_url,
-                    "source": source,
-                    "tags": ["simsfinds", category.get("slug", "ts4")],
-                })
+                mods.append(
+                    {
+                        "remote_id": f"simsfinds_{mid}",
+                        "title": title,
+                        "description": it.get("description", ""),
+                        "page_url": page_url,
+                        "author": str(it.get("creator", "SimsFinds Creator")),
+                        "category": unified_cat,
+                        "native_category_id": category.get("id", ""),
+                        "thumbnail_url": thumb_url,
+                        "source": source,
+                        "tags": ["simsfinds", category.get("slug", "ts4")],
+                    }
+                )
             return mods
         except Exception as e:
             logger.debug(f"Erreur parsing JSON SimsFinds: {e}")
@@ -121,18 +123,20 @@ def parse_simsfinds_browse_html(
 
         unified_cat = CategoryMappingService.get_unified_category(source, category.get("id", ""))
 
-        mods.append({
-            "remote_id": f"simsfinds_{mid}",
-            "title": title,
-            "description": "",
-            "page_url": full_page_url,
-            "author": "SimsFinds Creator",
-            "category": unified_cat,
-            "native_category_id": category.get("id", ""),
-            "thumbnail_url": thumb_url,
-            "source": source,
-            "tags": ["simsfinds", category.get("slug", "ts4")],
-        })
+        mods.append(
+            {
+                "remote_id": f"simsfinds_{mid}",
+                "title": title,
+                "description": "",
+                "page_url": full_page_url,
+                "author": "SimsFinds Creator",
+                "category": unified_cat,
+                "native_category_id": category.get("id", ""),
+                "thumbnail_url": thumb_url,
+                "source": source,
+                "tags": ["simsfinds", category.get("slug", "ts4")],
+            }
+        )
 
     return mods
 
@@ -173,11 +177,13 @@ def extract_simsfinds_requirements(html: str) -> List[Dict[str, Any]]:
                 for kw in ["patch", "pc", "mac", "moveobjects", "laptop mode", "delete", "supprimer"]
             )
 
-            requirements.append({
-                "name": clean,
-                "type": "MOD" if is_mod_requirement else "COMMENT",
-                "resolved": False,
-            })
+            requirements.append(
+                {
+                    "name": clean,
+                    "type": "MOD" if is_mod_requirement else "COMMENT",
+                    "resolved": False,
+                }
+            )
 
     return requirements
 
@@ -201,29 +207,35 @@ def extract_simsfinds_download_links(
         href = a["href"]
         if "click.simsfinds.com/go?url=" in href:
             target_url = href.split("go?url=", 1)[1]
-            links.append({
-                "url": target_url,
-                "tracking_url": href,
-                "title": a.get_text(strip=True) or "External Creator Link",
-                "is_direct": False,
-            })
+            links.append(
+                {
+                    "url": target_url,
+                    "tracking_url": href,
+                    "title": a.get_text(strip=True) or "External Creator Link",
+                    "is_direct": False,
+                }
+            )
         elif any(k in href for k in ["patreon.com", "simfileshare.net", "curseforge.com", "mediafire.com"]):
-            links.append({
-                "url": href,
-                "tracking_url": href,
-                "title": a.get_text(strip=True) or "Direct External Host",
-                "is_direct": True,
-            })
+            links.append(
+                {
+                    "url": href,
+                    "tracking_url": href,
+                    "title": a.get_text(strip=True) or "Direct External Host",
+                    "is_direct": True,
+                }
+            )
 
     # 2. Boutons de téléchargement avec data attributes
     for btn in soup.find_all(attrs={"data-download": True}):
         dl_target = btn.get("data-download")
         if dl_target:
-            links.append({
-                "url": dl_target,
-                "tracking_url": dl_target,
-                "title": "SimsFinds Direct Download",
-                "is_direct": True,
-            })
+            links.append(
+                {
+                    "url": dl_target,
+                    "tracking_url": dl_target,
+                    "title": "SimsFinds Direct Download",
+                    "is_direct": True,
+                }
+            )
 
     return links

@@ -25,7 +25,7 @@ from src.utils.logger import logger
 
 from src.api.routes.catalog_reports_router import reports_router
 from src.api.routes.catalog_install_router import install_router
-from src.api.routes.catalog_queries import build_catalog_query
+from src.infrastructure.database.catalog_queries import build_catalog_query
 
 _run_catalog_sync = run_catalog_sync
 _perform_install = perform_mod_install

@@ -96,4 +96,3 @@ class SimFileShareProvider(BaseSourceProvider):
         Aucun système de commentaires sur SimFileShare.
         """
         return False, "SimFileShare ne supporte pas les commentaires."
-

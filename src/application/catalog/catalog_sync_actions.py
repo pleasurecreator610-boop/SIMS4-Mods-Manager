@@ -46,7 +46,7 @@ class CatalogSyncActions:
     ) -> Tuple[int, int]:
         """
         Atomic action: upserts a batch of mods into the CatalogMod table in a single transaction.
-        Returns (new_count, updated_count).
+        Returns (new_count, updated_count) where updated_count reflects genuinely modified records.
         """
         if not mods_data:
             return 0, 0
@@ -93,23 +93,48 @@ class CatalogSyncActions:
                 session.add(mod_record)
                 new_count += 1
             else:
-                existing.title = m_data["title"]
-                existing.author = m_data.get("author", existing.author)
-                existing.thumbnail_url = m_data.get("thumbnail_url", existing.thumbnail_url)
-                existing.updated_date = m_data.get("updated_date", existing.updated_date)
-                if m_data.get("patreon_status"):
+                changed = False
+                new_title = m_data.get("title", existing.title)
+                if new_title != existing.title:
+                    existing.title = new_title
+                    changed = True
+
+                new_author = m_data.get("author", existing.author)
+                if new_author != existing.author:
+                    existing.author = new_author
+                    changed = True
+
+                new_thumb = m_data.get("thumbnail_url", existing.thumbnail_url)
+                if new_thumb != existing.thumbnail_url:
+                    existing.thumbnail_url = new_thumb
+                    changed = True
+
+                new_updated = m_data.get("updated_date", existing.updated_date)
+                if new_updated != existing.updated_date:
+                    existing.updated_date = new_updated
+                    changed = True
+
+                if m_data.get("patreon_status") and m_data["patreon_status"] != existing.patreon_status:
                     existing.patreon_status = m_data["patreon_status"]
-                if m_data.get("patreon_tier"):
+                    changed = True
+
+                if m_data.get("patreon_tier") and m_data["patreon_tier"] != existing.patreon_tier:
                     existing.patreon_tier = m_data["patreon_tier"]
-                if m_data.get("external_links"):
+                    changed = True
+
+                if m_data.get("external_links") and m_data["external_links"] != existing.get_external_links_list():
                     existing.set_external_links_list(m_data["external_links"])
-                existing.set_tags_list(m_data.get("tags", []))
-                updated_count += 1
+                    changed = True
+
+                new_tags = m_data.get("tags")
+                if new_tags is not None and new_tags != existing.get_tags_list():
+                    existing.set_tags_list(new_tags)
+                    changed = True
+
+                if changed:
+                    updated_count += 1
 
         session.commit()
-        from src.infrastructure.cache.catalog_cache import CatalogQueryCache
-
-        CatalogQueryCache.get_instance().invalidate()
         from src.infrastructure.cache.catalog_cache import CatalogQueryCache
 
         CatalogQueryCache.get_instance().invalidate()

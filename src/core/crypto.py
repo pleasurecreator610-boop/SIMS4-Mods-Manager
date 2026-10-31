@@ -54,6 +54,7 @@ def _get_or_create_salt() -> bytes:
         if os.name == "nt":
             # Attribut caché sur Windows
             import ctypes
+
             ctypes.windll.kernel32.SetFileAttributesW(str(salt_file), 0x02)  # FILE_ATTRIBUTE_HIDDEN
     except Exception as e:
         logger.debug(f"Impossible de sauvegarder le sel cryptographique : {e}")

@@ -1,7 +1,7 @@
 """
 Level 2: Flow Coordinator for Catalog Synchronization.
 Handles iteration loops, pagination, retry/backoff policies,
-threading concurrency, and progress tracking updates.
+threading concurrency, incremental delta early-stopping, and progress tracking updates.
 """
 
 from concurrent.futures import ThreadPoolExecutor
@@ -17,7 +17,9 @@ from src.utils.logger import logger
 
 
 class CatalogSyncCoordinator:
-    """Coordinates looping, retries, and concurrency for catalog scraping."""
+    """Coordinates looping, retries, delta early-stopping, and concurrency for catalog scraping."""
+
+    DELTA_UNCHANGED_PAGE_LIMIT = 2
 
     def __init__(
         self,
@@ -34,10 +36,12 @@ class CatalogSyncCoordinator:
         provider: Any,
         max_pages: int,
         tracker: type[SyncTracker],
+        is_background: bool = False,
     ) -> Tuple[int, int]:
         """
-        Coordinates the pagination loop for a single category, applying backoff
-        and calling atomic actions. Returns (cat_mods_count, cat_new_mods).
+        Coordinates the pagination loop for a single category, applying backoff,
+        delta early-stopping in background mode, and calling atomic actions.
+        Returns (cat_mods_count, cat_new_mods).
         """
         cat_id = category["id"]
         cat_name = category["name"]
@@ -48,6 +52,7 @@ class CatalogSyncCoordinator:
         tracker.update_category(cat_id, 0, target_cat_pages, 0, "IN_PROGRESS")
         cat_mods_count = 0
         cat_new_mods = 0
+        consecutive_unchanged_pages = 0
 
         p = 1
         while p <= target_cat_pages:
@@ -82,12 +87,12 @@ class CatalogSyncCoordinator:
                     if attempt < max_retries - 1:
                         delay = base_delay * (2**attempt)
                         logger.warning(
-                            f"Échec worker LoversLab [{cat_name}] page {p} "
+                            f"Échec worker [{cat_name}] page {p} "
                             f"(tentative {attempt + 1}/{max_retries}). Réessai dans {delay:.1f}s... Erreur: {e}"
                         )
                         time.sleep(delay)
                     else:
-                        logger.error(f"Erreur définitive worker LoversLab [{cat_name}] page {p}: {e}", exc_info=True)
+                        logger.error(f"Erreur définitive worker [{cat_name}] page {p}: {e}", exc_info=True)
 
             tracker.wait_if_paused()
             if tracker.stop_requested or ShutdownManager.is_shutting_down():
@@ -99,10 +104,11 @@ class CatalogSyncCoordinator:
 
             cat_mods_count += len(mods)
             new_on_page = 0
+            updated_on_page = 0
             try:
                 with self._db_lock:
                     with self.db.get_session() as session:
-                        new_on_page, _ = self.actions.upsert_mods_batch(
+                        new_on_page, updated_on_page = self.actions.upsert_mods_batch(
                             session=session, mods_data=mods, default_category=cat_name
                         )
 
@@ -114,6 +120,22 @@ class CatalogSyncCoordinator:
                     f"Scraping en cours ({tracker.pages_completed}/{tracker.total_pages} pages)",
                     current_category=f"{cat_name} (p. {p}/{target_cat_pages})",
                 )
+
+                if new_on_page == 0 and updated_on_page == 0:
+                    consecutive_unchanged_pages += 1
+                else:
+                    consecutive_unchanged_pages = 0
+
+                if is_background and consecutive_unchanged_pages >= self.DELTA_UNCHANGED_PAGE_LIMIT:
+                    remaining_pages = max(0, target_cat_pages - p)
+                    if remaining_pages > 0:
+                        with tracker._lock:
+                            tracker.pages_completed += remaining_pages
+                    logger.info(
+                        f"[DeltaSync] Arrêt précoce sur [{cat_name}] à la page {p}/{target_cat_pages} "
+                        f"({consecutive_unchanged_pages} pages consécutives inchangées)."
+                    )
+                    break
             except Exception as e:
                 logger.error(f"Erreur enregistrement BDD [{cat_name}] page {p}: {e}", exc_info=True)
 
@@ -137,6 +159,7 @@ class CatalogSyncCoordinator:
         max_pages: int,
         tracker: type[SyncTracker],
         max_workers: int = 8,
+        is_background: bool = False,
     ) -> int:
         """
         Coordinates worker thread execution across all categories. Returns total_new.
@@ -151,7 +174,7 @@ class CatalogSyncCoordinator:
 
         def _worker(cat: Dict[str, Any]) -> None:
             nonlocal total_new
-            _, new_count = self.sync_category(cat, provider, max_pages, tracker)
+            _, new_count = self.sync_category(cat, provider, max_pages, tracker, is_background=is_background)
             with lock:
                 total_new += new_count
 

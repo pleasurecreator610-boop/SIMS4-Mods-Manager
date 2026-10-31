@@ -73,11 +73,7 @@ def parse_tsr_browse_html(
 
     and returns `(mods_list, detected_pages)`.
     """
-    soup = (
-        BeautifulSoup(soup_or_html, "html.parser")
-        if isinstance(soup_or_html, str)
-        else soup_or_html
-    )
+    soup = BeautifulSoup(soup_or_html, "html.parser") if isinstance(soup_or_html, str) else soup_or_html
     cat_dict: Dict[str, Any] = (
         category
         if isinstance(category, dict)
@@ -132,9 +128,7 @@ def parse_tsr_browse_html(
 
         author = str(item_data.get("creator") or item_data.get("creatorName") or "Unknown").strip()
         page_url = (
-            urllib.parse.urljoin(base_url, raw_href)
-            if raw_href
-            else f"{base_url}/downloads/details/id/{remote_id}"
+            urllib.parse.urljoin(base_url, raw_href) if raw_href else f"{base_url}/downloads/details/id/{remote_id}"
         )
 
         thumbnail_url = ""
@@ -152,10 +146,7 @@ def parse_tsr_browse_html(
             or _parse_tsr_timestamp(item_data.get("publishDate"))
             or _parse_tsr_timestamp(item_data.get("submittedDate"))
         )
-        published_date = (
-            _parse_tsr_timestamp(item_data.get("publishDate"))
-            or updated_date
-        )
+        published_date = _parse_tsr_timestamp(item_data.get("publishDate")) or updated_date
 
         tags: List[str] = []
         kw_raw = item_data.get("keywordsArr") or item_data.get("keywords")

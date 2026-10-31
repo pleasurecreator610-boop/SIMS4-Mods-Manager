@@ -36,7 +36,9 @@ class ScrapedModDTO(BaseModel):
     views_count: Optional[int] = Field(default=None, description="Nombre de vues")
     tags: List[str] = Field(default_factory=list, description="Liste des étiquettes associées")
     files: List[ScrapedFileDTO] = Field(default_factory=list, description="Liste des fichiers rattachés")
-    external_links: Dict[str, str] = Field(default_factory=dict, description="Liens externes (dépendances, documentation)")
+    external_links: Dict[str, str] = Field(
+        default_factory=dict, description="Liens externes (dépendances, documentation)"
+    )
     patreon_status: str = Field(default="NONE", description="Statut Patreon (NONE, LOCKED, UNLOCKED)")
     patreon_tier: Optional[str] = Field(default=None, description="Niveau d'abonnement requis")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Métadonnées spécifiques au provider")

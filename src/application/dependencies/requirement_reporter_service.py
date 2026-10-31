@@ -81,10 +81,10 @@ class RequirementReporterService:
             "Sims 4 Mods Manager automatically scans mod requirement lists to notify players when prerequisite packages are missing from their game. Keeping the Requirements list strictly limited to real dependency mods (with recognizable names or direct links) helps thousands of players avoid missing files, broken animations, or false-positive errors."
         )
 
-        user_signature = f"A Sims 4 Mods Manager user ({sender_username})" if sender_username else "A Sims 4 Mods Manager user"
-        closing = (
-            f"Thank you very much for your wonderful work and creations!\n\nBest regards,\n{user_signature}"
+        user_signature = (
+            f"A Sims 4 Mods Manager user ({sender_username})" if sender_username else "A Sims 4 Mods Manager user"
         )
+        closing = f"Thank you very much for your wonderful work and creations!\n\nBest regards,\n{user_signature}"
 
         body = "\n\n".join(sections)
         return f"{intro}\n\n{body}\n\n{explanation}\n\n{closing}"

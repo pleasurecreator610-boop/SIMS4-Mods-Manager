@@ -2,23 +2,22 @@
 
 import json
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    Text,
     Boolean,
+    Column,
     DateTime,
+    Float,
     ForeignKey,
     Index,
+    Integer,
     JSON,
+    String,
+    Text,
 )
-from sqlalchemy.orm import declarative_base, relationship, Mapped
+from sqlalchemy.orm import Mapped, declarative_base, relationship
 
 from src.core.crypto import decrypt_to_dict, encrypt_dict
-
-
 
 Base = declarative_base()
 
@@ -148,9 +147,6 @@ class InstalledMod(Base):
         self.installed_files = _set_json_data(files, list)
 
 
-
-
-
 class AccountSession(Base):
     """Stocke la session de connexion et cookies pour un provider (LoversLab, Patreon)."""
 
@@ -170,3 +166,23 @@ class AccountSession(Base):
     def set_cookies_dict(self, cookies: Dict[str, str]) -> None:
         """Définit les cookies sous forme chiffrée au repos via AES-256-GCM."""
         self.cookies_data = encrypt_dict(cookies)
+
+
+class DbpfPackageCache(Base):
+    """Cache persistant SQLite des index TGI des packages DBPF (.package)."""
+
+    __tablename__ = "dbpf_package_cache"
+
+    file_path = Column(String(500), primary_key=True)
+    mtime = Column(Float, nullable=False)
+    file_size = Column(Integer, nullable=False)
+    resource_count = Column(Integer, default=0)
+    tgi_json = Column(Text, default="[]")
+
+    def get_tgi_list(self) -> List[List[Any]]:
+        """Retourne la liste des tuples [tgi_str, resource_type_name, is_stbl] désérialisés."""
+        return _get_json_data(self.tgi_json, list)
+
+    def set_tgi_list(self, entries: List[Any]) -> None:
+        """Sérialise en JSON la liste des entrées TGI."""
+        self.tgi_json = json.dumps(entries)

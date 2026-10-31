@@ -62,9 +62,7 @@ def download_tsr_file(
             if not item_id:
                 return False, "Impossible d'extraire l'identifiant du mod TSR."
 
-            init_url = (
-                f"{base_url}/ajax.php?c=downloads&a=initDownload&itemid={item_id}&setItems=&format=zip"
-            )
+            init_url = f"{base_url}/ajax.php?c=downloads&a=initDownload&itemid={item_id}&setItems=&format=zip"
             init_resp = session.get(init_url, timeout=15)
             if init_resp.status_code != 200:
                 return False, f"Échec d'initialisation du ticket TSR (HTTP {init_resp.status_code})"
@@ -79,8 +77,7 @@ def download_tsr_file(
             session.get(wait_full_url, timeout=15)
 
             get_dl_endpoint = (
-                f"{base_url}/ajax.php?c=downloads&a=getdownloadurl"
-                f"&ajax=1&itemid={item_id}&mid=0&lk=0&ticket={ticket}"
+                f"{base_url}/ajax.php?c=downloads&a=getdownloadurl&ajax=1&itemid={item_id}&mid=0&lk=0&ticket={ticket}"
             )
 
             for attempt in range(max_ticket_polls):

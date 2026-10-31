@@ -82,6 +82,7 @@ class CatalogSyncOrchestrator:
                     max_pages=max_pages,
                     tracker=SyncTracker,
                     max_workers=workers_per_provider,
+                    is_background=is_background,
                 )
                 with total_lock:
                     total_new += prov_new

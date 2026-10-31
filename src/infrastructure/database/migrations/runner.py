@@ -47,14 +47,29 @@ def _migration_002_add_requirements_columns(engine: Engine) -> None:
 def _migration_003_fts_and_performance_indices(engine: Engine) -> None:
     """Crée les index de performance composites nécessaires si absents."""
     with engine.connect() as conn:
-        conn.execute(
-            text("CREATE INDEX IF NOT EXISTS idx_source_remote ON catalog_mods (source, remote_id)")
-        )
-        conn.execute(
-            text("CREATE INDEX IF NOT EXISTS idx_source_updated ON catalog_mods (source, updated_date)")
-        )
+        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_source_remote ON catalog_mods (source, remote_id)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_source_updated ON catalog_mods (source, updated_date)"))
         conn.execute(
             text("CREATE INDEX IF NOT EXISTS idx_installed_source_remote ON installed_mods (source, remote_id)")
+        )
+        conn.commit()
+
+
+def _migration_004_add_dbpf_package_cache(engine: Engine) -> None:
+    """Crée la table de cache persistant dbpf_package_cache si absente."""
+    with engine.connect() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS dbpf_package_cache (
+                    file_path VARCHAR(500) PRIMARY KEY,
+                    mtime FLOAT NOT NULL,
+                    file_size INTEGER NOT NULL,
+                    resource_count INTEGER DEFAULT 0,
+                    tgi_json TEXT DEFAULT '[]'
+                )
+                """
+            )
         )
         conn.commit()
 
@@ -63,6 +78,7 @@ REGISTRY: List[Migration] = [
     Migration(1, "initial_schema", _migration_001_initial_schema),
     Migration(2, "add_requirements_columns", _migration_002_add_requirements_columns),
     Migration(3, "fts_and_performance_indices", _migration_003_fts_and_performance_indices),
+    Migration(4, "add_dbpf_package_cache", _migration_004_add_dbpf_package_cache),
 ]
 
 

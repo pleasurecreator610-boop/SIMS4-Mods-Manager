@@ -1,7 +1,7 @@
 """
-ProviderScraperDrawerCard & LoversLabDrawerCard:
+ProviderScraperDrawerCard:
 Encapsulates detailed scraping controls, subcategories, and progress for any catalog provider
-(CurseForge, The Sims Resource, LoversLab, NSFWMods).
+(CurseForge, The Sims Resource, ModTheSims, SimsFinds, Nexus Mods, MMCCWorld, LoversLab, NSFWMods).
 """
 
 from typing import Dict, Any, Tuple, Optional, List
@@ -213,9 +213,7 @@ class ProviderScraperDrawerCard(QFrame):
         cs_layout = QVBoxLayout(self.ll_collapsed_summary)
         cs_layout.setContentsMargins(0, 2, 0, 2)
         cs_layout.setSpacing(4)
-        self.ll_collapsed_summary_lbl = QLabel(
-            f"{len(self._subcategories_meta)} sous-catégories • 0 mods"
-        )
+        self.ll_collapsed_summary_lbl = QLabel(f"{len(self._subcategories_meta)} sous-catégories • 0 mods")
         self.ll_collapsed_summary_lbl.setStyleSheet("font-size: 11px; color: #94a3b8;")
         cs_layout.addWidget(self.ll_collapsed_summary_lbl)
         self.ll_collapsed_summary.setVisible(not self._ll_is_expanded)
@@ -384,12 +382,10 @@ class ProviderScraperDrawerCard(QFrame):
                 for c in my_cats
             )
             total_pages = sum(
-                (c.get("total_pages", 0) if isinstance(c, dict) else getattr(c, "total_pages", 0))
-                for c in my_cats
+                (c.get("total_pages", 0) if isinstance(c, dict) else getattr(c, "total_pages", 0)) for c in my_cats
             )
             total_scraped = sum(
-                (c.get("mods_count", 0) if isinstance(c, dict) else getattr(c, "mods_count", 0))
-                for c in my_cats
+                (c.get("mods_count", 0) if isinstance(c, dict) else getattr(c, "mods_count", 0)) for c in my_cats
             )
             pct = int((pages_done / total_pages) * 100) if total_pages > 0 else 0
             in_prog = [
@@ -399,20 +395,19 @@ class ProviderScraperDrawerCard(QFrame):
             ]
             any_in_prog = len(in_prog) > 0
             all_completed = all(
-                (c.get("status") if isinstance(c, dict) else getattr(c, "status", "")) == "COMPLETED"
-                for c in my_cats
+                (c.get("status") if isinstance(c, dict) else getattr(c, "status", "")) == "COMPLETED" for c in my_cats
             )
-            cur_cat = (
-                in_prog[0]
-                if in_prog
-                else (tr("common.completed") if all_completed else tr("common.ready"))
-            )
+            cur_cat = in_prog[0] if in_prog else (tr("common.completed") if all_completed else tr("common.ready"))
             is_paused = global_paused and (prov_state_str == "PAUSED" or any_in_prog)
-            is_running = global_running and not is_paused and (prov_state_str == "RUNNING" or any_in_prog) and not all_completed
+            is_running = (
+                global_running and not is_paused and (prov_state_str == "RUNNING" or any_in_prog) and not all_completed
+            )
             is_stopped = global_stopped or prov_state_str == "STOPPED"
         else:
             is_paused = global_paused
-            is_running = global_running and (not providers_status or prov_state_str == "RUNNING" or self.provider_name == "loverslab")
+            is_running = global_running and (
+                not providers_status or prov_state_str == "RUNNING" or self.provider_name == "loverslab"
+            )
             is_stopped = global_stopped
             pct = status.get("progress_percent", 0) if is_running or is_paused else 0
             pages_done = status.get("pages_completed", 0) if is_running or is_paused else 0
@@ -528,16 +523,3 @@ class ProviderScraperDrawerCard(QFrame):
         self.btn_resync.setText(f"🔄 Relancer {self.display_name}")
         self.btn_pause_resume.setText(tr("drawer.btn_pause"))
         self.btn_stop.setText(tr("drawer.btn_stop"))
-
-
-class LoversLabDrawerCard(ProviderScraperDrawerCard):
-    """Backward-compatible LoversLab drawer card."""
-
-    def __init__(self, parent=None):
-        super().__init__(
-            provider_name="loverslab",
-            display_name="LoversLab",
-            subcategories_meta=LOVERSLAB_SUBCATS,
-            expanded_by_default=True,
-            parent=parent,
-        )

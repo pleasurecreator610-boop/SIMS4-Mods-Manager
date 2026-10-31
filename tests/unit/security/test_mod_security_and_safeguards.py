@@ -560,7 +560,6 @@ def test_mod_install_orchestrator_targets_app_downloads_dir():
     assert hasattr(stats, "downloads_size_bytes")
 
 
-
 def test_archive_extractor_blocks_dangerous_executables(tmp_path):
     """Test de sécurité : vérifie que les exécutables et scripts dangereux sont bloqués lors de l'extraction."""
     from src.infrastructure.filesystem.archive_extractor import extract_archive

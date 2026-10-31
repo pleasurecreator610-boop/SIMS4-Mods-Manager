@@ -8,7 +8,6 @@ via TSR's AJAX ticket flow (`/ajax.php?c=downloads&a=initDownload` -> `/ajax.php
 
 from pathlib import Path
 import re
-import threading
 import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
 import urllib.parse
@@ -146,45 +145,7 @@ class TheSimsResourceProvider(BaseSourceProvider):
         },
     ]
 
-    _tsr_request_lock = threading.Lock()
-    _last_request_ts: float = 0.0
     _min_request_interval: float = 0.6
-
-    def __init__(self) -> None:
-        super().__init__()
-        self._category_pages_cache: Dict[str, int] = {c["id"]: c["default_pages"] for c in self.CATEGORIES}
-        self.current_category_info: str = "Clothing (TSR)"
-
-    @classmethod
-    def _pace_request(cls, session: Any) -> None:
-        if getattr(session, "_is_mock", False):
-            return
-        with cls._tsr_request_lock:
-            now = time.monotonic()
-            elapsed = now - cls._last_request_ts
-            if elapsed < cls._min_request_interval:
-                time.sleep(cls._min_request_interval - elapsed)
-            cls._last_request_ts = time.monotonic()
-
-    def update_category_detected_pages(self, cat_id: str, detected_pages: int) -> None:
-        if detected_pages > 0:
-            self._category_pages_cache[cat_id] = detected_pages
-
-    def _get_category_page_counts(self) -> List[Tuple[Dict[str, Any], int]]:
-        return [(cat, self._category_pages_cache.get(cat["id"], cat["default_pages"])) for cat in self.CATEGORIES]
-
-    def get_total_pages(self) -> int:
-        return sum(pages for _, pages in self._get_category_page_counts())
-
-    def _resolve_category_page(self, global_page: int) -> Tuple[Dict[str, Any], int, int]:
-        counts = self._get_category_page_counts()
-        remaining = max(1, global_page)
-        for cat, num_pages in counts:
-            if remaining <= num_pages:
-                return cat, remaining, num_pages
-            remaining -= num_pages
-        last_cat, last_pages = counts[-1]
-        return last_cat, max(1, remaining), last_pages
 
     @staticmethod
     def _build_paginated_url(base_cat_url: str, page: int) -> str:
@@ -276,7 +237,9 @@ class TheSimsResourceProvider(BaseSourceProvider):
                 item_id = m_num.group(1) if m_num else ""
 
             if item_id:
-                init_dl_url = f"{self.base_url}/ajax.php?c=downloads&a=initDownload&itemid={item_id}&setItems=&format=zip"
+                init_dl_url = (
+                    f"{self.base_url}/ajax.php?c=downloads&a=initDownload&itemid={item_id}&setItems=&format=zip"
+                )
                 details["download_urls"].append(
                     {
                         "name": f"Téléchargement TSR (#{item_id})",

@@ -7,4 +7,3 @@ pour l'hébergeur simfileshare.net.
 from plugins.simfileshare.provider import SimFileShareProvider
 
 __all__ = ["SimFileShareProvider"]
-

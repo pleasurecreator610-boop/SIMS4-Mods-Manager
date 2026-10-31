@@ -114,7 +114,9 @@ def extract_loverslab_requirements(
 
     # Fallback for IPS4 pages (e.g. NSFWMods) where Requirements are inside article richText spoilers
     if not data_el:
-        rich_el = soup.select_one("article div.ipsType_richText, .cFileView_content div.ipsType_richText, .ipsType_richText")
+        rich_el = soup.select_one(
+            "article div.ipsType_richText, .cFileView_content div.ipsType_richText, .ipsType_richText"
+        )
         if rich_el and "require" in rich_el.get_text().lower():
             for heading in rich_el.find_all(["p", "strong", "h1", "h2", "h3", "h4", "span", "div"]):
                 txt_h = heading.get_text(strip=True).lower()

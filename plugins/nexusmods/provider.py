@@ -272,13 +272,15 @@ class NexusModsProvider(BaseSourceProvider):
             for f in files_data:
                 fid = f.get("fileId")
                 fname = f.get("name") or f"File #{fid}"
-                download_files.append({
-                    "file_id": fid,
-                    "name": fname,
-                    "version": f.get("version"),
-                    "size_bytes": int(f.get("sizeInBytes") or 0),
-                    "description": f.get("description", ""),
-                })
+                download_files.append(
+                    {
+                        "file_id": fid,
+                        "name": fname,
+                        "version": f.get("version"),
+                        "size_bytes": int(f.get("sizeInBytes") or 0),
+                        "description": f.get("description", ""),
+                    }
+                )
 
             return {
                 "remote_id": f"nexusmods_{mod_id}",
@@ -363,8 +365,10 @@ class NexusModsProvider(BaseSourceProvider):
         """Télécharge un fichier de mod Nexus Mods vers dest_path."""
         cb: Optional[Callable[[int, int], None]] = None
         if progress_callback:
+
             def _adapted_cb(downloaded: int, total: int):
                 progress_callback(int((downloaded / total) * 100) if total > 0 else 0, str(downloaded), str(total))
+
             cb = _adapted_cb
 
         return download_nexusmods_file(
@@ -381,9 +385,7 @@ class NexusModsProvider(BaseSourceProvider):
         session = SessionManager.get_http_session(self.provider_name)
         return _nexus_get_creator_info(page_url, session=session, base_url=self.base_url)
 
-    def check_user_already_commented(
-        self, page_url: str, required_keywords: List[str]
-    ) -> Tuple[bool, Optional[str]]:
+    def check_user_already_commented(self, page_url: str, required_keywords: List[str]) -> Tuple[bool, Optional[str]]:
         session = SessionManager.get_http_session(self.provider_name)
         return _nexus_check_commented(
             page_url,
@@ -393,9 +395,7 @@ class NexusModsProvider(BaseSourceProvider):
             provider_name=self.provider_name,
         )
 
-    def post_mod_comment(
-        self, page_url: str, message: str
-    ) -> Tuple[bool, str]:
+    def post_mod_comment(self, page_url: str, message: str) -> Tuple[bool, str]:
         session = SessionManager.get_http_session(self.provider_name)
         ok, msg, _ = _nexus_post_comment(
             page_url,
@@ -406,9 +406,7 @@ class NexusModsProvider(BaseSourceProvider):
         )
         return ok, msg
 
-    def delete_mod_comment(
-        self, page_url: str, required_keywords: Optional[List[str]] = None
-    ) -> Tuple[bool, str]:
+    def delete_mod_comment(self, page_url: str, required_keywords: Optional[List[str]] = None) -> Tuple[bool, str]:
         session = SessionManager.get_http_session(self.provider_name)
         comment_id = "0"
         if required_keywords:

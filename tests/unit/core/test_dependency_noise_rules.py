@@ -1,4 +1,4 @@
-from src.application.dependencies.dependency_noise_rules import is_likely_comment_or_noise
+from src.utils.dependency_noise_rules import is_likely_comment_or_noise
 from src.application.dependencies.dependency_resolver import resolve_mod_dependencies
 
 

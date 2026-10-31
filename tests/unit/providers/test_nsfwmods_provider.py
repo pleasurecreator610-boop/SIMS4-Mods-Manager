@@ -155,4 +155,3 @@ def test_nsfwmods_filter_adapter():
     """Vérifie que l'adaptateur de filtre UI traduit 'NSFWMods' en source='nsfwmods'."""
     params = build_catalog_api_params({"source": "NSFWMods"}, current_page=1, page_size=24)
     assert params["source"] == "nsfwmods"
-

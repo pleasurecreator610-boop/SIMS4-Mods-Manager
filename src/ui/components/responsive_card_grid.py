@@ -1,14 +1,18 @@
-from typing import List, Optional, Sequence
-from PySide6.QtWidgets import QWidget, QGridLayout, QLabel
+"""Grille responsive de cartes de mods avec support de recyclage d'instances (Object Pooling)."""
+
+from __future__ import annotations
+
+from typing import Any, Callable, List, Optional, Sequence
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QResizeEvent
+from PySide6.QtWidgets import QGridLayout, QLabel, QWidget
 
 
 class ResponsiveCardGrid(QWidget):
-    """
-    Reusable responsive grid layout for Mod cards.
-    Automatically adapts column count (1 to 6+) based on available container width
-    during resize events, preserving existing card widgets without costly recreations.
+    """Grille responsive réutilisable pour les cartes de mods.
+
+    Adapte automatiquement le nombre de colonnes selon la largeur disponible
+    et supporte le recyclage in-place des cartes (update_pool) sans détruire les widgets.
     """
 
     def __init__(
@@ -21,6 +25,7 @@ class ResponsiveCardGrid(QWidget):
         self.min_card_width = max(120, min_card_width)
         self.grid_spacing = spacing
         self._cards: List[QWidget] = []
+        self._pool: List[QWidget] = []
         self._current_columns = 4
         self._empty_label: Optional[QLabel] = None
 
@@ -31,34 +36,78 @@ class ResponsiveCardGrid(QWidget):
 
     @property
     def cards(self) -> List[QWidget]:
-        """Exécute l'opération cards.
-
-        Returns:
-            Résultat de l'opération cards.
-        """
+        """Retourne les cartes actuellement actives dans la grille."""
         return self._cards
 
+    @property
+    def pool_size(self) -> int:
+        """Retourne le nombre total de cartes conservées dans le pool mémoire."""
+        return len(self._pool)
+
     def calculate_columns(self, available_width: int) -> int:
-        """Calculates optimal number of columns based on container width."""
+        """Calcule le nombre optimal de colonnes selon la largeur disponible."""
         if available_width <= 0:
             return 1
-        # Leave a safety margin of at least 14px to prevent vertical scrollbar trigger from causing horizontal overflow
         effective_w = max(0, available_width - 14)
         cols = (effective_w + self.grid_spacing) // (self.min_card_width + self.grid_spacing)
         return max(1, cols)
 
+    def _remove_empty_label(self) -> None:
+        if self._empty_label is not None:
+            self._grid_layout.removeWidget(self._empty_label)
+            self._empty_label.deleteLater()
+            self._empty_label = None
+
     def set_empty_message(self, message: str) -> None:
-        """Displays a centered message when no cards are available."""
-        self.clear()
+        """Affiche un message centré lorsqu'aucune carte n'est disponible tout en préservant le pool."""
+        self._remove_empty_label()
+        while self._grid_layout.count():
+            self._grid_layout.takeAt(0)
+        for card in self._pool:
+            card.setVisible(False)
+        self._cards.clear()
+
         self._empty_label = QLabel(message)
         self._empty_label.setStyleSheet("font-size: 14px; color: #64748b; padding: 40px;")
         self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._grid_layout.addWidget(self._empty_label, 0, 0)
 
+    def update_pool(
+        self,
+        items_data: Sequence[Any],
+        factory_fn: Callable[[Any], QWidget],
+        update_fn: Callable[[QWidget, Any], None],
+    ) -> List[QWidget]:
+        """Recycle les cartes existantes du pool in-place et n'instancie que le différentiel nécessaire."""
+        self._remove_empty_label()
+
+        needed = len(items_data)
+        for idx, item in enumerate(items_data):
+            if idx < len(self._pool):
+                card = self._pool[idx]
+                update_fn(card, item)
+                card.setVisible(True)
+            else:
+                card = factory_fn(item)
+                self._pool.append(card)
+                card.setVisible(True)
+
+        for idx in range(needed, len(self._pool)):
+            self._pool[idx].setVisible(False)
+
+        self._cards = self._pool[:needed]
+
+        available_w = self.width()
+        if available_w > 50:
+            self._current_columns = self.calculate_columns(available_w)
+        self._re_layout()
+        return self._cards
+
     def set_cards(self, cards: Sequence[QWidget]) -> None:
-        """Replaces current cards with a new collection and re-lays them out."""
+        """Remplace la collection de cartes par une nouvelle liste et réorganise la grille."""
         self.clear()
         self._cards = list(cards)
+        self._pool = list(cards)
 
         available_w = self.width()
         if available_w > 50:
@@ -66,31 +115,33 @@ class ResponsiveCardGrid(QWidget):
         self._re_layout()
 
     def add_card(self, card: QWidget) -> None:
-        """Appends a single card to the grid."""
-        if self._empty_label:
-            self._empty_label.deleteLater()
-            self._empty_label = None
+        """Ajoute une carte individuelle à la grille."""
+        self._remove_empty_label()
 
         self._cards.append(card)
+        if card not in self._pool:
+            self._pool.append(card)
         idx = len(self._cards) - 1
         row = idx // self._current_columns
         col = idx % self._current_columns
         self._grid_layout.addWidget(card, row, col)
 
     def clear(self) -> None:
-        """Removes and schedules deletion for all card widgets and empty labels."""
+        """Détache et détruit toutes les cartes et labels de la grille."""
+        self._remove_empty_label()
         while self._grid_layout.count():
             item = self._grid_layout.takeAt(0)
             if item and item.widget():
                 w = item.widget()
                 if w:
                     w.deleteLater()
+        for card in self._pool:
+            card.deleteLater()
         self._cards.clear()
-        self._empty_label = None
+        self._pool.clear()
 
     def _re_layout(self) -> None:
-        """Re-distributes card widgets across rows and columns using current column count."""
-        # Detach without deleting widgets
+        """Redistribue les widgets actifs sur les lignes et colonnes sans les détruire."""
         while self._grid_layout.count():
             self._grid_layout.takeAt(0)
 
@@ -101,7 +152,7 @@ class ResponsiveCardGrid(QWidget):
             self._grid_layout.addWidget(card, row, col)
 
     def resizeEvent(self, event: QResizeEvent) -> None:
-        """Dynamically updates grid layout if available width supports more/fewer columns."""
+        """Recalcule dynamiquement la disposition lorsque la largeur change."""
         super().resizeEvent(event)
         new_w = event.size().width()
         new_cols = self.calculate_columns(new_w)

@@ -64,7 +64,9 @@ def test_mmccworld_registered_and_categories_configured():
 
 def test_extract_post_id():
     """Vérifie l'extraction de l'ID numérique de billet Tumblr."""
-    assert extract_post_id("https://maxismatchccworld.tumblr.com/post/745485207111680001/autumn") == "745485207111680001"
+    assert (
+        extract_post_id("https://maxismatchccworld.tumblr.com/post/745485207111680001/autumn") == "745485207111680001"
+    )
     assert extract_post_id("/post/12345") == "12345"
     assert extract_post_id("invalid-url") is None
 
@@ -155,4 +157,3 @@ def test_simfileshare_verify_session_success():
     ok, msg = SessionManager.verify_session("simfileshare")
     assert ok is True
     assert "SimFileShare" in msg
-

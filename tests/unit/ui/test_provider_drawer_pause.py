@@ -1,9 +1,9 @@
-from src.ui.components.provider_drawer.loverslab_card import LoversLabDrawerCard
+from src.ui.components.provider_drawer.provider_scraper_card import ProviderScraperDrawerCard
 from src.ui.components.provider_drawer.drawer import ProviderDrawer
 
 
 def test_loverslab_card_pause_and_running_states(qapp):
-    card = LoversLabDrawerCard()
+    card = ProviderScraperDrawerCard()
 
     # 1. State: Running
     status_running = {

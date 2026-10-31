@@ -179,7 +179,9 @@ class DetailRequirementsWidget(QWidget):
     def _toggle_collapse(self):
         self._is_collapsed = not self._is_collapsed
         self.req_body.setVisible(not self._is_collapsed)
-        self.req_collapse_btn.setText(tr("mod_detail.btn_expand") if self._is_collapsed else tr("mod_detail.btn_collapse"))
+        self.req_collapse_btn.setText(
+            tr("mod_detail.btn_expand") if self._is_collapsed else tr("mod_detail.btn_collapse")
+        )
         if not self._is_collapsed:
             self._update_responsive_height()
 
@@ -353,14 +355,18 @@ class DetailRequirementsWidget(QWidget):
                 _add_section_header(tr("mod_detail.to_install_header", count=len(to_install)), "#60a5fa")
                 for d in to_install:
                     t = d.get("title") or f"Mod #{d.get('remote_id')}"
-                    card = DependencyCardWidget(t, "📥 " + tr("dependencies.badge_to_install"), badge_variant="info", prefix="•")
+                    card = DependencyCardWidget(
+                        t, "📥 " + tr("dependencies.badge_to_install"), badge_variant="info", prefix="•"
+                    )
                     self.deps_layout.addWidget(card)
 
             if already_installed:
                 _add_section_header(tr("mod_detail.installed_header", count=len(already_installed)), "#4ade80")
                 for d in already_installed:
                     t = d.get("title") or f"Mod #{d.get('remote_id')}"
-                    card = DependencyCardWidget(t, "✅ " + tr("dependencies.badge_installed"), badge_variant="success", prefix="✓")
+                    card = DependencyCardWidget(
+                        t, "✅ " + tr("dependencies.badge_installed"), badge_variant="success", prefix="✓"
+                    )
                     self.deps_layout.addWidget(card)
 
             self._unfound_dep_names = []
@@ -374,7 +380,11 @@ class DetailRequirementsWidget(QWidget):
                     btn_comm.setStyleSheet(Theme.subtle_toggle_button_style(is_active=False))
                     btn_comm.clicked.connect(lambda _, item=d: self.toggle_comment_requested.emit(item, True))
                     card = DependencyCardWidget(
-                        t, "⚠️ " + tr("dependencies.unfound_badge"), badge_variant="danger", prefix="⚠️", action_btn=btn_comm
+                        t,
+                        "⚠️ " + tr("dependencies.unfound_badge"),
+                        badge_variant="danger",
+                        prefix="⚠️",
+                        action_btn=btn_comm,
                     )
                     self.deps_layout.addWidget(card)
 
@@ -391,7 +401,11 @@ class DetailRequirementsWidget(QWidget):
                     btn_mod.setStyleSheet(Theme.subtle_toggle_button_style(is_active=True))
                     btn_mod.clicked.connect(lambda _, item=d: self.toggle_comment_requested.emit(item, False))
                     card = DependencyCardWidget(
-                        t, "💬 " + tr("dependencies.badge_comment"), badge_variant="neutral", prefix="💬", action_btn=btn_mod
+                        t,
+                        "💬 " + tr("dependencies.badge_comment"),
+                        badge_variant="neutral",
+                        prefix="💬",
+                        action_btn=btn_mod,
                     )
                     self.deps_layout.addWidget(card)
 

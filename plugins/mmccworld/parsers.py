@@ -69,11 +69,13 @@ def extract_mmccworld_requirements(html_or_text: str) -> List[Dict[str, Any]]:
                 ]
             )
 
-            requirements.append({
-                "name": clean,
-                "type": "MOD" if is_mod else "COMMENT",
-                "resolved": False,
-            })
+            requirements.append(
+                {
+                    "name": clean,
+                    "type": "MOD" if is_mod else "COMMENT",
+                    "resolved": False,
+                }
+            )
 
     return requirements
 
@@ -95,14 +97,19 @@ def extract_download_links(html_or_text: str) -> List[Dict[str, Any]]:
         label = a.get_text(strip=True) or "Download"
         h_lower = href.lower()
 
-        if any(h in h_lower for h in ["simfileshare.net", "patreon.com", "drive.google.com", "mediafire.com", "curseforge.com"]):
+        if any(
+            h in h_lower
+            for h in ["simfileshare.net", "patreon.com", "drive.google.com", "mediafire.com", "curseforge.com"]
+        ):
             seen_urls.add(href)
             source_type = "sfs" if "simfileshare" in h_lower else ("patreon" if "patreon" in h_lower else "external")
-            links.append({
-                "label": label,
-                "url": href,
-                "type": source_type,
-            })
+            links.append(
+                {
+                    "label": label,
+                    "url": href,
+                    "type": source_type,
+                }
+            )
 
     return links
 
@@ -153,19 +160,21 @@ def parse_mmccworld_rss(
         reqs = extract_mmccworld_requirements(desc_html)
         dl_links = extract_download_links(desc_html)
 
-        mods.append({
-            "remote_id": f"mmccworld_{post_id}",
-            "title": clean_title,
-            "description": desc_text[:400],
-            "page_url": link,
-            "author": author,
-            "category": unified_cat,
-            "native_category_id": native_cat_id,
-            "thumbnail_url": thumb_url,
-            "source": source,
-            "requirements": reqs,
-            "download_urls": dl_links,
-            "tags": ["mmccworld", "tumblr", "maxis-match"],
-        })
+        mods.append(
+            {
+                "remote_id": f"mmccworld_{post_id}",
+                "title": clean_title,
+                "description": desc_text[:400],
+                "page_url": link,
+                "author": author,
+                "category": unified_cat,
+                "native_category_id": native_cat_id,
+                "thumbnail_url": thumb_url,
+                "source": source,
+                "requirements": reqs,
+                "download_urls": dl_links,
+                "tags": ["mmccworld", "tumblr", "maxis-match"],
+            }
+        )
 
     return mods
