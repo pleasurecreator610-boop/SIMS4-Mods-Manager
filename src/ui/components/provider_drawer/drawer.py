@@ -27,6 +27,10 @@ from src.ui.components.provider_drawer.provider_cards import (
     NSFWMODS_SUBCATS,
     CURSEFORGE_SUBCATS,
     TSR_SUBCATS,
+    MODTHESIMS_SUBCATS,
+    SIMSFINDS_SUBCATS,
+    NEXUSMODS_SUBCATS,
+    MMCCWORLD_SUBCATS,
 )
 
 
@@ -66,7 +70,7 @@ class ProviderDrawer(QWidget):
         # 1. Persistent Edge Tab (Always visible on right edge)
         self.tab_widget = QFrame()
         self.tab_widget.setObjectName("DrawerEdgeTab")
-        self.tab_widget.setFixedWidth(136)
+        self.tab_widget.setFixedWidth(138)
         self.tab_widget.setStyleSheet("""
             QFrame#DrawerEdgeTab {
                 background-color: #0c1020;
@@ -75,34 +79,74 @@ class ProviderDrawer(QWidget):
             }
         """)
         tab_layout = QVBoxLayout(self.tab_widget)
-        tab_layout.setContentsMargins(6, 8, 6, 8)
-        tab_layout.setSpacing(6)
+        tab_layout.setContentsMargins(5, 6, 5, 6)
+        tab_layout.setSpacing(4)
 
         self.btn_toggle_drawer = QPushButton(tr("drawer.btn_toggle_collapsed"))
-        self.btn_toggle_drawer.setFixedHeight(32)
+        self.btn_toggle_drawer.setFixedHeight(30)
         self.btn_toggle_drawer.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_toggle_drawer.setToolTip(tr("drawer.btn_toggle_tip"))
         self.btn_toggle_drawer.clicked.connect(self.toggle_drawer)
         self._style_toggle_button("OK")
         tab_layout.addWidget(self.btn_toggle_drawer)
 
+        # Scrollable edge pills container to support all screens smoothly
+        edge_scroll = QScrollArea()
+        edge_scroll.setWidgetResizable(True)
+        edge_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        edge_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        edge_scroll.setStyleSheet("""
+            QScrollArea {
+                background: transparent;
+                border: none;
+            }
+            QScrollBar:vertical {
+                width: 4px;
+                background: transparent;
+            }
+            QScrollBar::handle:vertical {
+                background: #222d52;
+                border-radius: 2px;
+            }
+        """)
+        edge_container = QWidget()
+        edge_container.setStyleSheet("background: transparent;")
+        edge_container_layout = QVBoxLayout(edge_container)
+        edge_container_layout.setContentsMargins(0, 2, 0, 2)
+        edge_container_layout.setSpacing(4)
+
         # Site status badges on collapsed edge for all platforms
         self.tab_curseforge_pill = self._create_edge_pill("CurseForge 🟢", "Statut CurseForge - Cliquer pour détails")
-        tab_layout.addWidget(self.tab_curseforge_pill)
+        edge_container_layout.addWidget(self.tab_curseforge_pill)
 
         self.tab_tsr_pill = self._create_edge_pill("TSR 🟢", "Statut The Sims Resource - Cliquer pour détails")
-        tab_layout.addWidget(self.tab_tsr_pill)
+        edge_container_layout.addWidget(self.tab_tsr_pill)
 
-        self.tab_loverslab_pill = self._create_edge_pill("LoversLab 🟢", tr("drawer.pill_tip_ll"))
-        tab_layout.addWidget(self.tab_loverslab_pill)
+        self.tab_modthesims_pill = self._create_edge_pill("ModTheSims 🟢", "Statut ModTheSims - Cliquer pour détails")
+        edge_container_layout.addWidget(self.tab_modthesims_pill)
 
-        self.tab_nsfwmods_pill = self._create_edge_pill("NSFWMods 🟢", "Statut NSFWMods - Cliquer pour détails")
-        tab_layout.addWidget(self.tab_nsfwmods_pill)
+        self.tab_simsfinds_pill = self._create_edge_pill("SimsFinds 🟢", "Statut SimsFinds - Cliquer pour détails")
+        edge_container_layout.addWidget(self.tab_simsfinds_pill)
+
+        self.tab_nexusmods_pill = self._create_edge_pill("Nexus Mods 🟢", "Statut Nexus Mods - Cliquer pour détails")
+        edge_container_layout.addWidget(self.tab_nexusmods_pill)
+
+        self.tab_mmccworld_pill = self._create_edge_pill("MMCCWorld 🟢", "Statut Maxis Match CC World - Cliquer pour détails")
+        edge_container_layout.addWidget(self.tab_mmccworld_pill)
 
         self.tab_patreon_pill = self._create_edge_pill("Patreon 🟢", tr("drawer.pill_tip_patreon"))
-        tab_layout.addWidget(self.tab_patreon_pill)
+        edge_container_layout.addWidget(self.tab_patreon_pill)
 
-        tab_layout.addStretch()
+        self.tab_loverslab_pill = self._create_edge_pill("LoversLab 🟢", tr("drawer.pill_tip_ll"))
+        edge_container_layout.addWidget(self.tab_loverslab_pill)
+
+        self.tab_nsfwmods_pill = self._create_edge_pill("NSFWMods 🟢", "Statut NSFWMods - Cliquer pour détails")
+        edge_container_layout.addWidget(self.tab_nsfwmods_pill)
+
+        edge_container_layout.addStretch()
+        edge_scroll.setWidget(edge_container)
+        tab_layout.addWidget(edge_scroll)
+
         main_layout.addWidget(self.tab_widget)
 
         # 2. Retractable Drawer Panel
@@ -164,35 +208,56 @@ class ProviderDrawer(QWidget):
             expanded_by_default=True,
             parent=self,
         )
-        self.cf_card.start_requested.connect(self.start_requested.emit)
-        self.cf_card.pause_requested.connect(self.pause_requested.emit)
-        self.cf_card.resume_requested.connect(self.resume_requested.emit)
-        self.cf_card.stop_requested.connect(self.stop_requested.emit)
-        providers_layout.addWidget(self.cf_card)
 
         # --- 2. The Sims Resource Provider Card ---
         self.tsr_card = ProviderScraperDrawerCard(
             provider_name="thesimsresource",
             display_name="The Sims Resource",
             subcategories_meta=TSR_SUBCATS,
-            expanded_by_default=True,
+            expanded_by_default=False,
             parent=self,
         )
-        self.tsr_card.start_requested.connect(self.start_requested.emit)
-        self.tsr_card.pause_requested.connect(self.pause_requested.emit)
-        self.tsr_card.resume_requested.connect(self.resume_requested.emit)
-        self.tsr_card.stop_requested.connect(self.stop_requested.emit)
-        providers_layout.addWidget(self.tsr_card)
 
-        # --- 3. LoversLab Provider Card (+18) ---
+        # --- 3. ModTheSims Provider Card ---
+        self.mts_card = ProviderScraperDrawerCard(
+            provider_name="modthesims",
+            display_name="ModTheSims",
+            subcategories_meta=MODTHESIMS_SUBCATS,
+            expanded_by_default=False,
+            parent=self,
+        )
+
+        # --- 4. SimsFinds Provider Card ---
+        self.sf_card = ProviderScraperDrawerCard(
+            provider_name="simsfinds",
+            display_name="SimsFinds",
+            subcategories_meta=SIMSFINDS_SUBCATS,
+            expanded_by_default=False,
+            parent=self,
+        )
+
+        # --- 5. Nexus Mods Provider Card ---
+        self.nexus_card = ProviderScraperDrawerCard(
+            provider_name="nexusmods",
+            display_name="Nexus Mods",
+            subcategories_meta=NEXUSMODS_SUBCATS,
+            expanded_by_default=False,
+            parent=self,
+        )
+
+        # --- 6. Maxis Match CC World Provider Card ---
+        self.mmccw_card = ProviderScraperDrawerCard(
+            provider_name="mmccworld",
+            display_name="Maxis Match CC World",
+            subcategories_meta=MMCCWORLD_SUBCATS,
+            expanded_by_default=False,
+            parent=self,
+        )
+
+        # --- 7. LoversLab Provider Card (+18) ---
         self.ll_card = LoversLabDrawerCard(self)
-        self.ll_card.start_requested.connect(self.start_requested.emit)
-        self.ll_card.pause_requested.connect(self.pause_requested.emit)
-        self.ll_card.resume_requested.connect(self.resume_requested.emit)
-        self.ll_card.stop_requested.connect(self.stop_requested.emit)
-        providers_layout.addWidget(self.ll_card)
 
-        # --- 4. NSFWMods Provider Card (+18) ---
+        # --- 8. NSFWMods Provider Card (+18) ---
         self.nm_card = ProviderScraperDrawerCard(
             provider_name="nsfwmods",
             display_name="NSFWMods",
@@ -200,14 +265,28 @@ class ProviderDrawer(QWidget):
             expanded_by_default=False,
             parent=self,
         )
-        self.nm_card.start_requested.connect(self.start_requested.emit)
-        self.nm_card.pause_requested.connect(self.pause_requested.emit)
-        self.nm_card.resume_requested.connect(self.resume_requested.emit)
-        self.nm_card.stop_requested.connect(self.stop_requested.emit)
-        providers_layout.addWidget(self.nm_card)
 
-        # --- 5. Patreon Card ---
+        # --- 9. Patreon Card ---
         self.patreon_card = PatreonDrawerCard(self)
+
+        self.scraper_cards = [
+            self.cf_card,
+            self.tsr_card,
+            self.mts_card,
+            self.sf_card,
+            self.nexus_card,
+            self.mmccw_card,
+            self.ll_card,
+            self.nm_card,
+        ]
+
+        for card in self.scraper_cards:
+            card.start_requested.connect(self.start_requested.emit)
+            card.pause_requested.connect(self.pause_requested.emit)
+            card.resume_requested.connect(self.resume_requested.emit)
+            card.stop_requested.connect(self.stop_requested.emit)
+            providers_layout.addWidget(card)
+
         providers_layout.addWidget(self.patreon_card)
 
         providers_layout.addStretch()
@@ -215,8 +294,6 @@ class ProviderDrawer(QWidget):
         d_layout.addWidget(drawer_scroll)
 
         main_layout.addWidget(self.drawer_panel)
-
-        self.scraper_cards = [self.cf_card, self.tsr_card, self.ll_card, self.nm_card]
 
     def set_adult_content_enabled(self, enabled: bool):
         """Shows or hides LoversLab and NSFWMods pills and cards based on adult content setting."""
@@ -308,6 +385,10 @@ class ProviderDrawer(QWidget):
         # 3. Update individual edge pills per platform
         self._update_single_edge_pill(self.tab_curseforge_pill, "CurseForge", self.cf_card)
         self._update_single_edge_pill(self.tab_tsr_pill, "TSR", self.tsr_card)
+        self._update_single_edge_pill(self.tab_modthesims_pill, "ModTheSims", self.mts_card)
+        self._update_single_edge_pill(self.tab_simsfinds_pill, "SimsFinds", self.sf_card)
+        self._update_single_edge_pill(self.tab_nexusmods_pill, "NexusMods", self.nexus_card)
+        self._update_single_edge_pill(self.tab_mmccworld_pill, "MMCCWorld", self.mmccw_card)
         self._update_single_edge_pill(self.tab_loverslab_pill, "LoversLab", self.ll_card)
         self._update_single_edge_pill(self.tab_nsfwmods_pill, "NSFWMods", self.nm_card)
 

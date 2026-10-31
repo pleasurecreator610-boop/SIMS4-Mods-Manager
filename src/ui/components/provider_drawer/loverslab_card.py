@@ -40,13 +40,17 @@ LOVERSLAB_SUBCATS: List[Tuple[str, str, str]] = [
 ]
 
 NSFWMODS_SUBCATS: List[Tuple[str, str, str]] = [
-    ("nm_287", "Sims Mods (Main)", "🔞"),
-    ("nm_288", "Animations", "💃"),
-    ("nm_289", "Gameplay Mods", "🎮"),
-    ("nm_290", "Adult Mods", "🔥"),
-    ("nm_291", "Clothes / CAS", "👗"),
-    ("nm_292", "Sliders & Presets", "✨"),
-    ("nm_293", "Translations & Other", "🌐"),
+    ("nsfwmods_287", "Sims Mods (Main)", "🔞"),
+    ("nsfwmods_364", "Adult (NSFWMods)", "🔥"),
+    ("nsfwmods_289", "Clothing", "👗"),
+    ("nsfwmods_296", "Shoes", "👠"),
+    ("nsfwmods_292", "Accessories", "💍"),
+    ("nsfwmods_288", "Body Types", "✨"),
+    ("nsfwmods_290", "Hair", "💇"),
+    ("nsfwmods_294", "Skintones", "✨"),
+    ("nsfwmods_295", "Facial Hair", "🧔"),
+    ("nsfwmods_291", "Makeup", "💄"),
+    ("nsfwmods_293", "Eyes", "👁️"),
 ]
 
 CURSEFORGE_SUBCATS: List[Tuple[str, str, str]] = [
@@ -74,6 +78,58 @@ TSR_SUBCATS: List[Tuple[str, str, str]] = [
     ("tsr_sets", "Sets", "📦"),
     ("tsr_lots_rooms", "Lots & Rooms", "🏡"),
     ("tsr_sims", "Sims", "👤"),
+]
+
+MODTHESIMS_SUBCATS: List[Tuple[str, str, str]] = [
+    ("mts_game_mods", "Game Mods", "🎮"),
+    ("mts_traits", "Traits", "🎓"),
+    ("mts_careers", "Careers", "💼"),
+    ("mts_build_mode", "Build Mode", "🧱"),
+    ("mts_buy_mode", "Buy Mode", "🛋️"),
+    ("mts_body_shop", "Body Shop", "👗"),
+    ("mts_lots_housing", "Lots & Housing", "🏡"),
+    ("mts_sims", "Sims", "👤"),
+    ("mts_pets", "Pets", "🐾"),
+    ("mts_programs_utilities", "Programs & Utilities", "🛠️"),
+    ("mts_miscellaneous", "Miscellaneous", "📦"),
+]
+
+SIMSFINDS_SUBCATS: List[Tuple[str, str, str]] = [
+    ("sfinds_hairstyles", "Hairstyles", "💇"),
+    ("sfinds_clothing", "Clothing", "👗"),
+    ("sfinds_accessories", "Accessories", "💍"),
+    ("sfinds_shoes", "Shoes", "👠"),
+    ("sfinds_makeup", "Makeup", "💄"),
+    ("sfinds_skintones", "Skintones", "✨"),
+    ("sfinds_eyebrows", "Eyebrows", "👁️"),
+    ("sfinds_objects", "Objects", "🛋️"),
+    ("sfinds_build_mode", "Build Mode", "🧱"),
+    ("sfinds_mods", "Mods & Presets", "🎮"),
+    ("sfinds_sims", "Sims", "👤"),
+]
+
+NEXUSMODS_SUBCATS: List[Tuple[str, str, str]] = [
+    ("nexus_gameplay", "Gameplay", "🎮"),
+    ("nexus_utilities", "Utilities", "🛠️"),
+    ("nexus_user_interface", "UI Mods", "🖥️"),
+    ("nexus_clothing", "Clothing", "👗"),
+    ("nexus_cas", "Create a Sim", "💇"),
+    ("nexus_build_mode", "Build Mode", "🧱"),
+    ("nexus_buy_mode", "Buy Mode", "🛋️"),
+    ("nexus_decorations", "Decorations", "🖼️"),
+    ("nexus_careers", "Careers & Traits", "💼"),
+    ("nexus_miscellaneous", "Miscellaneous", "📦"),
+]
+
+MMCCWORLD_SUBCATS: List[Tuple[str, str, str]] = [
+    ("mmccw_clothing", "Clothing", "👗"),
+    ("mmccw_hair", "Hairstyles", "💇"),
+    ("mmccw_accessories", "Accessories", "💍"),
+    ("mmccw_shoes", "Shoes", "👠"),
+    ("mmccw_build_buy", "Build & Buy", "🛋️"),
+    ("mmccw_gameplay", "Gameplay & Mods", "🎮"),
+    ("mmccw_poses", "Poses & Animations", "💃"),
+    ("mmccw_miscellaneous", "Recent Finds", "📦"),
 ]
 
 
@@ -288,6 +344,21 @@ class ProviderScraperDrawerCard(QFrame):
             self.drawer_status_pill.setText(text)
         self.drawer_status_pill.setStyleSheet(DrawerStyles.status_pill(state))
 
+    def _resolve_subcat_widget(self, cid: str) -> Optional[SubcategoryRowWidget]:
+        """Resolves subcategory widget supporting exact IDs, stripped IDs, and provider prefixes."""
+        if cid in self.subcat_widgets:
+            return self.subcat_widgets[cid]
+        candidates = [
+            f"{self.provider_name}_{cid}",
+            cid.replace(f"{self.provider_name}_", ""),
+            cid.replace("nsfwmods_", "nm_"),
+            cid.replace("nm_", "nsfwmods_"),
+        ]
+        for cand in candidates:
+            if cand in self.subcat_widgets:
+                return self.subcat_widgets[cand]
+        return None
+
     def update_status(self, status: Dict[str, Any]):
         """Updates provider-specific progress bar, subcategory rows, and control buttons."""
         global_running = status.get("is_running", False)
@@ -304,7 +375,7 @@ class ProviderScraperDrawerCard(QFrame):
         my_cats = []
         for cat_info in categories_progress:
             cid = str(cat_info.get("id") if isinstance(cat_info, dict) else getattr(cat_info, "id", ""))
-            if cid in self.subcat_widgets:
+            if self._resolve_subcat_widget(cid) is not None:
                 my_cats.append(cat_info)
 
         if my_cats:
@@ -417,7 +488,7 @@ class ProviderScraperDrawerCard(QFrame):
 
         for cat_info in my_cats:
             cid = str(cat_info.get("id") if isinstance(cat_info, dict) else getattr(cat_info, "id", ""))
-            row_widget = self.subcat_widgets.get(cid)
+            row_widget = self._resolve_subcat_widget(cid)
             if not row_widget:
                 continue
 

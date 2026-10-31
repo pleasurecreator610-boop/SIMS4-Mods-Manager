@@ -123,6 +123,10 @@ class FilterBar(QWidget):
         self.source_combo.addItem(tr("catalog.filter_provider_all"), "all")
         self.source_combo.addItem("CurseForge", "CurseForge")
         self.source_combo.addItem("The Sims Resource", "The Sims Resource")
+        self.source_combo.addItem("ModTheSims", "ModTheSims")
+        self.source_combo.addItem("SimsFinds", "SimsFinds")
+        self.source_combo.addItem("Nexus Mods", "Nexus Mods")
+        self.source_combo.addItem("Maxis Match CC World", "Maxis Match CC World")
         if self._adult_enabled:
             self.source_combo.addItem("LoversLab", "LoversLab")
             self.source_combo.addItem("NSFWMods", "NSFWMods")

@@ -6,3 +6,4 @@ Fournit le scraper de flux Tumblr, la résolution vers SimFileShare et les inter
 from plugins.mmccworld.scraper import MMCCWorldProvider
 
 __all__ = ["MMCCWorldProvider"]
+

@@ -39,10 +39,14 @@ class SyncTracker:
     last_completed_at: Optional[str] = None
     categories: Dict[str, Dict[str, Any]] = {}
     providers_status: Dict[str, str] = {
-        "loverslab": "OK",
-        "nsfwmods": "OK",
         "curseforge": "OK",
         "thesimsresource": "OK",
+        "modthesims": "OK",
+        "simsfinds": "OK",
+        "nexusmods": "OK",
+        "mmccworld": "OK",
+        "loverslab": "OK",
+        "nsfwmods": "OK",
         "patreon": "OK",
     }
     _cached_db_count: int = 0
@@ -308,10 +312,14 @@ class SyncTracker:
             cls.page1_ready = False
             cls.categories.clear()
             cls.providers_status = {
-                "loverslab": "OK",
-                "nsfwmods": "OK",
                 "curseforge": "OK",
                 "thesimsresource": "OK",
+                "modthesims": "OK",
+                "simsfinds": "OK",
+                "nexusmods": "OK",
+                "mmccworld": "OK",
+                "loverslab": "OK",
+                "nsfwmods": "OK",
                 "patreon": "OK",
             }
 

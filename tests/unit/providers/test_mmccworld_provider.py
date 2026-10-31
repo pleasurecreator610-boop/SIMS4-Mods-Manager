@@ -155,3 +155,4 @@ def test_simfileshare_verify_session_success():
     ok, msg = SessionManager.verify_session("simfileshare")
     assert ok is True
     assert "SimFileShare" in msg
+
