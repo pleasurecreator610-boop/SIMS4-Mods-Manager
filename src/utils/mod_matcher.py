@@ -234,10 +234,13 @@ class ModMatcher(TitleNormalizer):
 
             files_list: list[str] = []
             if hasattr(im, "get_installed_files_list"):
-                try:
-                    files_list = im.get_installed_files_list() or []
-                except Exception:
+                if hasattr(im, "_sa_instance_state") and "installed_files" not in getattr(im, "__dict__", {}):
                     files_list = []
+                else:
+                    try:
+                        files_list = im.get_installed_files_list() or []
+                    except Exception:
+                        files_list = []
 
             elif hasattr(im, "installed_files") and isinstance(im.installed_files, list):
                 files_list = im.installed_files

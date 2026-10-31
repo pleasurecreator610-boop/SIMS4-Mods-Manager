@@ -139,6 +139,7 @@ def pytest_sessionfinish(session, exitstatus):
     Cleanly closes any pooled HTTP sessions, shuts down active ThreadPoolExecutors,
     and terminates any lingering Qt thread pool tasks to ensure clean process termination.
     """
+    _ = (session, exitstatus)
     # 1. Close curl_cffi HTTP sessions
     try:
         SessionManager.close_all_http_sessions()

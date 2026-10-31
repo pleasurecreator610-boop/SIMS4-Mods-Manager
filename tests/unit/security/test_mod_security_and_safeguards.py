@@ -26,7 +26,7 @@ def test_uninstall_mod_rejects_empty_or_malicious_folder(tmp_path, monkeypatch):
 
     from src.application.game.game_detector import GameDetector
 
-    monkeypatch.setattr(GameDetector, "detect_mods_dir", classmethod(lambda cls, custom=None: mods_dir))
+    monkeypatch.setattr(GameDetector, "detect_mods_dir", classmethod(lambda cls, _custom=None: mods_dir))
 
     from src.infrastructure.database.manager import DatabaseManager
 

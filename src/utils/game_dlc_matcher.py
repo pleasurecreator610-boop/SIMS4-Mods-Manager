@@ -1,6 +1,7 @@
 import re
+import time
 import unicodedata
-from typing import Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 from pathlib import Path
 
 
@@ -373,6 +374,23 @@ class GameDlcMatcher:
     NO HEURISTIC GUESSING: only official DLCs are recognized; all other items are user mods.
     """
 
+    _FP_MAP: Dict[str, Tuple[str, Tuple[str, str]]] = {}
+    _SORTED_FP_ITEMS: List[Tuple[str, Tuple[str, Tuple[str, str]]]] = []
+    _dlc_installed_cache: Dict[Tuple[str, str], Tuple[float, Optional[bool]]] = {}
+    _CACHE_TTL_SECONDS: float = 60.0
+
+    @classmethod
+    def _ensure_fp_index(cls) -> None:
+        """Initialise une seule fois l'index pré-calculé des empreintes de DLC."""
+        if not cls._FP_MAP:
+            cls._FP_MAP = {cls.canonical_fingerprint(k): (k, v) for k, v in KNOWN_DLC_NAMES.items()}
+            cls._SORTED_FP_ITEMS = sorted(cls._FP_MAP.items(), key=lambda item: len(item[0]), reverse=True)
+
+    @classmethod
+    def clear_cache(cls) -> None:
+        """Vide le cache mémoire de détection d'installation des DLC."""
+        cls._dlc_installed_cache.clear()
+
     @classmethod
     def is_base_game_only(cls, text: str) -> bool:
         """Returns True if the text only refers to the Sims 4 base game without any pack."""
@@ -458,22 +476,20 @@ class GameDlcMatcher:
         cand_fp = cls.canonical_fingerprint(clean_name)
         full_cand_fp = cls.canonical_fingerprint(clean)
 
-        # Pre-build fingerprint map
-        fp_map = {cls.canonical_fingerprint(k): (k, v) for k, v in KNOWN_DLC_NAMES.items()}
+        cls._ensure_fp_index()
 
         # 2. Exact match in official dictionary
         if normalized_key in KNOWN_DLC_NAMES:
             code, std_name = KNOWN_DLC_NAMES[normalized_key]
             return True, std_name, code
-        if cand_fp in fp_map:
-            _k, (code, std_name) = fp_map[cand_fp]
+        if cand_fp in cls._FP_MAP:
+            _k, (code, std_name) = cls._FP_MAP[cand_fp]
             return True, std_name, code
 
         # 3. Substring matching against official DLC entries
         # Tolerate partial matching only if an official DLC name from the fixed catalog is detected
         # Order by key length descending to match most specific pack first
-        sorted_fp_items = sorted(fp_map.items(), key=lambda item: len(item[0]), reverse=True)
-        for k_fp, (orig_key, (code, std_name)) in sorted_fp_items:
+        for k_fp, (orig_key, (code, std_name)) in cls._SORTED_FP_ITEMS:
             if len(k_fp) < 4:
                 continue
 
@@ -507,27 +523,37 @@ class GameDlcMatcher:
             return None
 
         try:
-            from src.application.game.game_service import GameService
-
-            game_exe = GameService.get_game_exe_path()
-            if not game_exe or not game_exe.exists():
-                return None
-
-            potential_roots = [
-                game_exe.parent,
-                game_exe.parent.parent,
-                game_exe.parent.parent.parent,
-            ]
-
             code_upper = pack_code.upper()
+            if game_dir is not None:
+                root_key = str(game_dir)
+                potential_roots = [game_dir]
+            else:
+                from src.application.game.game_service import GameService
+
+                game_exe = GameService.get_game_exe_path()
+                if not game_exe or not game_exe.exists():
+                    return None
+                root_key = str(game_exe)
+                potential_roots = [
+                    game_exe.parent,
+                    game_exe.parent.parent,
+                    game_exe.parent.parent.parent,
+                ]
+
+            cache_key = (code_upper, root_key)
+            now = time.monotonic()
+            cached = cls._dlc_installed_cache.get(cache_key)
+            if cached is not None and (now - cached[0]) < cls._CACHE_TTL_SECONDS:
+                return cached[1]
+
+            result: Optional[bool] = False
             for root in potential_roots:
                 if root.exists():
-                    candidate_folder = root / code_upper
-                    if candidate_folder.is_dir():
-                        return True
-                    if (root / "Delta" / code_upper).is_dir():
-                        return True
+                    if (root / code_upper).is_dir() or (root / "Delta" / code_upper).is_dir():
+                        result = True
+                        break
 
-            return False
+            cls._dlc_installed_cache[cache_key] = (now, result)
+            return result
         except Exception:
             return None

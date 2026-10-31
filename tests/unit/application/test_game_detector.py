@@ -69,9 +69,7 @@ def test_game_launcher_ea_app_and_steam_fallbacks(monkeypatch):
 
     called_uris = []
     monkeypatch.setattr(GameLauncher, "detect_game_executable", classmethod(lambda cls, custom_exe=None: None))
-    monkeypatch.setattr(
-        GameLauncher, "open_system_uri", classmethod(lambda cls, uri: (called_uris.append(uri) or True))
-    )
+    monkeypatch.setattr(GameLauncher, "open_system_uri", classmethod(lambda cls, uri: called_uris.append(uri) or True))
 
     ok = GameLauncher.launch_game()
     assert ok is True

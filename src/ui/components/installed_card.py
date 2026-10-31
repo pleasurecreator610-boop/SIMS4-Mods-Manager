@@ -1,27 +1,60 @@
+"""Carte InstalledCard représentant un mod installé dans 'Mes Mods' avec recyclage in-place (update_data)."""
+
+from __future__ import annotations
+
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
-    QVBoxLayout,
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QVBoxLayout,
 )
-from PySide6.QtCore import Qt, Signal
 
-from src.ui.components.base_mod_card import BaseModCard
-from src.ui.components.status_badge import StatusBadge
-from src.ui.components.dependencies_summary_widget import DependenciesSummaryWidget
 from src.i18n import tr
+from src.ui.components.base_mod_card import BaseModCard
+from src.ui.components.dependencies_summary_widget import DependenciesSummaryWidget
+from src.ui.components.status_badge import StatusBadge
 
 
 class InstalledCard(BaseModCard):
-    """
-    Premium card widget representing an installed Sims 4 mod in 'Mes Mods'.
-    Matches the aesthetic quality of the catalog cards, with folder and deletion actions.
-    """
+    """Carte de mod installé supportant le recyclage d'instance (Object Pooling) via update_data."""
 
     delete_requested = Signal(dict)
     open_folder_requested = Signal(str)
     toggle_requested = Signal(dict)
     restore_requested = Signal(dict)
+
+    _ACTIVE_TOGGLE_STYLE = """
+        QPushButton {
+            background-color: #064e3b;
+            color: #6ee7b7;
+            border: 1px solid #059669;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 11px;
+            padding: 4px 6px;
+        }
+        QPushButton:hover {
+            background-color: #047857;
+            color: #ffffff;
+        }
+    """
+
+    _INACTIVE_TOGGLE_STYLE = """
+        QPushButton {
+            background-color: #1f2937;
+            color: #9ca3af;
+            border: 1px solid #374151;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 11px;
+            padding: 4px 6px;
+        }
+        QPushButton:hover {
+            background-color: #374151;
+            color: #ffffff;
+        }
+    """
 
     def __init__(self, mod_data: dict, parent=None):
         super().__init__(mod_data, parent)
@@ -33,8 +66,8 @@ class InstalledCard(BaseModCard):
         self.setFixedHeight(400)
         self.init_ui()
 
-    def init_ui(self):
-        """Exécute l'opération init ui."""
+    def init_ui(self) -> None:
+        """Initialise la structure permanente de la carte installée."""
         self.setStyleSheet("""
             QFrame#InstalledCard {
                 background-color: #131726;
@@ -56,61 +89,32 @@ class InstalledCard(BaseModCard):
         layout.addWidget(self.thumb_label)
 
         # 2. Source Badge & Files Count Pill
-        badges_layout = QHBoxLayout()
-        badges_layout.setSpacing(6)
-
-        source = self.mod_data.get("source", "manual")
-        source_badge = StatusBadge(source, badge_type="source")
-        badges_layout.addWidget(source_badge)
-
-        files_count = self.mod_data.get("files_count", 0)
-        files_pill = QLabel(tr("installed.files_count", count=files_count))
-        files_pill.setStyleSheet("""
-            background-color: #1e253b;
-            color: #94a3b8;
-            border-radius: 4px;
-            padding: 2px 6px;
-            font-size: 10px;
-            font-weight: 600;
-        """)
-        badges_layout.addWidget(files_pill)
-
-        badges_layout.addStretch()
-        layout.addLayout(badges_layout)
+        self.badges_layout = QHBoxLayout()
+        self.badges_layout.setSpacing(6)
+        layout.addLayout(self.badges_layout)
 
         # 3. Title
-        title_text = self.mod_data.get("title", tr("common.untitled"))
-        self.title_label = QLabel(title_text)
+        self.title_label = QLabel()
         self.title_label.setWordWrap(True)
         self.title_label.setFixedHeight(34)
         self.title_label.setStyleSheet("font-size: 13px; font-weight: 700; color: #f8fafc;")
         layout.addWidget(self.title_label)
 
         # 4. Author & Installation Date
-        author = self.mod_data.get("author") or tr("common.unknown")
-        inst_date = self.mod_data.get("installed_date") or ""
-        date_str = (
-            inst_date[:10]
-            if isinstance(inst_date, str)
-            else (inst_date.strftime("%d/%m/%Y") if hasattr(inst_date, "strftime") else "")
-        )
-
-        meta_lbl = QLabel(f"👤 {author}  •  📅 {date_str or tr('common.recently')}")
-        meta_lbl.setStyleSheet("font-size: 11px; color: #64748b;")
-        layout.addWidget(meta_lbl)
+        self.meta_lbl = QLabel()
+        self.meta_lbl.setStyleSheet("font-size: 11px; color: #64748b;")
+        layout.addWidget(self.meta_lbl)
 
         # 5. Folder Name
-        folder_name = self.mod_data.get("folder_name", "")
-        folder_lbl = QLabel(f"📁 {folder_name}")
-        folder_lbl.setToolTip(tr("installed.subfolder_tooltip", folder=folder_name))
-        folder_lbl.setStyleSheet("font-size: 10px; color: #475569;")
-        layout.addWidget(folder_lbl)
+        self.folder_lbl = QLabel()
+        self.folder_lbl.setStyleSheet("font-size: 10px; color: #475569;")
+        layout.addWidget(self.folder_lbl)
 
-        # 6. Dependencies Box if requirements exist
-        dependencies = self.mod_data.get("dependencies", [])
-        if dependencies:
-            deps_widget = DependenciesSummaryWidget(dependencies, max_show=2)
-            layout.addWidget(deps_widget)
+        # 6. Dependencies Box Container
+        self.deps_layout = QVBoxLayout()
+        self.deps_layout.setContentsMargins(0, 0, 0, 0)
+        self.deps_layout.setSpacing(0)
+        layout.addLayout(self.deps_layout)
 
         layout.addStretch()
 
@@ -118,48 +122,13 @@ class InstalledCard(BaseModCard):
         actions_layout = QHBoxLayout()
         actions_layout.setSpacing(6)
 
-        # Toggle Enable/Disable button
-        is_enabled = self.mod_data.get("is_enabled", True)
-        self.btn_toggle = QPushButton(tr("installed.status_active") if is_enabled else tr("installed.status_inactive"))
+        self.btn_toggle = QPushButton()
         self.btn_toggle.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_toggle.setFixedHeight(30)
         self.btn_toggle.setToolTip(tr("installed.toggle_tooltip"))
-        if is_enabled:
-            self.btn_toggle.setStyleSheet("""
-                QPushButton {
-                    background-color: #064e3b;
-                    color: #6ee7b7;
-                    border: 1px solid #059669;
-                    border-radius: 6px;
-                    font-weight: 700;
-                    font-size: 11px;
-                    padding: 4px 6px;
-                }
-                QPushButton:hover {
-                    background-color: #047857;
-                    color: #ffffff;
-                }
-            """)
-        else:
-            self.btn_toggle.setStyleSheet("""
-                QPushButton {
-                    background-color: #1f2937;
-                    color: #9ca3af;
-                    border: 1px solid #374151;
-                    border-radius: 6px;
-                    font-weight: 700;
-                    font-size: 11px;
-                    padding: 4px 6px;
-                }
-                QPushButton:hover {
-                    background-color: #374151;
-                    color: #ffffff;
-                }
-            """)
         self.btn_toggle.clicked.connect(lambda: self.toggle_requested.emit(self.mod_data))
         actions_layout.addWidget(self.btn_toggle, stretch=1)
 
-        # Open Folder button
         self.btn_folder = QPushButton(tr("installed.btn_folder"))
         self.btn_folder.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_folder.setFixedHeight(30)
@@ -178,10 +147,9 @@ class InstalledCard(BaseModCard):
                 color: #ffffff;
             }
         """)
-        self.btn_folder.clicked.connect(lambda: self.open_folder_requested.emit(folder_name))
+        self.btn_folder.clicked.connect(lambda: self.open_folder_requested.emit(self.mod_data.get("folder_name", "")))
         actions_layout.addWidget(self.btn_folder, stretch=1)
 
-        # Delete button
         self.btn_delete = QPushButton(tr("installed.btn_delete"))
         self.btn_delete.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_delete.setFixedHeight(30)
@@ -204,41 +172,102 @@ class InstalledCard(BaseModCard):
         self.btn_delete.clicked.connect(lambda: self.delete_requested.emit(self.mod_data))
         actions_layout.addWidget(self.btn_delete, stretch=1)
 
-        # Restore Backup button (only if backup_path is present)
-        backup_path = self.mod_data.get("backup_path")
-        if backup_path:
-            self.btn_restore = QPushButton("↺")
-            self.btn_restore.setToolTip(tr("installed.restore_tooltip"))
-            self.btn_restore.setCursor(Qt.CursorShape.PointingHandCursor)
-            self.btn_restore.setFixedSize(30, 30)
-            self.btn_restore.setStyleSheet("""
-                QPushButton {
-                    background-color: #0f2942;
-                    color: #38bdf8;
-                    border: 1px solid #0284c7;
-                    border-radius: 6px;
-                    font-weight: 700;
-                    font-size: 13px;
-                }
-                QPushButton:hover {
-                    background-color: #0284c7;
-                    color: #ffffff;
-                }
-            """)
-            self.btn_restore.clicked.connect(lambda: self.restore_requested.emit(self.mod_data))
-            actions_layout.addWidget(self.btn_restore)
+        self.btn_restore = QPushButton("↺")
+        self.btn_restore.setToolTip(tr("installed.restore_tooltip"))
+        self.btn_restore.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_restore.setFixedSize(30, 30)
+        self.btn_restore.setStyleSheet("""
+            QPushButton {
+                background-color: #0f2942;
+                color: #38bdf8;
+                border: 1px solid #0284c7;
+                border-radius: 6px;
+                font-weight: 700;
+                font-size: 13px;
+            }
+            QPushButton:hover {
+                background-color: #0284c7;
+                color: #ffffff;
+            }
+        """)
+        self.btn_restore.clicked.connect(lambda: self.restore_requested.emit(self.mod_data))
+        actions_layout.addWidget(self.btn_restore)
 
         layout.addLayout(actions_layout)
 
-        # Start thumbnail loading via BaseModCard
+        self.update_data(self.mod_data)
+
+    @staticmethod
+    def _clear_sublayout(sublayout) -> None:
+        """Vide récursivement un sous-layout."""
+        while sublayout.count():
+            item = sublayout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+
+    def update_data(self, mod_data: dict) -> None:
+        """Met à jour les données de la carte installée en place (Object Pooling)."""
+        self.mod_data = mod_data
+
+        # 1. Badges
+        self._clear_sublayout(self.badges_layout)
+        source = self.mod_data.get("source", "manual")
+        source_badge = StatusBadge(source, badge_type="source")
+        self.badges_layout.addWidget(source_badge)
+
+        files_count = self.mod_data.get("files_count", 0)
+        files_pill = QLabel(tr("installed.files_count", count=files_count))
+        files_pill.setStyleSheet("""
+            background-color: #1e253b;
+            color: #94a3b8;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 10px;
+            font-weight: 600;
+        """)
+        self.badges_layout.addWidget(files_pill)
+        self.badges_layout.addStretch()
+
+        # 2. Title
+        title_text = self.mod_data.get("title", tr("common.untitled"))
+        self.title_label.setText(title_text)
+
+        # 3. Author & Installation Date
+        author = self.mod_data.get("author") or tr("common.unknown")
+        inst_date = self.mod_data.get("installed_date") or ""
+        date_str = (
+            inst_date[:10]
+            if isinstance(inst_date, str)
+            else (inst_date.strftime("%d/%m/%Y") if hasattr(inst_date, "strftime") else "")
+        )
+        self.meta_lbl.setText(f"👤 {author}  •  📅 {date_str or tr('common.recently')}")
+
+        # 4. Folder Name
+        folder_name = self.mod_data.get("folder_name", "")
+        self.folder_lbl.setText(f"📁 {folder_name}")
+        self.folder_lbl.setToolTip(tr("installed.subfolder_tooltip", folder=folder_name))
+
+        # 5. Dependencies
+        self._clear_sublayout(self.deps_layout)
+        dependencies = self.mod_data.get("dependencies", [])
+        if dependencies:
+            deps_widget = DependenciesSummaryWidget(dependencies, max_show=2)
+            self.deps_layout.addWidget(deps_widget)
+
+        # 6. Action Buttons
+        is_enabled = self.mod_data.get("is_enabled", True)
+        self.btn_toggle.setText(tr("installed.status_active") if is_enabled else tr("installed.status_inactive"))
+        self.btn_toggle.setStyleSheet(self._ACTIVE_TOGGLE_STYLE if is_enabled else self._INACTIVE_TOGGLE_STYLE)
+
+        backup_path = self.mod_data.get("backup_path")
+        self.btn_restore.setVisible(bool(backup_path))
+
+        # 7. Thumbnail
         self._load_thumbnail_async()
 
-    def mousePressEvent(self, event):
-        """Exécute l'opération mousepressevent.
-
-        Args:
-            event: Paramètre event.
-        """
+    def mousePressEvent(self, event) -> None:
+        """Émet details_requested si le clic a lieu hors des boutons d'action."""
         if event.button() == Qt.MouseButton.LeftButton:
             child = self.childAt(event.pos())
             if child is not None and (

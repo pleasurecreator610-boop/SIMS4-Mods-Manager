@@ -190,14 +190,14 @@ class ReportPreviewDialog(QDialog):
             row_widget = ReportModuleRowWidget(mod_name, is_missing_default=is_missing_default, parent=rows_container)
             row_widget.selection_changed.connect(self._on_module_selection_changed)
 
-            def _make_override_handler(target_name=mod_name):
+            def _make_override_handler():
                 def _handler(name, override_val):
                     self.requirements_overrides[name] = override_val
                     self.override_changed.emit(name, override_val)
 
                 return _handler
 
-            row_widget.override_changed.connect(_make_override_handler(mod_name))
+            row_widget.override_changed.connect(_make_override_handler())
 
             rows_layout.addWidget(row_widget)
             self.module_checkboxes.append(row_widget.cb)

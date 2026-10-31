@@ -72,8 +72,6 @@ class SqlAlchemyCatalogRepository(ICatalogRepository):
         sort: str = "recent",
         limit: int = 50,
         offset: int = 0,
-        sort_by: str = "updated_date",
-        sort_order: str = "desc",
     ) -> tuple[list[CatalogModEntity], int]:
         """Exécute l'opération search.
 

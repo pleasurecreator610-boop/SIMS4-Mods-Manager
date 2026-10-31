@@ -79,7 +79,7 @@ class BaseWorker(QObject, QRunnable):
             _active_workers.add(self)
         QThreadPool.globalInstance().start(self)
 
-    def wait(self, msecs: int = 0) -> bool:
+    def wait(self, _msecs: int = 0) -> bool:
         """Backward-compatible wait method."""
         return True
 

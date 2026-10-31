@@ -64,3 +64,9 @@ class CatalogQueryCache:
         """Purger le cache lors de toute modification de données."""
         with self._cache_lock:
             self._cache.clear()
+        try:
+            from src.application.dependencies.dependency_actions import DependencyActions
+
+            DependencyActions.clear_cache()
+        except Exception:
+            pass
