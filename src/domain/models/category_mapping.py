@@ -188,6 +188,17 @@ class CategoryMappingService:
             "nexus_careers": "traits_careers",
             "nexus_miscellaneous": "miscellaneous",
         },
+        # Maxis Match CC World
+        "mmccworld": {
+            "mmccw_clothing": "clothing",
+            "mmccw_hair": "hair",
+            "mmccw_accessories": "accessories",
+            "mmccw_shoes": "shoes",
+            "mmccw_build_buy": "build_buy",
+            "mmccw_gameplay": "gameplay",
+            "mmccw_poses": "animations_poses",
+            "mmccw_miscellaneous": "miscellaneous",
+        },
     }
 
     @classmethod

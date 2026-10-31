@@ -30,6 +30,9 @@ PROVIDERS_LOGIN_URLS = {
     "modthesims": "https://modthesims.info/member.php?action=login",
     "simsfinds": "https://www.simsfinds.com/en/downloads/sims4",
     "nexusmods": "https://users.nexusmods.com/auth/sign_in?redirect_url=https%3A%2F%2Fwww.nexusmods.com%2Fthesims4",
+    "simfileshare": "https://simfileshare.net/",
+    "mmccworld": "https://www.tumblr.com/login?redirect_to=https%3A%2F%2Fmaxismatchccworld.tumblr.com%2F",
+    "maxismatchccworld": "https://www.tumblr.com/login?redirect_to=https%3A%2F%2Fmaxismatchccworld.tumblr.com%2F",
 }
 
 

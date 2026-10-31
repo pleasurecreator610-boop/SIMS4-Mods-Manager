@@ -186,6 +186,30 @@ class AccountsView(QWidget):
 
         self.cards_layout.addWidget(self.nexusmods_card)
 
+        # 9. SimFileShare Resolver Card
+        self.simfileshare_card = AccountCardWidget(
+            provider_name="simfileshare",
+            title_key="accounts.simfileshare_title",
+            desc_key="accounts.simfileshare_desc",
+            parent=self,
+        )
+        self.simfileshare_card.clear_requested.connect(self._on_clear_clicked)
+        self.simfileshare_card.test_requested.connect(self._on_test_clicked)
+        self.simfileshare_card.login_requested.connect(self.open_login_window)
+        self.cards_layout.addWidget(self.simfileshare_card)
+
+        # 10. Maxis Match CC World (Tumblr) Card
+        self.mmccworld_card = AccountCardWidget(
+            provider_name="mmccworld",
+            title_key="accounts.mmccworld_title",
+            desc_key="accounts.mmccworld_desc",
+            parent=self,
+        )
+        self.mmccworld_card.clear_requested.connect(self._on_clear_clicked)
+        self.mmccworld_card.test_requested.connect(self._on_test_clicked)
+        self.mmccworld_card.login_requested.connect(self.open_login_window)
+        self.cards_layout.addWidget(self.mmccworld_card)
+
         self.cards_by_provider: dict[str, AccountCardWidget] = {
             "loverslab": self.loverslab_card,
             "nsfwmods": self.nsfwmods_card,
@@ -195,6 +219,8 @@ class AccountsView(QWidget):
             "simsfinds": self.simsfinds_card,
             "patreon": self.patreon_card,
             "nexusmods": self.nexusmods_card,
+            "simfileshare": self.simfileshare_card,
+            "mmccworld": self.mmccworld_card,
         }
 
         layout.addLayout(self.cards_layout)
@@ -253,6 +279,8 @@ class AccountsView(QWidget):
             self.simsfinds_card,
             self.patreon_card,
             self.nexusmods_card,
+            self.simfileshare_card,
+            self.mmccworld_card,
         ]:
             self.card_widgets[card.provider_name] = {
                 "title_lbl": card.title_lbl,

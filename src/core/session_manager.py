@@ -332,6 +332,32 @@ class SessionManager:
                 if resp.status_code == 200:
                     return True, "Accès à SimsFinds vérifié avec succès."
 
+            elif provider_name.lower() == "simfileshare":
+                url = "https://simfileshare.net/"
+                resp = session.get(url, timeout=12)
+                logger.info(f"Test de session SimFileShare ({url}) -> Code HTTP {resp.status_code}")
+                if resp.status_code == 200:
+                    saved_cookies = cls.get_saved_cookies("simfileshare")
+                    if saved_cookies.get("sessionid"):
+                        return True, "Session membre SimFileShare connectée et active."
+                    return True, "Accès au résolveur SimFileShare vérifié avec succès."
+
+            elif provider_name.lower() in ("mmccworld", "maxismatchccworld"):
+                url = "https://maxismatchccworld.tumblr.com/"
+                resp = session.get(url, timeout=12)
+                logger.info(f"Test de session Maxis Match CC World ({url}) -> Code HTTP {resp.status_code}")
+                if resp.status_code == 200:
+                    saved_cookies = cls.get_saved_cookies(provider_name)
+                    has_tumblr_auth = bool(
+                        saved_cookies.get("pfg")
+                        or saved_cookies.get("logged_in")
+                        or saved_cookies.get("user_id")
+                        or saved_cookies.get("tmgor")
+                    )
+                    if has_tumblr_auth:
+                        return True, "Session membre Tumblr / MMCCWorld connectée et active."
+                    return True, "Accès à Maxis Match CC World vérifié avec succès."
+
             elif provider_name.lower() == "nexusmods":
                 saved_cookies = cls.get_saved_cookies("nexusmods")
                 api_key = saved_cookies.get("nexusmods_api_key")
@@ -363,7 +389,7 @@ class SessionManager:
                 if resp.status_code in [403, 503]:
                     return False, f"Protection Cloudflare active sur Nexus Mods (Code {resp.status_code})."
 
-            return False, f"Réponse inattendue (Code {resp.status_code})"
+            return False, f"Réponse inattendue pour le fournisseur '{provider_name}'."
         except Exception as e:
             logger.error(f"Erreur lors de la vérification de session pour {provider_name}: {e}")
             return False, f"Erreur de connexion: {e}"
@@ -383,7 +409,7 @@ class SessionManager:
                 if key in cls._http_sessions and thread_key in cls._thread_http_sessions:
                     return cls._thread_http_sessions[thread_key]
 
-        http_session: cffi_requests.Session = cffi_requests.Session(impersonate="chrome120")
+        http_session: cffi_requests.Session = cffi_requests.Session(impersonate="chrome")
         http_session.headers.update(
             {
                 "User-Agent": cls.DEFAULT_USER_AGENT,
@@ -429,7 +455,7 @@ class SessionManager:
                 if key in cls._async_http_sessions:
                     return cls._async_http_sessions[key]
 
-        async_session: cffi_requests.AsyncSession = cffi_requests.AsyncSession(impersonate="chrome120")
+        async_session: cffi_requests.AsyncSession = cffi_requests.AsyncSession(impersonate="chrome")
         async_session.headers.update(
             {
                 "User-Agent": cls.DEFAULT_USER_AGENT,

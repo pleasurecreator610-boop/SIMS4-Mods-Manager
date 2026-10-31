@@ -259,7 +259,11 @@
     "simsfinds_title": "SimsFinds खाता",
     "simsfinds_desc": "SimsFinds कैटलॉग तक पहुँचने, टिप्पणियाँ पोस्ट करने और रचनाकारों से संपर्क करने की अनुमति देता है।",
     "nexusmods_title": "Nexus Mods खाता",
-    "nexusmods_desc": "NexusMods.com/thesims4 पर डाउनलोड, सत्र प्रबंधन और क्रिएटर फीडबैक सक्षम करता है।"
+    "nexusmods_desc": "NexusMods.com/thesims4 पर डाउनलोड, सत्र प्रबंधन और क्रिएटर फीडबैक सक्षम करता है।",
+    "simfileshare_title": "SimFileShare रिज़ॉल्वर",
+    "simfileshare_desc": "सभी SimFileShare लिंक के लिए सार्वभौमिक प्रत्यक्ष डाउनलोड इंजन (किसी खाते की आवश्यकता नहीं)।",
+    "mmccworld_title": "Maxis Match CC World खाता (Tumblr)",
+    "mmccworld_desc": "Tumblr के माध्यम से कनेक्ट होने, रचनाकारों को संदेश भेजने और फीडबैक पोस्ट करने में सक्षम बनाता है।"
   },
   "logs": {
     "title": "सिस्टम लॉग्स",

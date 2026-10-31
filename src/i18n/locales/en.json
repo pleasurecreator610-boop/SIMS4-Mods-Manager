@@ -259,7 +259,11 @@
     "simsfinds_title": "SimsFinds Account",
     "simsfinds_desc": "Allows accessing the SimsFinds catalog, posting comments, and reaching out to creators.",
     "nexusmods_title": "Nexus Mods Account",
-    "nexusmods_desc": "Enables downloading, session management, and creator feedback on NexusMods.com/thesims4."
+    "nexusmods_desc": "Enables downloading, session management, and creator feedback on NexusMods.com/thesims4.",
+    "simfileshare_title": "SimFileShare Resolver",
+    "simfileshare_desc": "Universal direct download engine for all SimFileShare links (no account required).",
+    "mmccworld_title": "Maxis Match CC World Account (Tumblr)",
+    "mmccworld_desc": "Enables connecting via Tumblr, sending messages/asks to creators, and posting feedback."
   },
   "logs": {
     "title": "📋 Execution Logs & History",

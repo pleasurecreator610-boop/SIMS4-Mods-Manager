@@ -259,7 +259,11 @@
     "simsfinds_title": "SimsFinds 账号",
     "simsfinds_desc": "用于访问 SimsFinds 目录、发布评论并向创作者反馈。",
     "nexusmods_title": "Nexus Mods 账户",
-    "nexusmods_desc": "支持在 NexusMods.com/thesims4 上下载、会话管理和创作者反馈。"
+    "nexusmods_desc": "支持在 NexusMods.com/thesims4 上下载、会话管理和创作者反馈。",
+    "simfileshare_title": "SimFileShare 解析器",
+    "simfileshare_desc": "适用于所有 SimFileShare 链接的通用直接下载引擎（无需账户）。",
+    "mmccworld_title": "Maxis Match CC World 账户 (Tumblr)",
+    "mmccworld_desc": "支持通过 Tumblr 登录、向创作者发送消息/提问并发布反馈。"
   },
   "logs": {
     "title": "系统与操作日志",

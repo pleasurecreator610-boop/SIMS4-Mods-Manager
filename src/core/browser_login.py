@@ -344,6 +344,41 @@ class BrowserLoginHelper:
                                     display_name = "Nexus Mods User"
                                 member_logged_in = True
 
+                    elif prov_lower in ("mmccworld", "maxismatchccworld", "tumblr"):
+                        curr_url = page.url.lower()
+                        is_on_auth_form = (
+                            "/login" in curr_url
+                            or "/register" in curr_url
+                            or bool(page.query_selector("input[type='password']"))
+                        )
+
+                        if not is_on_auth_form:
+                            has_session = bool(
+                                cookies_dict.get("pfg")
+                                or cookies_dict.get("logged_in") == "1"
+                                or cookies_dict.get("user_id")
+                                or cookies_dict.get("tmgor")
+                            )
+                            has_user_ui = bool(
+                                page.query_selector("button[aria-label='Account']")
+                                or page.query_selector("a[href*='/dashboard']")
+                                or page.query_selector("button[aria-label*='Compte']")
+                                or page.query_selector("[data-testid='user-avatar']")
+                                or page.query_selector("a[href*='tumblr.com/logout']")
+                            )
+                            if has_session or has_user_ui:
+                                is_authenticated = True
+                                user_elem = page.query_selector(
+                                    "[data-testid='user-avatar'], button[aria-label='Account'], .user-avatar"
+                                )
+                                if user_elem:
+                                    display_name = user_elem.inner_text().strip()
+                                if not display_name and cookies_dict.get("user_id"):
+                                    display_name = f"Tumblr User #{cookies_dict['user_id']}"
+                                elif not display_name:
+                                    display_name = "MMCCWorld Member"
+                                member_logged_in = True
+
                     if member_logged_in:
                         time.sleep(1.5)
                         try:

@@ -259,7 +259,11 @@
     "simsfinds_title": "Cuenta de SimsFinds",
     "simsfinds_desc": "Permite acceder al catálogo de SimsFinds, publicar comentarios y contactar a los creadores.",
     "nexusmods_title": "Cuenta Nexus Mods",
-    "nexusmods_desc": "Permite descargas, gestión de sesiones y comentarios de creadores en NexusMods.com/thesims4."
+    "nexusmods_desc": "Permite descargas, gestión de sesiones y comentarios de creadores en NexusMods.com/thesims4.",
+    "simfileshare_title": "Resolvedor SimFileShare",
+    "simfileshare_desc": "Motor universal de descarga directa para enlaces de SimFileShare (no requiere cuenta).",
+    "mmccworld_title": "Cuenta Maxis Match CC World (Tumblr)",
+    "mmccworld_desc": "Permite conectarse mediante Tumblr, enviar mensajes a creadores y publicar comentarios."
   },
   "logs": {
     "title": "📋 Registros de Ejecución y Logs",
