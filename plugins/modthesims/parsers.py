@@ -203,18 +203,17 @@ def extract_mts_requirements(
         if req_section_started:
             if any(h in l_lower for h in ["changelog", "credits", "installation:", "features:", "thanks"]):
                 break
-            if l_str.startswith(("-", "*", "•", "1.", "2.", "3.", "4.")):
-                clean_item = re.sub(r"^[-*•\d.]+\s*", "", l_str).strip()
-                if clean_item and len(clean_item) > 3:
-                    req_items.append(
-                        {
-                            "title": clean_item,
-                            "remote_id": f"mts_req_{len(req_items)+1}",
-                            "source": provider_name,
-                            "is_installed": False,
-                            "notes": "Extrait de la description ModTheSims",
-                        }
-                    )
+            clean_item = re.sub(r"^[-*•\d.]+\s*", "", l_str).strip()
+            if clean_item and len(clean_item) > 3:
+                req_items.append(
+                    {
+                        "title": clean_item,
+                        "remote_id": f"mts_req_{len(req_items)+1}",
+                        "source": provider_name,
+                        "is_installed": False,
+                        "notes": "Extrait de la description ModTheSims",
+                    }
+                )
 
     item_id = extract_item_id(own_id, soup=soup, html_text=page_text)
     return item_id, raw_html, req_items

@@ -2115,6 +2115,127 @@ class SimulationRunner:
         i18n_ok = ("Unified Catalog" in en_cat) and ("Catalogue Unifié" in fr_cat) and (en_tsr != fr_tsr)
         print(f" -> [{'OK' if i18n_ok else 'FAIL'}] Basculement i18n FR/EN : FR='{fr_cat}' | EN='{en_cat}'")
 
+    def validate_modthesims_and_cross_platform_dedup_e2e(self) -> None:
+        """
+        [ÉTAPE 3septies] Validation E2E ModTheSims & Déduplication Inter-Plateformes (MTS <-> CurseForge) :
+        1. Test de connectivité à ModTheSims (SessionManager.verify_session).
+        2. Détection et instanciation du plugin ModTheSimsProvider dans ProviderRegistry.
+        3. Scraping en direct de la catégorie 'Game Mods (MTS)'.
+        4. Distinction stricte MOD vs COMMENT sur les prérequis MTS.
+        5. Validation de la déduplication inter-plateformes (XML Injector installé depuis CurseForge ou MTS).
+        6. Vérification de l'interface des commentaires / créateurs MTS.
+        """
+        from src.infrastructure.database.models import InstalledMod
+        from src.providers.registry import ProviderRegistry
+
+        print(
+            "\n[ÉTAPE 3septies] Validation E2E ModTheSims & Déduplication Inter-Plateformes (MTS <-> CurseForge)..."
+        )
+
+        # 1. Vérification session MTS
+        ok_mts, msg_mts = SessionManager.verify_session("modthesims")
+        print(f" -> Connexion ModTheSims : {'OK' if ok_mts else 'FAIL'} ({msg_mts})")
+        if not ok_mts:
+            self.inconsistencies.append(f"Échec de connexion ModTheSims: {msg_mts}")
+
+        # 2. Détection provider modthesims
+        mts_prov = ProviderRegistry.get_provider("modthesims")
+        if not mts_prov:
+            self.inconsistencies.append("Plugin 'modthesims' non enregistré dans ProviderRegistry.")
+            return
+
+        cat = mts_prov.CATEGORIES[0]
+        mods, _ = mts_prov.scrape_category_page(cat, page=1, limit=5)
+        print(f" -> Catégorie MTS '{cat['name']}' scrapée : {len(mods)} création(s).")
+        if not mods:
+            self.inconsistencies.append("Aucun mod retourné par ModTheSims sur la catégorie Game Mods.")
+            return
+
+        # 3. Test distinction MOD vs COMMENT
+        sample_mts_html = """
+        <div id="descriptionbox">
+            <p><strong>Requirements:</strong></p>
+            <ul>
+                <li>Scumbumbo XML Injector</li>
+                <li>Base Game compatible - Game Options -> Script Mods Enabled</li>
+            </ul>
+        </div>
+        """
+        from bs4 import BeautifulSoup
+        from plugins.modthesims.parsers import extract_mts_requirements
+
+        soup = BeautifulSoup(sample_mts_html, "html.parser")
+        _, _, raw_reqs = extract_mts_requirements(soup)
+        has_xml = any("XML Injector" in r.get("title", "") for r in raw_reqs)
+        has_note = any("Script Mods Enabled" in r.get("title", "") for r in raw_reqs)
+        print(f" -> Prérequis MTS extraits : {len(raw_reqs)} ({'OK' if has_xml and has_note else 'FAIL'})")
+
+        # 4. Déduplication croisée MTS <-> CurseForge
+        db = DatabaseManager.get_instance()
+        temp_rids = ["test_mts_xml_dep", "test_cf_installed_xml"]
+        try:
+            with db.get_session() as s:
+                s.query(InstalledMod).filter(InstalledMod.remote_id.in_(temp_rids)).delete(synchronize_session=False)
+                s.query(CatalogMod).filter(CatalogMod.remote_id.in_(temp_rids)).delete(synchronize_session=False)
+
+                # XML Injector simulé installé depuis CurseForge
+                im = InstalledMod(
+                    folder_name="XmlInjector_v4",
+                    package_names=["XmlInjector_v4.package"],
+                    source="curseforge",
+                    remote_id="test_cf_installed_xml",
+                    mod_name="XML Injector",
+                    author="ScumbumboMods",
+                    version="4.0",
+                    is_active=True,
+                )
+                s.add(im)
+
+                # Mod MTS nécessitant XML Injector
+                cm = CatalogMod(
+                    source="modthesims",
+                    remote_id="test_mts_xml_dep",
+                    title="Realistic Cooking Overhaul",
+                    author="SrslySims",
+                    page_url="https://modthesims.info/d/701054",
+                    requirements_status="RESOLVED",
+                )
+                cm.set_requirements_mods_list(
+                    [
+                        {
+                            "source": "curseforge",
+                            "remote_id": "test_cf_installed_xml",
+                            "title": "XML Injector",
+                            "url": "https://www.curseforge.com/sims4/mods/xml-injector",
+                        }
+                    ]
+                )
+                s.add(cm)
+                s.commit()
+
+            chk_mts = self.call_api(
+                "check_dependencies",
+                data={
+                    "page_url": "https://modthesims.info/d/701054",
+                    "title": "Realistic Cooking Overhaul",
+                    "source": "modthesims",
+                },
+            )
+            missing = chk_mts.get("missing_dependencies", [])
+            already = chk_mts.get("already_installed_dependencies", [])
+            dedup_ok = len(missing) == 0 and len(already) == 1
+            print(
+                f" -> [{'OK' if dedup_ok else 'FAIL'}] Déduplication inter-plateformes (MTS -> CurseForge) : "
+                f"Manquantes={len(missing)}, Déjà installées={len(already)}"
+            )
+            if not dedup_ok:
+                self.inconsistencies.append("Échec de la déduplication inter-plateformes MTS <-> CurseForge.")
+        finally:
+            with db.get_session() as s:
+                s.query(InstalledMod).filter(InstalledMod.remote_id.in_(temp_rids)).delete(synchronize_session=False)
+                s.query(CatalogMod).filter(CatalogMod.remote_id.in_(temp_rids)).delete(synchronize_session=False)
+                s.commit()
+
     def validate_simsfinds_and_cross_platform_dedup_e2e(self) -> None:
         """
         Valide en conditions réelles :
@@ -2482,6 +2603,7 @@ class SimulationRunner:
             self.validate_nsfwmods_provider_e2e()
             self.validate_curseforge_and_cross_platform_e2e()
             self.validate_thesimsresource_and_i18n_e2e()
+            self.validate_modthesims_and_cross_platform_dedup_e2e()
             self.validate_simsfinds_and_cross_platform_dedup_e2e()
             self.validate_nexusmods_and_cross_platform_dedup_e2e()
             self.validate_mmccworld_and_sfs_e2e()

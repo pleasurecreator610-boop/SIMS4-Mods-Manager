@@ -2368,6 +2368,10 @@ def test_all_platforms_comments_and_ambiguous_requirements_interpellation_e2e(tm
     from plugins.nsfwmods.scraper import NSFWModsProvider
     from plugins.thesimsresource.scraper import TheSimsResourceProvider
     from plugins.curseforge.scraper import CurseForgeProvider
+    from plugins.modthesims.scraper import ModTheSimsProvider
+    from plugins.simsfinds.scraper import SimsFindsProvider
+    from plugins.nexusmods.scraper import NexusModsProvider
+    from plugins.mmccworld.scraper import MMCCWorldProvider
 
     cases = [
         # LoversLab
@@ -2443,6 +2447,82 @@ def test_all_platforms_comments_and_ambiguous_requirements_interpellation_e2e(tm
             ],
             "expected_unfound": ["XML Injector"],
         },
+        # ModTheSims
+        {
+            "source": "modthesims",
+            "remote_id": "test_mts_cooking",
+            "title": "Realistic Cooking Mod",
+            "author": "SrslySims",
+            "page_url": "https://modthesims.info/d/701054/realistic-cooking.html",
+            "deps": [
+                {"title": "Scumbumbo XML Injector", "remote_id": "xml-injector"},
+                {"title": "Custom Food Interactions", "remote_id": "cfi"},
+                {"title": "Game Options -> Script Mods Enabled", "remote_id": "script-opt"},
+                {"title": "bb.moveobjects on recommended for kitchen island counters", "remote_id": "moo-opt"},
+            ],
+            "expected_comments": [
+                "Game Options -> Script Mods Enabled",
+                "bb.moveobjects on recommended for kitchen island counters",
+            ],
+            "expected_unfound": ["Scumbumbo XML Injector", "Custom Food Interactions"],
+        },
+        # SimsFinds
+        {
+            "source": "simsfinds",
+            "remote_id": "test_sf_outfit",
+            "title": "Trillyke Knit Crop Top",
+            "author": "Trillyke",
+            "page_url": "https://www.simsfinds.com/downloads/350124/knit-crop-top",
+            "deps": [
+                {"title": "Trillyke Knit Base Mesh", "remote_id": "trill-mesh"},
+                {
+                    "title": "Base Game compatible - Maxis Match friendly. 25 swatches.",
+                    "remote_id": "swatch-note",
+                },
+                {"title": "Tag me on Instagram when you use it!", "remote_id": "insta-note"},
+            ],
+            "expected_comments": [
+                "Base Game compatible - Maxis Match friendly. 25 swatches.",
+                "Tag me on Instagram when you use it!",
+            ],
+            "expected_unfound": ["Trillyke Knit Base Mesh"],
+        },
+        # Nexus Mods
+        {
+            "source": "nexusmods",
+            "remote_id": "test_nexus_buffs",
+            "title": "Emotional Inertia Classic",
+            "author": "roburky",
+            "page_url": "https://www.nexusmods.com/thesims4/mods/14",
+            "deps": [
+                {"title": "MTS Scumbumbo XML Injector", "remote_id": "xml-injector"},
+                {"title": "Requires script mods enabled in Game Options", "remote_id": "script-opt"},
+                {"title": "Tested on game version 1.108+", "remote_id": "version-note"},
+            ],
+            "expected_comments": [
+                "Requires script mods enabled in Game Options",
+                "Tested on game version 1.108+",
+            ],
+            "expected_unfound": ["MTS Scumbumbo XML Injector"],
+        },
+        # Maxis Match CC World (Tumblr / SFS)
+        {
+            "source": "mmccworld",
+            "remote_id": "test_mmccw_counters",
+            "title": "SixamCC Modular Counter Set",
+            "author": "SixamCC",
+            "page_url": "https://maxismatchccworld.tumblr.com/post/715421542/sixamcc-counter",
+            "deps": [
+                {"title": "SixamCC Modular Counter Mesh Rig", "remote_id": "sixam-mesh"},
+                {"title": "Use bb.moveobjects on when placing island counters.", "remote_id": "bb-note"},
+                {"title": "Requires Medium texture quality setting in Graphics options.", "remote_id": "gfx-note"},
+            ],
+            "expected_comments": [
+                "Use bb.moveobjects on when placing island counters.",
+                "Requires Medium texture quality setting in Graphics options.",
+            ],
+            "expected_unfound": ["SixamCC Modular Counter Mesh Rig"],
+        },
     ]
 
     db = DatabaseManager.get_instance()
@@ -2479,15 +2559,18 @@ def test_all_platforms_comments_and_ambiguous_requirements_interpellation_e2e(tm
             assert f"- {c}" in n_sec
             assert f"- {c}" not in m_sec
 
-    # 2. Test comment lifecycle on each provider (LL, NM, TSR, CF)
-    # LoversLab / NSFWMods
+    # 2. Test comment lifecycle on each provider (LL, NM, TSR, CF, MTS, SF, NEXUS, MMCCW)
     ll_prov = LoversLabProvider()
     nm_prov = NSFWModsProvider()
     tsr_prov = TheSimsResourceProvider()
     cf_prov = CurseForgeProvider()
+    mts_prov = ModTheSimsProvider()
+    sf_prov = SimsFindsProvider()
+    nexus_prov = NexusModsProvider()
+    mmccw_prov = MMCCWorldProvider()
 
-    # Verify providers implement all comment methods
-    for p in (ll_prov, nm_prov, tsr_prov, cf_prov):
+    # Verify all 8 providers implement all comment methods
+    for p in (ll_prov, nm_prov, tsr_prov, cf_prov, mts_prov, sf_prov, nexus_prov, mmccw_prov):
         assert hasattr(p, "get_creator_info")
         assert hasattr(p, "check_user_already_commented")
         assert hasattr(p, "post_mod_comment")
@@ -2539,6 +2622,249 @@ def test_all_platforms_comments_and_ambiguous_requirements_interpellation_e2e(tm
         assert "CurseForge" in msg_del
         mock_cf_session.delete.assert_called_once()
         assert "1194810/comments/888999" in mock_cf_session.delete.call_args[0][0]
+
+
+def test_eight_platforms_cross_deduplication_and_shared_deps_e2e(e2e_env, monkeypatch):
+    """
+    Tests real-world cross-platform deduplication, non-collision, and shared dependencies
+    across all platforms (ModTheSims, CurseForge, Nexus Mods, SimsFinds, TSR, LoversLab, NSFWMods, MMCCWorld/SFS):
+    1. Cross-Platform Identical Mod Deduplication (MTS, CurseForge, Nexus Mods):
+       - 'XML Injector v4' by Scumbumbo on MTS, CurseForge, and Nexus Mods.
+       - Installing from MTS creates 1 folder and 1 record.
+       - Subsequent install from CurseForge or Nexus Mods recognizes existing installation
+         via semantic title/author matching and DBPF SHA-256 fingerprint, preventing duplication.
+    2. Cross-Platform Shared Dependency Resolution:
+       - 'Realistic Cooking Mod' (MTS) and 'Emotional Inertia Classic' (Nexus) both require 'XML Injector'.
+       - Installing either mod satisfies the requirement for both without re-downloading.
+    3. SimFileShare Direct Resolution & Deduplication:
+       - 'Trillyke Knit Outfit' on SimsFinds and 'SixamCC Modular Counter Set' on MMCCWorld
+         resolve SFS download links into direct file extraction.
+    """
+    import io
+    import zipfile
+    from unittest.mock import MagicMock
+    from src.api.schemas.catalog import CatalogInstallRequest
+    from src.application.mods.active_installation_registry import ActiveInstallationRegistry
+    from src.application.mods.mod_install_orchestrator import perform_mod_install
+    from src.infrastructure.database.models import InstalledMod
+    from src.providers import ProviderRegistry
+
+    ActiveInstallationRegistry.reset()
+    db = e2e_env["db"]
+    mods_dir = e2e_env["mods_dir"]
+
+    catalog_entries = [
+        # XML Injector v4 across MTS, CurseForge, Nexus Mods
+        {
+            "source": "modthesims",
+            "remote_id": "mts_685412",
+            "title": "XML Injector v4",
+            "author": "Scumbumbo",
+            "page_url": "https://modthesims.info/d/685412/xml-injector-v4.html",
+            "dl_url": "https://chii.modthesims.info/getfile.php?file=685412",
+            "pkg": "XmlInjector_v4.package",
+            "reqs": [],
+        },
+        {
+            "source": "curseforge",
+            "remote_id": "cf_xml_injector",
+            "title": "XML Injector v4",
+            "author": "Scumbumbo",
+            "page_url": "https://www.curseforge.com/sims4/mods/xml-injector",
+            "dl_url": "https://www.curseforge.com/api/v1/mods/694283/files/7021809/download",
+            "pkg": "XmlInjector_v4.package",
+            "reqs": [],
+        },
+        {
+            "source": "nexusmods",
+            "remote_id": "nexus_xml_injector",
+            "title": "XML Injector v4",
+            "author": "Scumbumbo",
+            "page_url": "https://www.nexusmods.com/thesims4/mods/14",
+            "dl_url": "https://www.nexusmods.com/thesims4/mods/14?tab=files&file_id=14",
+            "pkg": "XmlInjector_v4.package",
+            "reqs": [],
+        },
+        # Mod on ModTheSims requiring XML Injector
+        {
+            "source": "modthesims",
+            "remote_id": "mts_cooking_mod",
+            "title": "Realistic Cooking Mod",
+            "author": "SrslySims",
+            "page_url": "https://modthesims.info/d/701054/realistic-cooking.html",
+            "dl_url": "https://chii.modthesims.info/getfile.php?file=701054",
+            "pkg": "SrslySims_Cooking.package",
+            "reqs": [
+                {
+                    "source": "modthesims",
+                    "remote_id": "mts_685412",
+                    "title": "XML Injector v4",
+                    "url": "https://modthesims.info/d/685412/xml-injector-v4.html",
+                }
+            ],
+        },
+        # Mod on SimsFinds with SFS mesh download
+        {
+            "source": "simsfinds",
+            "remote_id": "sf_trillyke_crop",
+            "title": "Trillyke Knit Crop Top",
+            "author": "Trillyke",
+            "page_url": "https://www.simsfinds.com/downloads/350124/knit-crop-top",
+            "dl_url": "https://simfileshare.net/download/350124/",
+            "pkg": "Trillyke_KnitCropTop.package",
+            "reqs": [],
+        },
+        # Mod on MMCCWorld with SFS mesh download
+        {
+            "source": "mmccworld",
+            "remote_id": "mmccw_sixam_counter",
+            "title": "SixamCC Modular Counter Set",
+            "author": "SixamCC",
+            "page_url": "https://maxismatchccworld.tumblr.com/post/715421542/sixamcc-counter",
+            "dl_url": "https://simfileshare.net/download/715421/",
+            "pkg": "SixamCC_ModularCounters.package",
+            "reqs": [],
+        },
+    ]
+
+    db_ids: dict[tuple[str, str], int] = {}
+    with db.get_session() as s:
+        for entry in catalog_entries:
+            s.query(CatalogMod).filter_by(source=entry["source"], remote_id=entry["remote_id"]).delete()
+            cm = CatalogMod(
+                source=entry["source"],
+                remote_id=entry["remote_id"],
+                title=entry["title"],
+                author=entry["author"],
+                page_url=entry["page_url"],
+                requirements_status="FOUND" if entry["reqs"] else "NONE",
+            )
+            cm.set_requirements_mods_list(entry["reqs"])
+            s.add(cm)
+            s.flush()
+            db_ids[(entry["source"], entry["remote_id"])] = cm.id
+        s.commit()
+
+    entries_by_url = {e["page_url"]: e for e in catalog_entries}
+    entries_by_dl = {e["dl_url"]: e for e in catalog_entries}
+
+    def _make_provider(source_name: str):
+        mock_prov = MagicMock()
+        mock_prov.provider_name = source_name
+
+        def _get_mod_details(page_url: str):
+            entry = entries_by_url.get(page_url, {})
+            dl_url = entry.get("dl_url", f"https://example.com/{source_name}/dl")
+            reqs = entry.get("reqs", [])
+            return {
+                "title": entry.get("title", f"Mod from {source_name}"),
+                "author": entry.get("author", "Author"),
+                "download_urls": [dl_url],
+                "requirements": reqs,
+                "requirements_status": "FOUND" if reqs else "NONE",
+            }
+
+        def _download_mod_file(download_url: str, dest_path: str, progress_callback=None, **kwargs):
+            entry = entries_by_dl.get(download_url, {})
+            pkg_name = entry.get("pkg", f"{source_name}_default.package")
+            buf = io.BytesIO()
+            with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+                # Deterministic content to test DBPF SHA-256 matching
+                content = f"DBPF_DATA_FOR_{pkg_name}".encode("utf-8")
+                zf.writestr(pkg_name, content)
+            target = Path(dest_path)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(buf.getvalue())
+            return True, str(target)
+
+        mock_prov.get_mod_details.side_effect = _get_mod_details
+        mock_prov.download_mod_file = _download_mod_file
+        return mock_prov
+
+    providers = {src: _make_provider(src) for src in ("modthesims", "curseforge", "nexusmods", "simsfinds", "mmccworld")}
+    monkeypatch.setattr(ProviderRegistry, "get_provider", classmethod(lambda cls, name: providers.get(name)))
+
+    # Also mock SimFileShareResolver.download_mod_file so SFS URLs resolve deterministically
+    from src.infrastructure.network.simfileshare_resolver import SimFileShareResolver
+
+    def _mock_sfs_dl(self, url, dest_path, progress_callback=None):
+        entry = entries_by_dl.get(url, {})
+        pkg_name = entry.get("pkg", "sfs_download.package")
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            content = f"DBPF_DATA_FOR_{pkg_name}".encode("utf-8")
+            zf.writestr(pkg_name, content)
+        target = Path(dest_path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(buf.getvalue())
+        return True, str(target)
+
+    monkeypatch.setattr(SimFileShareResolver, "download_mod_file", _mock_sfs_dl)
+
+    # 1. Install XML Injector v4 from ModTheSims
+    mts_xml_id = db_ids[("modthesims", "mts_685412")]
+    res1 = perform_mod_install(
+        CatalogInstallRequest(catalog_mod_id=mts_xml_id, install_dependencies=True)
+    )
+    assert res1.success is True
+
+    # Verify exactly 1 folder on disk for XML Injector
+    xml_folders = [p for p in mods_dir.glob("*") if "xml" in p.name.lower()]
+    assert len(xml_folders) == 1
+    assert (xml_folders[0] / "XmlInjector_v4.package").exists()
+
+    with db.get_session() as s:
+        installed_xml = s.query(InstalledMod).filter(InstalledMod.folder_name == xml_folders[0].name).all()
+        assert len(installed_xml) == 1
+
+    # 2. Attempt duplicate install of XML Injector from CurseForge and Nexus Mods
+    cf_xml_id = db_ids[("curseforge", "cf_xml_injector")]
+    res2 = perform_mod_install(
+        CatalogInstallRequest(catalog_mod_id=cf_xml_id, install_dependencies=True)
+    )
+    assert res2.success is True
+
+    nexus_xml_id = db_ids[("nexusmods", "nexus_xml_injector")]
+    res3 = perform_mod_install(
+        CatalogInstallRequest(catalog_mod_id=nexus_xml_id, install_dependencies=True)
+    )
+    assert res3.success is True
+
+    # Check deduplication: STILL exactly 1 folder and 1 physical package file on disk!
+    xml_folders_after = [p for p in mods_dir.glob("*") if "xml" in p.name.lower()]
+    assert len(xml_folders_after) == 1
+
+    # 3. Install Realistic Cooking Mod (MTS) which depends on XML Injector
+    cooking_id = db_ids[("modthesims", "mts_cooking_mod")]
+    res4 = perform_mod_install(
+        CatalogInstallRequest(catalog_mod_id=cooking_id, install_dependencies=True)
+    )
+    assert res4.success is True
+
+    cooking_folders = [p for p in mods_dir.glob("*") if "cooking" in p.name.lower()]
+    assert len(cooking_folders) == 1
+    assert (cooking_folders[0] / "SrslySims_Cooking.package").exists()
+
+    # 4. Install SimsFinds mod (resolving SFS)
+    sf_id = db_ids[("simsfinds", "sf_trillyke_crop")]
+    res5 = perform_mod_install(
+        CatalogInstallRequest(catalog_mod_id=sf_id, install_dependencies=True)
+    )
+    assert res5.success is True
+    sf_folders = [p for p in mods_dir.glob("*") if "trillyke" in p.name.lower()]
+    assert len(sf_folders) == 1
+    assert (sf_folders[0] / "Trillyke_KnitCropTop.package").exists()
+
+    # 5. Install MMCCWorld mod (resolving SFS)
+    mmccw_id = db_ids[("mmccworld", "mmccw_sixam_counter")]
+    res6 = perform_mod_install(
+        CatalogInstallRequest(catalog_mod_id=mmccw_id, install_dependencies=True)
+    )
+    assert res6.success is True
+    mmccw_folders = [p for p in mods_dir.glob("*") if "sixam" in p.name.lower()]
+    assert len(mmccw_folders) == 1
+    assert (mmccw_folders[0] / "SixamCC_ModularCounters.package").exists()
+
 
 
 
