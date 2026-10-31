@@ -102,17 +102,15 @@ def main():
     app.setApplicationName("SIMS 4 Mods Manager")
     app.setOrganizationName("OLAHOUZE")
 
-    # Attente express de la disponibilité de l'API (démarrée en parallèle pendant les imports Qt)
-    ApiServer.wait_until_ready(args.host, port, timeout=5.0)
-
-    # Lancement immédiat de la fenêtre principale
+    # Lancement immédiat de la fenêtre principale (affichage instantané de l'interface)
     window = MainWindow()
     window.show()
 
-    # Diagnostic Playwright et scan initial exécutés en arrière-plan sans bloquer l'affichage
+    # Diagnostic Playwright, attente API et scan initial exécutés en arrière-plan sans bloquer l'affichage
     from src.ui.workers.generic_runnable import run_async_ui_task
 
     def _run_startup_worker():
+        ApiServer.wait_until_ready(args.host, port, timeout=10.0)
         health = client.get_health()
         scan_res = client.scan_installed_mods()
         return health, scan_res

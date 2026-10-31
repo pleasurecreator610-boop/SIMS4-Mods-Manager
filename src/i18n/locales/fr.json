@@ -257,7 +257,9 @@
     "modthesims_title": "Compte ModTheSims",
     "modthesims_desc": "Permet de poster des commentaires de retour et d'interpeller les créateurs sur ModTheSims.info.",
     "simsfinds_title": "Compte SimsFinds",
-    "simsfinds_desc": "Permet d'accéder au catalogue SimsFinds, de poster des commentaires et d'interpeller les créateurs."
+    "simsfinds_desc": "Permet d'accéder au catalogue SimsFinds, de poster des commentaires et d'interpeller les créateurs.",
+    "nexusmods_title": "Compte Nexus Mods",
+    "nexusmods_desc": "Permet le téléchargement, la gestion de session et l'interpellation sur NexusMods.com/thesims4."
   },
   "logs": {
     "title": "📋 Journaux d'Exécution & Logs",

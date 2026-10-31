@@ -82,7 +82,7 @@ class MainWindow(QMainWindow):
         self.refresh_game_status()
         self.update_nav_badge()
 
-        QTimer.singleShot(1500, self.auto_start_background_sync)
+        QTimer.singleShot(10000, self.auto_start_background_sync)
 
     def init_ui(self):
         """Exécute l'opération init ui."""

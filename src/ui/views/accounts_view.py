@@ -157,6 +157,35 @@ class AccountsView(QWidget):
         self.patreon_card.login_requested.connect(self.open_login_window)
         self.cards_layout.addWidget(self.patreon_card)
 
+        # 8. Nexus Mods Card
+        self.nexusmods_card = AccountCardWidget(
+            provider_name="nexusmods",
+            title_key="accounts.nexusmods_title",
+            desc_key="accounts.nexusmods_desc",
+            parent=self,
+        )
+        self.nexusmods_card.clear_requested.connect(self._on_clear_clicked)
+        self.nexusmods_card.test_requested.connect(self._on_test_clicked)
+        self.nexusmods_card.login_requested.connect(self.open_login_window)
+
+        self.btn_nexus_api_key = QPushButton("🔑 Clé API", self.nexusmods_card)
+        self.btn_nexus_api_key.setStyleSheet("""
+            QPushButton {
+                background-color: #065f46;
+                color: #a7f3d0;
+                border: 1px solid #059669;
+                border-radius: 6px;
+                padding: 7px 14px;
+                font-weight: 600;
+                font-size: 12px;
+            }
+            QPushButton:hover { background-color: #047857; color: #ffffff; }
+        """)
+        self.btn_nexus_api_key.clicked.connect(self._on_prompt_nexus_api_key)
+        self.nexusmods_card.add_action_button(self.btn_nexus_api_key)
+
+        self.cards_layout.addWidget(self.nexusmods_card)
+
         self.cards_by_provider: dict[str, AccountCardWidget] = {
             "loverslab": self.loverslab_card,
             "nsfwmods": self.nsfwmods_card,
@@ -165,6 +194,7 @@ class AccountsView(QWidget):
             "modthesims": self.modthesims_card,
             "simsfinds": self.simsfinds_card,
             "patreon": self.patreon_card,
+            "nexusmods": self.nexusmods_card,
         }
 
         layout.addLayout(self.cards_layout)
@@ -222,6 +252,7 @@ class AccountsView(QWidget):
             self.modthesims_card,
             self.simsfinds_card,
             self.patreon_card,
+            self.nexusmods_card,
         ]:
             self.card_widgets[card.provider_name] = {
                 "title_lbl": card.title_lbl,
@@ -417,3 +448,35 @@ class AccountsView(QWidget):
             self.login_successful.emit(p_name)
         else:
             QMessageBox.warning(self, tr("dialogs.info_title"), msg)
+
+    def _on_prompt_nexus_api_key(self):
+        """Ouvre un dialogue pour saisir directement la clé API personnelle Nexus Mods."""
+        from PySide6.QtWidgets import QInputDialog, QLineEdit
+
+        key, ok = QInputDialog.getText(
+            self,
+            "Authentification Nexus Mods",
+            "Entrez votre clé API personnelle Nexus Mods :\n"
+            "(Trouvée sur : https://www.nexusmods.com/users/myaccount?tab=api)\n\n"
+            "Cette méthode officielle est directe et contourne tout contrôle antibot.",
+            QLineEdit.EchoMode.Normal,
+        )
+        if ok and key.strip():
+            clean_key = key.strip()
+
+            def _do_submit():
+                client = get_api_client()
+                return client.set_nexusmods_api_key(clean_key)
+
+            def _on_done(res):
+                self.refresh_statuses()
+                QMessageBox.information(
+                    self,
+                    "Nexus Mods - Connecté",
+                    res.get("message", "Clé API enregistrée avec succès !"),
+                )
+
+            def _on_err(err):
+                QMessageBox.warning(self, "Erreur de Clé API", f"{err}")
+
+            run_async_ui_task(_do_submit, on_finished=_on_done, on_error=_on_err)

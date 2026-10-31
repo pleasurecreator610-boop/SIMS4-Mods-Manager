@@ -164,7 +164,12 @@ class AccountCardWidget(QFrame):
         self.login_btn.clicked.connect(lambda: self.login_requested.emit(self.provider_name))
         b_layout.addWidget(self.login_btn)
 
+        self.button_layout = b_layout
         c_layout.addLayout(b_layout)
+
+    def add_action_button(self, button: QPushButton) -> None:
+        """Ajoute un bouton d'action supplémentaire à droite de la carte."""
+        self.button_layout.addWidget(button)
 
     def update_badge(self, is_member: bool, is_ready: bool, display: Optional[str] = None):
         """Exécute l'opération update badge.

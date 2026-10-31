@@ -234,6 +234,19 @@ class SessionManager:
             return False
 
     @classmethod
+    def get_saved_cookies(cls, provider_name: str) -> Dict[str, str]:
+        """Returns the dictionary of saved cookies for a given provider, or empty dict if none."""
+        try:
+            db = DatabaseManager.get_instance()
+            with db.get_session() as session:
+                acc = session.query(AccountSession).filter_by(provider_name=provider_name).first()
+                if acc:
+                    return acc.get_cookies_dict()
+        except Exception as e:
+            logger.debug(f"Erreur get_saved_cookies pour '{provider_name}': {e}")
+        return {}
+
+    @classmethod
     def verify_session(cls, provider_name: str) -> Tuple[bool, str]:
         """Performs a live HTTP check using saved cookies and updates status."""
         session = cls.get_http_session(provider_name)
@@ -318,6 +331,37 @@ class SessionManager:
                 logger.info(f"Test de session SimsFinds ({url}) -> Code HTTP {resp.status_code}")
                 if resp.status_code == 200:
                     return True, "Accès à SimsFinds vérifié avec succès."
+
+            elif provider_name.lower() == "nexusmods":
+                saved_cookies = cls.get_saved_cookies("nexusmods")
+                api_key = saved_cookies.get("nexusmods_api_key")
+                if api_key:
+                    import httpx
+
+                    try:
+                        r = httpx.get(
+                            "https://api.nexusmods.com/v1/users/validate.json",
+                            headers={"apikey": api_key},
+                            timeout=10.0,
+                        )
+                        if r.status_code == 200:
+                            data = r.json()
+                            name = data.get("name", "Connecté")
+                            return True, f"Connecté via API Nexus Mods ({name})."
+                        return False, f"Clé API rejetée ou révoquée (Code HTTP {r.status_code})."
+                    except Exception as e:
+                        return False, f"Erreur de contact avec l'API Nexus Mods: {e}"
+
+                url = "https://www.nexusmods.com/thesims4"
+                resp = session.get(url, timeout=12)
+                logger.info(f"Test de session Nexus Mods ({url}) -> Code HTTP {resp.status_code}")
+                if resp.status_code == 200:
+                    html = resp.text
+                    if "nexusmods_session" in str(session.cookies) or "logout" in html.lower():
+                        return True, "Session membre Nexus Mods connectée et active."
+                    return True, "Accès à Nexus Mods (The Sims 4) vérifié avec succès."
+                if resp.status_code in [403, 503]:
+                    return False, f"Protection Cloudflare active sur Nexus Mods (Code {resp.status_code})."
 
             return False, f"Réponse inattendue (Code {resp.status_code})"
         except Exception as e:

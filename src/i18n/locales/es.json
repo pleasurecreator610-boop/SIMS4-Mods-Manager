@@ -257,7 +257,9 @@
     "modthesims_title": "Cuenta de ModTheSims",
     "modthesims_desc": "Permite publicar comentarios de retroalimentación y contactar a los creadores en ModTheSims.info.",
     "simsfinds_title": "Cuenta de SimsFinds",
-    "simsfinds_desc": "Permite acceder al catálogo de SimsFinds, publicar comentarios y contactar a los creadores."
+    "simsfinds_desc": "Permite acceder al catálogo de SimsFinds, publicar comentarios y contactar a los creadores.",
+    "nexusmods_title": "Cuenta Nexus Mods",
+    "nexusmods_desc": "Permite descargas, gestión de sesiones y comentarios de creadores en NexusMods.com/thesims4."
   },
   "logs": {
     "title": "📋 Registros de Ejecución y Logs",

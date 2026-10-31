@@ -29,6 +29,7 @@ PROVIDERS_LOGIN_URLS = {
     "patreon": "https://www.patreon.com/login",
     "modthesims": "https://modthesims.info/member.php?action=login",
     "simsfinds": "https://www.simsfinds.com/en/downloads/sims4",
+    "nexusmods": "https://users.nexusmods.com/auth/sign_in?redirect_url=https%3A%2F%2Fwww.nexusmods.com%2Fthesims4",
 }
 
 
@@ -137,3 +138,44 @@ def login_account(provider_name: str, payload: AccountLoginRequest = AccountLogi
         message=msg,
         cookies_count=len(cookies),
     )
+
+
+@router.post("/nexusmods/api-key", response_model=AccountActionResponse)
+def set_nexusmods_api_key(payload: dict[str, str]) -> AccountActionResponse:
+    """Enregistre et valide une clé API personnelle Nexus Mods directement via l'API officielle."""
+    key = payload.get("api_key", "").strip()
+    if not key:
+        raise HTTPException(status_code=400, detail="Clé API manquante.")
+
+    import httpx
+
+    try:
+        resp = httpx.get(
+            "https://api.nexusmods.com/v1/users/validate.json",
+            headers={"apikey": key},
+            timeout=10.0,
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            username = data.get("name", "Nexus User")
+            cookies = {"nexusmods_api_key": key}
+            SessionManager.save_session(
+                provider_name="nexusmods",
+                cookies_dict=cookies,
+                user_display_name=username,
+                is_authenticated=True,
+            )
+            return AccountActionResponse(
+                success=True,
+                message=f"Clé API validée avec succès pour le compte '{username}'.",
+            )
+        else:
+            return AccountActionResponse(
+                success=False,
+                message=f"Clé API rejetée par Nexus Mods (Code HTTP {resp.status_code}).",
+            )
+    except Exception as e:
+        return AccountActionResponse(
+            success=False,
+            message=f"Erreur lors de la validation de la clé API Nexus Mods: {e}",
+        )

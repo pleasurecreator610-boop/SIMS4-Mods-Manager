@@ -101,6 +101,9 @@ class BrowserLoginHelper:
             launch_args = [
                 "--disable-blink-features=AutomationControlled",
                 "--start-maximized",
+                "--no-default-browser-check",
+                "--no-first-run",
+                "--disable-infobars",
             ]
 
             # Détecter et prioriser immédiatement le canal natif le plus rapide (Edge / Chrome)
@@ -129,9 +132,11 @@ class BrowserLoginHelper:
                         "user_data_dir": str(profile_dir),
                         "headless": False,
                         "args": launch_args,
-                        "user_agent": effective_ua,
+                        "ignore_default_args": ["--enable-automation"],
                         "viewport": None,
                     }
+                    if ch is None and user_agent:
+                        kwargs["user_agent"] = user_agent
                     if ch:
                         kwargs["channel"] = ch
                     context = p.chromium.launch_persistent_context(**kwargs)  # type: ignore[arg-type]
@@ -152,9 +157,11 @@ class BrowserLoginHelper:
                             "user_data_dir": str(profile_dir),
                             "headless": False,
                             "args": launch_args,
-                            "user_agent": effective_ua,
+                            "ignore_default_args": ["--enable-automation"],
                             "viewport": None,
                         }
+                        if user_agent:
+                            kwargs["user_agent"] = user_agent
                         context = p.chromium.launch_persistent_context(**kwargs)  # type: ignore[arg-type]
                         logger.info("Navigateur ouvert avec succès après installation de Chromium.")
                     except Exception as e:
@@ -192,7 +199,7 @@ class BrowserLoginHelper:
                 )
 
             try:
-                page.goto(target_url, timeout=60000, wait_until="domcontentloaded")
+                page.goto(target_url, timeout=60000, wait_until="commit")
             except Exception as e:
                 logger.warning(f"Avertissement lors de la navigation initiale: {e}")
 
@@ -296,6 +303,46 @@ class BrowserLoginHelper:
                             elif not display_name:
                                 display_name = "SimsFinds User"
                             member_logged_in = True
+
+                    elif prov_lower == "nexusmods":
+                        curr_url = page.url.lower()
+                        # Empêcher toute fermeture tant que l'utilisateur est sur la page de saisie des identifiants
+                        is_on_auth_form = (
+                            "/auth/sign_in" in curr_url
+                            or "/auth/login" in curr_url
+                            or bool(page.query_selector("input[type='password']"))
+                        )
+
+                        if not is_on_auth_form:
+                            has_session = bool(
+                                cookies_dict.get("nexusmods_session")
+                                or (cookies_dict.get("member_id") and cookies_dict.get("member_id") != "0")
+                                or (
+                                    cookies_dict.get("sid")
+                                    and "users.nexusmods.com" in curr_url
+                                    and "/auth/" not in curr_url
+                                )
+                            )
+                            has_user_ui = bool(
+                                page.query_selector("a[href*='/users/myaccount']")
+                                or page.query_selector("button.user-avatar")
+                                or page.query_selector("a[href*='logout']")
+                                or page.query_selector("form[action*='sign_out']")
+                                or page.query_selector("a.header-user-avatar")
+                                or page.query_selector(".user-menu, [data-testid='user-menu']")
+                            )
+                            if has_session or has_user_ui:
+                                is_authenticated = True
+                                user_elem = page.query_selector(
+                                    ".user-name, .nav-user-name, a[href*='/users/myaccount'], a[href*='/users/'], [data-testid='user-name']"
+                                )
+                                if user_elem:
+                                    display_name = user_elem.inner_text().strip()
+                                if not display_name and cookies_dict.get("member_id"):
+                                    display_name = f"Nexus Membre #{cookies_dict['member_id']}"
+                                elif not display_name:
+                                    display_name = "Nexus Mods User"
+                                member_logged_in = True
 
                     if member_logged_in:
                         time.sleep(1.5)

@@ -257,7 +257,9 @@
     "modthesims_title": "ModTheSims खाता",
     "modthesims_desc": "ModTheSims.info पर प्रतिक्रिया संदेश पोस्ट करने और रचनाकारों से संपर्क करने की अनुमति देता है।",
     "simsfinds_title": "SimsFinds खाता",
-    "simsfinds_desc": "SimsFinds कैटलॉग तक पहुँचने, टिप्पणियाँ पोस्ट करने और रचनाकारों से संपर्क करने की अनुमति देता है।"
+    "simsfinds_desc": "SimsFinds कैटलॉग तक पहुँचने, टिप्पणियाँ पोस्ट करने और रचनाकारों से संपर्क करने की अनुमति देता है।",
+    "nexusmods_title": "Nexus Mods खाता",
+    "nexusmods_desc": "NexusMods.com/thesims4 पर डाउनलोड, सत्र प्रबंधन और क्रिएटर फीडबैक सक्षम करता है।"
   },
   "logs": {
     "title": "सिस्टम लॉग्स",

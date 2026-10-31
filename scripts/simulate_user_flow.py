@@ -2214,6 +2214,118 @@ class SimulationRunner:
                 s.query(CatalogMod).filter(CatalogMod.remote_id.in_(temp_rids)).delete(synchronize_session=False)
                 s.commit()
 
+    def validate_nexusmods_and_cross_platform_dedup_e2e(self) -> None:
+        """
+        [ÉTAPE 3octies] Validation E2E du fournisseur Nexus Mods :
+        1. Détection et instanciation du plugin NexusModsProvider dans ProviderRegistry.
+        2. Requête GraphQL v2 en direct sur le catalogue 'Gameplay'.
+        3. Extraction détaillée avec distinction stricte MOD vs COMMENT sur 'Lupobianco Animations' (#923).
+        4. Validation de la déduplication inter-plateformes (WickedWhims préinstallé depuis LoversLab / NSFWMods).
+        5. Vérification de l'interface des retours/commentaires créateurs.
+        """
+        from src.infrastructure.database.models import InstalledMod
+        from src.providers.registry import ProviderRegistry
+
+        print(
+            "\n[ÉTAPE 3octies] Validation E2E Nexus Mods & Déduplication Inter-Plateformes (Nexus <-> LoversLab)..."
+        )
+        nm_prov = ProviderRegistry.get_provider("nexusmods")
+        if not nm_prov:
+            self.inconsistencies.append("Plugin 'nexusmods' non enregistré dans ProviderRegistry.")
+            return
+
+        cat = nm_prov.CATEGORIES[0]
+        mods = nm_prov.scrape_category(cat, page=1, page_size=5)
+        print(f" -> Catégorie Nexus Mods '{cat['name']}' scrapée : {len(mods)} mod(s) détecté(s).")
+        if not mods:
+            self.inconsistencies.append("Aucun mod retourné par Nexus Mods sur la catégorie Gameplay.")
+            return
+
+        # Mod details & distinction MOD vs COMMENT
+        details = nm_prov.get_mod_details("923")
+        reqs = details.get("requirements", [])
+        print(
+            f" -> Détails Nexus Mods pour mod #923 ('{details.get('title')}') : "
+            f"{len(reqs)} prérequis identifié(s), {len(details.get('files', []))} fichier(s)."
+        )
+
+        mod_reqs = [r for r in reqs if r.get("type") == "MOD"]
+        comment_reqs = [r for r in reqs if r.get("type") == "COMMENT"]
+        has_mod_dep = any("WickedWhims" in r.get("name", "") for r in mod_reqs)
+        has_comment_note = any("Without it my animations are useless" in r.get("name", "") for r in comment_reqs)
+
+        print(
+            f" -> Distinction MOD vs COMMENT : MODs={len(mod_reqs)} ({'OK' if has_mod_dep else 'FAIL'}), "
+            f"COMMENTs={len(comment_reqs)} ({'OK' if has_comment_note else 'FAIL'})"
+        )
+        if not has_mod_dep or not has_comment_note:
+            self.inconsistencies.append(
+                "Échec de la distinction stricte MOD vs COMMENT pour le mod Nexus Mods #923."
+            )
+
+        # Validation Déduplication Multi-Plateforme (WickedWhims installé depuis LoversLab)
+        db = DatabaseManager.get_instance()
+        temp_rids = ["e2e_ll_ww_shared", "e2e_nm_lupobianco_consumer"]
+        try:
+            with db.get_session() as s:
+                s.query(InstalledMod).filter(InstalledMod.remote_id.in_(temp_rids)).delete(synchronize_session=False)
+                s.query(CatalogMod).filter(CatalogMod.remote_id.in_(temp_rids)).delete(synchronize_session=False)
+
+                # WickedWhims préinstallé depuis LoversLab
+                s.add(
+                    InstalledMod(
+                        source="loverslab",
+                        remote_id="e2e_ll_ww_shared",
+                        title="WickedWhims",
+                        folder_name="[LoversLab] WickedWhims",
+                    )
+                )
+
+                # Mod Nexus Mods nécessitant WickedWhims
+                cm_nm = CatalogMod(
+                    source="nexusmods",
+                    remote_id="e2e_nm_lupobianco_consumer",
+                    title="The Sims 4 Lupobianco Animations for WickedWhims",
+                    page_url="https://www.nexusmods.com/thesims4/mods/923",
+                    requirements_status="FOUND",
+                )
+                cm_nm.set_requirements_mods_list(
+                    [
+                        {
+                            "source": "nexusmods",
+                            "remote_id": "223",
+                            "title": "WickedWhims",
+                            "url": "https://www.nexusmods.com/thesims4/mods/223",
+                        }
+                    ]
+                )
+                s.add(cm_nm)
+                s.commit()
+                nm_mod_id = cm_nm.id
+
+            chk_nm = self.call_api(
+                "check_dependencies",
+                {
+                    "catalog_mod_id": nm_mod_id,
+                    "source": "nexusmods",
+                    "title": "The Sims 4 Lupobianco Animations for WickedWhims",
+                },
+            )
+            missing = chk_nm.get("missing_dependencies", [])
+            already = chk_nm.get("already_installed_dependencies", [])
+            dedup_ok = len(missing) == 0 and len(already) == 1
+            print(
+                f" -> [{'OK' if dedup_ok else 'FAIL'}] Déduplication inter-plateformes (Nexus Mods -> LoversLab) : "
+                f"Manquantes={len(missing)}, Déjà installées={len(already)}"
+            )
+            if not dedup_ok:
+                self.inconsistencies.append("Échec de la déduplication inter-plateformes Nexus Mods <-> LoversLab.")
+        finally:
+            with db.get_session() as s:
+                s.query(InstalledMod).filter(InstalledMod.remote_id.in_(temp_rids)).delete(synchronize_session=False)
+                s.query(CatalogMod).filter(CatalogMod.remote_id.in_(temp_rids)).delete(synchronize_session=False)
+                s.commit()
+
     def run(self) -> None:
         """Exécute toutes les étapes de la simulation."""
         print("=" * 80)
@@ -2246,6 +2358,7 @@ class SimulationRunner:
             self.validate_curseforge_and_cross_platform_e2e()
             self.validate_thesimsresource_and_i18n_e2e()
             self.validate_simsfinds_and_cross_platform_dedup_e2e()
+            self.validate_nexusmods_and_cross_platform_dedup_e2e()
             self.install_mods_sequentially()
             self.cleanup_installed_test_mods()
         finally:

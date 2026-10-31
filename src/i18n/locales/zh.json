@@ -257,7 +257,9 @@
     "modthesims_title": "ModTheSims 账号",
     "modthesims_desc": "用于在 ModTheSims.info 页面发布反馈留言并向创作者反馈依赖。",
     "simsfinds_title": "SimsFinds 账号",
-    "simsfinds_desc": "用于访问 SimsFinds 目录、发布评论并向创作者反馈。"
+    "simsfinds_desc": "用于访问 SimsFinds 目录、发布评论并向创作者反馈。",
+    "nexusmods_title": "Nexus Mods 账户",
+    "nexusmods_desc": "支持在 NexusMods.com/thesims4 上下载、会话管理和创作者反馈。"
   },
   "logs": {
     "title": "系统与操作日志",

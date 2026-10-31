@@ -90,6 +90,16 @@ class ApiClient:
         resp.raise_for_status()
         return resp.json()
 
+    def set_nexusmods_api_key(self, api_key: str) -> Dict[str, Any]:
+        """Enregistre et valide une clé API personnelle Nexus Mods."""
+        resp = self._client.post(
+            "/api/accounts/nexusmods/api-key",
+            json={"api_key": api_key},
+            timeout=self.FAST_TIMEOUT,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
     def login_account(self, provider_name: str, timeout_seconds: int = 300) -> Dict[str, Any]:
         """Exécute l'opération login account.
 

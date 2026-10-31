@@ -175,6 +175,19 @@ class CategoryMappingService:
             "sfinds_tattoos": "body_makeup",
             "sfinds_poses": "animations_poses",
         },
+        # Nexus Mods
+        "nexusmods": {
+            "nexus_gameplay": "gameplay",
+            "nexus_utilities": "tools_utilities",
+            "nexus_user_interface": "tools_utilities",
+            "nexus_clothing": "clothing",
+            "nexus_cas": "hair",
+            "nexus_build_mode": "build_buy",
+            "nexus_buy_mode": "build_buy",
+            "nexus_decorations": "build_buy",
+            "nexus_careers": "traits_careers",
+            "nexus_miscellaneous": "miscellaneous",
+        },
     }
 
     @classmethod
