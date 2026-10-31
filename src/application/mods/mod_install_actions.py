@@ -112,6 +112,12 @@ class ModInstallActions:
         progress_callback: Optional[Callable[[int, str, str], None]] = None,
     ) -> Tuple[bool, str]:
         """Atomic download of a mod archive/file from a provider."""
+        from src.infrastructure.network.simfileshare_resolver import SimFileShareResolver
+
+        if SimFileShareResolver.is_simfileshare_url(download_url):
+            resolver = SimFileShareResolver()
+            return resolver.download_mod_file(download_url, dest_file, progress_callback=progress_callback)
+
         return provider.download_mod_file(download_url, dest_file, progress_callback=progress_callback)
 
     def create_directory_backup(self, target_dir: Path, backup_parent_dir: Path, mod_name: str) -> Optional[Path]:

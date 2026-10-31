@@ -305,6 +305,20 @@ class SessionManager:
                 if resp.status_code in [401, 403]:
                     return False, "Non connecté à Patreon ou session expirée."
 
+            elif provider_name.lower() == "modthesims":
+                url = "https://modthesims.info/"
+                resp = session.get(url, timeout=12)
+                logger.info(f"Test de session ModTheSims ({url}) -> Code HTTP {resp.status_code}")
+                if resp.status_code == 200:
+                    return True, "Accès à ModTheSims vérifié avec succès."
+
+            elif provider_name.lower() == "simsfinds":
+                url = "https://www.simsfinds.com/"
+                resp = session.get(url, timeout=12)
+                logger.info(f"Test de session SimsFinds ({url}) -> Code HTTP {resp.status_code}")
+                if resp.status_code == 200:
+                    return True, "Accès à SimsFinds vérifié avec succès."
+
             return False, f"Réponse inattendue (Code {resp.status_code})"
         except Exception as e:
             logger.error(f"Erreur lors de la vérification de session pour {provider_name}: {e}")

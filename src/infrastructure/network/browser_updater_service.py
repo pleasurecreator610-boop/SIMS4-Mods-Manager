@@ -19,7 +19,8 @@ class BrowserUpdaterService:
     @classmethod
     def is_chromium_ready(cls) -> bool:
         """
-        Tests if Playwright Chromium can be launched without error.
+        Tests if Playwright Chromium executable is present and ready to launch.
+        Avoids launching a slow dummy headless browser process on the UI thread.
         Returns True if operational, False otherwise.
         """
         try:
@@ -34,9 +35,6 @@ class BrowserUpdaterService:
                 except Exception:
                     return False
 
-                # Quick launch test
-                browser = p.chromium.launch(headless=True)
-                browser.close()
                 return True
         except Exception as e:
             logger.debug(f"Vérification Playwright Chromium : non disponible ({e})")

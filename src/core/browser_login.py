@@ -103,7 +103,25 @@ class BrowserLoginHelper:
                 "--start-maximized",
             ]
 
-            channels_to_try = [None, "msedge", "chrome"]
+            # Détecter et prioriser immédiatement le canal natif le plus rapide (Edge / Chrome)
+            channels_to_try = []
+            edge_exists = any(
+                (Path(os.environ.get(k, "")) / p).exists()
+                for k in ["ProgramFiles(x86)", "ProgramFiles"]
+                for p in [r"Microsoft\Edge\Application\msedge.exe"]
+            )
+            if edge_exists:
+                channels_to_try.append("msedge")
+
+            chrome_exists = any(
+                (Path(os.environ.get(k, "")) / p).exists()
+                for k in ["ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"]
+                for p in [r"Google\Chrome\Application\chrome.exe"]
+            )
+            if chrome_exists:
+                channels_to_try.append("chrome")
+
+            channels_to_try.append(None)
 
             for ch in channels_to_try:
                 try:

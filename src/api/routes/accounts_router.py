@@ -27,6 +27,8 @@ PROVIDERS_LOGIN_URLS = {
     "curseforge": "https://www.curseforge.com/login",
     "thesimsresource": "https://www.thesimsresource.com/account/login",
     "patreon": "https://www.patreon.com/login",
+    "modthesims": "https://modthesims.info/member.php?action=login",
+    "simsfinds": "https://www.simsfinds.com/en/downloads/sims4",
 }
 
 
