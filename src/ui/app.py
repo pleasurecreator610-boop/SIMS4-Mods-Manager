@@ -106,69 +106,149 @@ class MainWindow(QMainWindow):
         content_layout.setContentsMargins(0, 0, 0, 0)
 
         self.stacked_widget = QStackedWidget()
+        self._views: dict[int, QWidget] = {}
 
-        self.accounts_view = AccountsView()
-        self.catalog_view = CatalogView()
-        self.installed_view = InstalledView()
-        self.downloads_view = DownloadsView()
-        self.updates_view = UpdatesView()
-        self.logs_view = LogsView()
-        self.settings_view = SettingsView()
-        self.mod_detail_view = ModDetailView()
-
-        self.stacked_widget.addWidget(self.accounts_view)  # Index 0
-        self.stacked_widget.addWidget(self.catalog_view)  # Index 1
-        self.stacked_widget.addWidget(self.installed_view)  # Index 2
-        self.stacked_widget.addWidget(self.downloads_view)  # Index 3
-        self.stacked_widget.addWidget(self.updates_view)  # Index 4
-        self.stacked_widget.addWidget(self.logs_view)  # Index 5
-        self.stacked_widget.addWidget(self.settings_view)  # Index 6
-        self.stacked_widget.addWidget(self.mod_detail_view)  # Index 7
+        # 8 placeholders pour préserver l'indexation stricte 0 à 7
+        for _ in range(8):
+            self.stacked_widget.addWidget(QWidget())
 
         content_layout.addWidget(self.stacked_widget)
         main_layout.addWidget(content_area)
 
-        self.accounts_view.login_successful.connect(self._on_login_success)
-        self.catalog_view.details_requested.connect(
-            lambda d: self.show_mod_details(d, origin_name="Catalogue", origin_index=1)
-        )
-        self.installed_view.details_requested.connect(
-            lambda d: self.show_mod_details(d, origin_name="Mes Mods", origin_index=2)
-        )
-        self.downloads_view.details_requested.connect(
-            lambda d: self.show_mod_details(d, origin_name="Téléchargements", origin_index=3)
-        )
-        self.downloads_view.open_folder_requested.connect(self.installed_view.open_mod_folder)
-        self.downloads_view.active_count_changed.connect(self.sidebar.update_downloads_badge)
+        # Décision de la vue d'accueil : Catalogue si au moins 1 compte configuré, sinon Comptes
+        initial_page = 1 if self._has_configured_account() else 0
+        self.current_origin_index = initial_page
+        self.switch_page(initial_page)
 
-        self.catalog_view.download_requested.connect(self.downloads_view.start_download)
-        self.catalog_view.view_downloads_requested.connect(lambda: self.switch_page(3))
+    def _has_configured_account(self) -> bool:
+        """Détecte si au moins un compte ou fournisseur externe est configuré ou validé."""
+        try:
+            from src.core.session_manager import SessionManager
 
-        self.mod_detail_view.back_requested.connect(self._on_detail_back)
-        self.mod_detail_view.install_requested.connect(self._on_detail_install_requested)
-        self.mod_detail_view.open_folder_requested.connect(self.installed_view.open_mod_folder)
+            cfg = AppConfig.load()
+            if getattr(cfg, "nexusmods_api_key", None):
+                return True
 
-        self.catalog_view.install_finished.connect(self._on_mods_state_changed)
-        self.downloads_view.install_finished.connect(self._on_mods_state_changed)
-        self.downloads_view.install_finished.connect(self.catalog_view.on_external_install_finished)
-        self.installed_view.mods_changed.connect(self._on_mods_state_changed)
-        self.updates_view.updates_applied.connect(self._on_mods_state_changed)
+            providers = (
+                "curseforge",
+                "thesimsresource",
+                "modthesims",
+                "loverslab",
+                "nsfwmods",
+                "patreon",
+                "nexusmods",
+                "simsfinds",
+                "mmccworld",
+            )
+            for p in providers:
+                if SessionManager.is_session_ready(p) or SessionManager.is_member_authenticated(p):
+                    return True
+        except Exception as e:
+            logger.debug(f"Erreur détection compte configuré: {e}")
+        return False
 
-        self.catalog_view.adult_content_changed.connect(self._on_adult_content_changed)
-        self.settings_view.adult_content_changed.connect(self._on_adult_content_changed)
-        self.accounts_view.adult_content_toggled.connect(self._on_adult_content_changed)
+    def _create_view(self, index: int) -> QWidget:
+        """Instancie et configure une vue de manière différée (Lazy Loading)."""
+        if index == 0:
+            view = AccountsView()
+            view.login_successful.connect(self._on_login_success)
+            view.adult_content_toggled.connect(self._on_adult_content_changed)
+            return view
+        elif index == 1:
+            view = CatalogView()
+            view.details_requested.connect(lambda d: self.show_mod_details(d, origin_name="Catalogue", origin_index=1))
+            view.download_requested.connect(lambda d: self.downloads_view.start_download(d))
+            view.view_downloads_requested.connect(lambda: self.switch_page(3))
+            view.install_finished.connect(self._on_mods_state_changed)
+            view.adult_content_changed.connect(self._on_adult_content_changed)
+            return view
+        elif index == 2:
+            view = InstalledView()
+            view.details_requested.connect(lambda d: self.show_mod_details(d, origin_name="Mes Mods", origin_index=2))
+            view.mods_changed.connect(self._on_mods_state_changed)
+            return view
+        elif index == 3:
+            view = DownloadsView()
+            view.details_requested.connect(
+                lambda d: self.show_mod_details(d, origin_name="Téléchargements", origin_index=3)
+            )
+            view.open_folder_requested.connect(lambda p: self.installed_view.open_mod_folder(p))
+            view.active_count_changed.connect(self.sidebar.update_downloads_badge)
+            view.install_finished.connect(self._on_mods_state_changed)
+            view.install_finished.connect(
+                lambda ok, msg: self._views[1].on_external_install_finished(ok, msg) if 1 in self._views else None
+            )
+            return view
+        elif index == 4:
+            view = UpdatesView()
+            view.updates_applied.connect(self._on_mods_state_changed)
+            return view
+        elif index == 5:
+            return LogsView()
+        elif index == 6:
+            view = SettingsView()
+            view.adult_content_changed.connect(self._on_adult_content_changed)
+            return view
+        elif index == 7:
+            view = ModDetailView()
+            view.back_requested.connect(self._on_detail_back)
+            view.install_requested.connect(self._on_detail_install_requested)
+            view.open_folder_requested.connect(lambda p: self.installed_view.open_mod_folder(p))
+            return view
+        raise ValueError(f"Index de vue inconnu : {index}")
 
-        self.current_origin_index = 1
-        self.switch_page(0)
+    def _get_or_create_view(self, index: int) -> QWidget:
+        """Récupère une vue existante ou l'instancie si accédée pour la première fois."""
+        if index not in self._views:
+            view = self._create_view(index)
+            self._views[index] = view
+            old_w = self.stacked_widget.widget(index)
+            self.stacked_widget.insertWidget(index, view)
+            if old_w:
+                self.stacked_widget.removeWidget(old_w)
+                old_w.deleteLater()
+        return self._views[index]
+
+    @property
+    def accounts_view(self) -> AccountsView:
+        return self._get_or_create_view(0)  # type: ignore
+
+    @property
+    def catalog_view(self) -> CatalogView:
+        return self._get_or_create_view(1)  # type: ignore
+
+    @property
+    def installed_view(self) -> InstalledView:
+        return self._get_or_create_view(2)  # type: ignore
+
+    @property
+    def downloads_view(self) -> DownloadsView:
+        return self._get_or_create_view(3)  # type: ignore
+
+    @property
+    def updates_view(self) -> UpdatesView:
+        return self._get_or_create_view(4)  # type: ignore
+
+    @property
+    def logs_view(self) -> LogsView:
+        return self._get_or_create_view(5)  # type: ignore
+
+    @property
+    def settings_view(self) -> SettingsView:
+        return self._get_or_create_view(6)  # type: ignore
+
+    @property
+    def mod_detail_view(self) -> ModDetailView:
+        return self._get_or_create_view(7)  # type: ignore
 
     def _on_adult_content_changed(self, enabled: bool):
-        """Synchronizes adult content state across all views immediately."""
-        if hasattr(self.catalog_view, "set_adult_content_enabled"):
-            self.catalog_view.set_adult_content_enabled(enabled)
-        if hasattr(self.accounts_view, "set_adult_content_enabled"):
-            self.accounts_view.set_adult_content_enabled(enabled)
-        if hasattr(self.settings_view, "set_adult_content_enabled"):
-            self.settings_view.set_adult_content_enabled(enabled)
+        """Synchronizes adult content state across all instantiated views immediately."""
+        for view in list(self._views.values()):
+            if hasattr(view, "set_adult_content_enabled") and callable(view.set_adult_content_enabled):
+                try:
+                    view.set_adult_content_enabled(enabled)
+                except Exception:
+                    pass
 
     # Backward compatible sidebar property accessors
     @property
@@ -267,6 +347,7 @@ class MainWindow(QMainWindow):
         Args:
             index: Paramètre index.
         """
+        self._get_or_create_view(index)
         self.stacked_widget.setCurrentIndex(index)
         self.sidebar.set_active_page(index)
 
@@ -311,11 +392,14 @@ class MainWindow(QMainWindow):
             self.mod_detail_view.header_widget.set_installing(False)
 
     def _on_mods_state_changed(self, *args):
-        self.installed_view.refresh_mods()
-        self.updates_view.refresh_updates()
-        self.catalog_view.refresh_catalog()
+        if 2 in self._views:
+            self._views[2].refresh_mods()
+        if 4 in self._views:
+            self._views[4].refresh_updates()
+        if 1 in self._views:
+            self._views[1].refresh_catalog()
         self.update_nav_badge()
-        if self.stacked_widget.currentWidget() == self.mod_detail_view:
+        if 7 in self._views and self.stacked_widget.currentWidget() == self._views[7]:
             self._refresh_current_mod_detail()
 
     def _refresh_current_mod_detail(self):
@@ -369,27 +453,20 @@ class MainWindow(QMainWindow):
         self.refresh_game_status()
         self.update_nav_badge()
 
-        for view in [
-            self.accounts_view,
-            self.catalog_view,
-            self.installed_view,
-            self.downloads_view,
-            self.updates_view,
-            self.logs_view,
-            self.settings_view,
-            self.mod_detail_view,
-        ]:
+        for view in list(self._views.values()):
             if hasattr(view, "retranslate_ui") and callable(view.retranslate_ui):
                 try:
                     view.retranslate_ui()
                 except Exception as e:
                     logger.debug(f"Erreur retranslate_ui sur {type(view).__name__}: {e}")
 
-        if hasattr(self.catalog_view, "provider_drawer") and hasattr(
-            self.catalog_view.provider_drawer, "retranslate_ui"
+        if (
+            1 in self._views
+            and hasattr(self._views[1], "provider_drawer")
+            and hasattr(self._views[1].provider_drawer, "retranslate_ui")
         ):
             try:
-                self.catalog_view.provider_drawer.retranslate_ui()
+                self._views[1].provider_drawer.retranslate_ui()
             except Exception as e:
                 logger.debug(f"Erreur retranslate_ui sur provider_drawer: {e}")
 
@@ -439,7 +516,7 @@ class MainWindow(QMainWindow):
                 if status.get("is_running", False):
                     return True, False
 
-                self.api_client.start_catalog_sync(max_pages=0)
+                self.api_client.start_catalog_sync(max_pages=0, is_background=True)
                 return True, True
             except Exception as e:
                 logger.debug(f"Vérification automatique de synchronisation au démarrage: {e}")
@@ -464,14 +541,13 @@ class MainWindow(QMainWindow):
         """
         logger.info("Fermeture de l'application demandée par l'utilisateur...")
         ShutdownManager.trigger_shutdown()
-        if hasattr(self, "catalog_view") and hasattr(self.catalog_view, "monitor_timer"):
+        if 1 in self._views and hasattr(self._views[1], "monitor_timer"):
             try:
-                self.catalog_view.monitor_timer.stop()
+                self._views[1].monitor_timer.stop()
             except Exception:
                 pass
-        for view_name in ["catalog_view", "installed_view", "mod_detail_view", "downloads_view"]:
-            view = getattr(self, view_name, None)
-            if view and hasattr(view, "cleanup") and callable(view.cleanup):
+        for view in list(self._views.values()):
+            if hasattr(view, "cleanup") and callable(view.cleanup):
                 try:
                     view.cleanup()
                 except Exception:

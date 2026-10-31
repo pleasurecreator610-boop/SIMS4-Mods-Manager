@@ -107,6 +107,12 @@ class CatalogSyncActions:
                 updated_count += 1
 
         session.commit()
+        from src.infrastructure.cache.catalog_cache import CatalogQueryCache
+
+        CatalogQueryCache.get_instance().invalidate()
+        from src.infrastructure.cache.catalog_cache import CatalogQueryCache
+
+        CatalogQueryCache.get_instance().invalidate()
         return new_count, updated_count
 
     def update_mod_scraped_details(self, session: Session, cat_mod: CatalogMod, det_dict: Dict[str, Any]) -> None:
@@ -122,3 +128,6 @@ class CatalogSyncActions:
         if det_dict.get("external_links"):
             cat_mod.set_external_links_list(det_dict.get("external_links", []))
         session.commit()
+        from src.infrastructure.cache.catalog_cache import CatalogQueryCache
+
+        CatalogQueryCache.get_instance().invalidate()

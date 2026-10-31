@@ -4,6 +4,8 @@ Declares and directs the high-level synchronization workflow,
 analogous to a master orchestrator (main.tf), orchestrating coordinators and actions.
 """
 
+from concurrent.futures import ThreadPoolExecutor
+import threading
 from typing import Any, Optional, Union
 
 from src.api.schemas.catalog import DependenciesCheckResponse
@@ -32,7 +34,7 @@ class CatalogSyncOrchestrator:
         self.actions = actions or CatalogSyncActions(self.db)
         self.coordinator = coordinator or CatalogSyncCoordinator(self.actions, self.db)
 
-    def orchestrate_sync(self, max_pages: int = -1) -> None:
+    def orchestrate_sync(self, max_pages: int = -1, is_background: bool = False) -> None:
         """
         Orchestrates full catalog sync:
         1. Identifies providers and categories (respecting adult_content_enabled setting).
@@ -40,8 +42,6 @@ class CatalogSyncOrchestrator:
         3. Executes provider category scraping concurrently across active providers.
         4. Closes sync lifecycle gracefully.
         """
-        from concurrent.futures import ThreadPoolExecutor
-        import threading
         from src.core.config import AppConfig, ADULT_PROVIDERS
 
         adult_enabled = AppConfig.load().adult_content_enabled
@@ -49,9 +49,7 @@ class CatalogSyncOrchestrator:
         all_sync_providers = [p for p in providers if getattr(p, "CATEGORIES", None)]
         if not adult_enabled:
             filtered_providers = [
-                p
-                for p in all_sync_providers
-                if getattr(p, "provider_name", "").lower() not in ADULT_PROVIDERS
+                p for p in all_sync_providers if getattr(p, "provider_name", "").lower() not in ADULT_PROVIDERS
             ]
             # Fallback to all_sync_providers only if a test registered solely a single mock provider
             sync_providers = filtered_providers if filtered_providers else all_sync_providers
@@ -65,7 +63,9 @@ class CatalogSyncOrchestrator:
         try:
             total_new = 0
             total_lock = threading.Lock()
-            workers_per_provider = max(2, 8 // max(1, len(sync_providers)))
+            # Concurrence dynamique : 2 workers en tâche de fond (silencieux), jusqu'à 6 en manuel
+            max_prov_workers = 2 if is_background else min(6, len(sync_providers))
+            workers_per_provider = 2 if is_background else max(2, 6 // max(1, len(sync_providers)))
 
             def _sync_single_provider(prov: Any) -> int:
                 nonlocal total_new
@@ -81,7 +81,7 @@ class CatalogSyncOrchestrator:
                     provider=prov,
                     max_pages=max_pages,
                     tracker=SyncTracker,
-                    max_workers=workers_per_provider if len(sync_providers) > 1 else 8,
+                    max_workers=workers_per_provider,
                 )
                 with total_lock:
                     total_new += prov_new
@@ -92,7 +92,7 @@ class CatalogSyncOrchestrator:
             if len(sync_providers) == 1:
                 _sync_single_provider(sync_providers[0])
             else:
-                with ThreadPoolExecutor(max_workers=len(sync_providers)) as prov_pool:
+                with ThreadPoolExecutor(max_workers=max_prov_workers) as prov_pool:
                     list(prov_pool.map(_sync_single_provider, sync_providers))
 
             if not SyncTracker.stop_requested and not ShutdownManager.is_shutting_down():

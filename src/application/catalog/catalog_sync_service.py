@@ -44,10 +44,10 @@ class CatalogSyncService:
         return check_catalog_dependencies(mod_title, page_url, source, cat_mod)
 
 
-def run_catalog_sync(max_pages: int = -1) -> None:
+def run_catalog_sync(max_pages: int = -1, is_background: bool = False) -> None:
     """Entry point executing catalog sync via CatalogSyncOrchestrator."""
     orchestrator = CatalogSyncOrchestrator()
-    orchestrator.orchestrate_sync(max_pages=max_pages)
+    orchestrator.orchestrate_sync(max_pages=max_pages, is_background=is_background)
 
 
 def check_catalog_dependencies(

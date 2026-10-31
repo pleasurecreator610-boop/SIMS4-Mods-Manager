@@ -52,6 +52,23 @@ def get_catalog(
     from src.core.config import AppConfig
 
     effective_adult = include_adult if include_adult is not None else AppConfig.load().adult_content_enabled
+    from src.infrastructure.cache.catalog_cache import CatalogQueryCache
+
+    cache_key = CatalogQueryCache.make_key(
+        search=search or "",
+        source=source or "",
+        access=access or "",
+        status=status or "",
+        mod_type=mod_type or "",
+        sort=sort or "",
+        include_adult=effective_adult,
+        page=page,
+        limit=limit,
+    )
+    cached_res = CatalogQueryCache.get_instance().get(cache_key)
+    if cached_res is not None:
+        return cached_res
+
     query = build_catalog_query(
         session=session,
         search=search,
@@ -143,12 +160,14 @@ def get_catalog(
             )
         )
 
-    return CatalogListResponse(
+    result = CatalogListResponse(
         total=total,
         page=page,
         limit=limit,
         items=paginated_items,
     )
+    CatalogQueryCache.get_instance().set(cache_key, result)
+    return result
 
 
 @router.post("/sync", response_model=CatalogSyncStatusResponse)
@@ -187,7 +206,10 @@ def start_sync(payload: CatalogSyncRequest, background_tasks: BackgroundTasks):
         active_providers=active_provider_names,
     )
     SyncTracker.message = f"Synchronisation démarrée ({page_msg})."
-    background_tasks.add_task(_run_catalog_sync, payload.max_pages)
+    if payload.is_background:
+        background_tasks.add_task(_run_catalog_sync, payload.max_pages, payload.is_background)
+    else:
+        background_tasks.add_task(_run_catalog_sync, payload.max_pages)
     return SyncTracker.to_response()
 
 

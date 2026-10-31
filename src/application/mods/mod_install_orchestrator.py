@@ -4,6 +4,7 @@ Declares and orchestrates downloading, dependency cascades,
 file installations, and result payload formatting.
 """
 
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, List, Optional, Tuple
@@ -171,7 +172,6 @@ class ModInstallOrchestrator:
                     )
 
             # 2. Main Mod Download & Installation (with Cross-Platform Deduplication Check)
-            import re
             from src.utils.mod_matcher import ModMatcher
 
             stripped_t = re.sub(r"(?i)^the\s+", "", mod_title.strip())
@@ -278,6 +278,11 @@ class ModInstallOrchestrator:
             except Exception:
                 pass
 
+            if install_ok:
+                from src.infrastructure.cache.catalog_cache import CatalogQueryCache
+
+                CatalogQueryCache.get_instance().invalidate()
+
             return CatalogInstallResponse(
                 success=install_ok,
                 message=install_msg,
@@ -307,7 +312,7 @@ class ModInstallOrchestrator:
         if not mods_dir:
             return False, "Dossier Mods de Sims 4 introuvable. Veuillez vérifier vos paramètres."
 
-        return self.coordinator.coordinate_file_install(
+        res_ok, res_msg = self.coordinator.coordinate_file_install(
             file_path=file_path,
             mods_dir=mods_dir,
             catalog_mod=catalog_mod,
@@ -317,6 +322,11 @@ class ModInstallOrchestrator:
             version_str=version_str,
             progress_callback=progress_callback,
         )
+        if res_ok:
+            from src.infrastructure.cache.catalog_cache import CatalogQueryCache
+
+            CatalogQueryCache.get_instance().invalidate()
+        return res_ok, res_msg
 
 
 def perform_mod_install(

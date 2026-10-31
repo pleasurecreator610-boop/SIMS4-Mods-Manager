@@ -4,10 +4,10 @@ import re
 import threading
 import urllib.parse
 from typing import Optional
-from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from src.infrastructure.database.connection import create_db_engine, get_session_factory, init_db_schema
+from src.infrastructure.database.fts_manager import CatalogFtsManager
 from src.infrastructure.database.models import CatalogMod, InstalledMod
 from src.utils.logger import logger
 
@@ -22,7 +22,7 @@ class DatabaseManager:
         self.engine = create_db_engine(db_path)
         init_db_schema(self.engine)
         self.SessionLocal = get_session_factory(self.engine)
-        self._cleanup_legacy_fts()
+        CatalogFtsManager.initialize(self.engine)
         self.clean_and_repair_catalog()
         logger.info(f"Database initialized at: {db_path or self.engine.url}")
 
@@ -39,38 +39,9 @@ class DatabaseManager:
         """Fournit une nouvelle session de base de données."""
         return self.SessionLocal()
 
-    def _cleanup_legacy_fts(self) -> None:
-        """Nettoie les anciens déclencheurs ou tables FTS résiduels."""
-        try:
-            with self.engine.connect() as conn:
-                conn.execute(text("DROP TRIGGER IF EXISTS trg_catalog_mods_ai"))
-                conn.execute(text("DROP TRIGGER IF EXISTS trg_catalog_mods_ad"))
-                conn.execute(text("DROP TRIGGER IF EXISTS trg_catalog_mods_au"))
-                conn.execute(text("DROP TABLE IF EXISTS catalog_mods_fts"))
-                conn.commit()
-        except Exception as e:
-            logger.debug(f"FTS cleanup skipped: {e}")
-
     def clean_and_repair_catalog(self) -> None:
-        """Répare les enregistrements corrompus et purge les mods fantômes."""
+        """Répare les enregistrements corrompus et purge les mods fantômes (exécuté de façon optimisée)."""
         try:
-            with self.engine.connect() as conn:
-                res = conn.execute(text("PRAGMA table_info(catalog_mods)")).fetchall()
-                col_names = {r[1] for r in res}
-                if "requirements_text" not in col_names:
-                    conn.execute(text("ALTER TABLE catalog_mods ADD COLUMN requirements_text TEXT"))
-                if "requirements_status" not in col_names:
-                    conn.execute(
-                        text("ALTER TABLE catalog_mods ADD COLUMN requirements_status VARCHAR(50) DEFAULT 'NONE'")
-                    )
-                if "requirements_mods_json" not in col_names:
-                    conn.execute(text("ALTER TABLE catalog_mods ADD COLUMN requirements_mods_json TEXT DEFAULT '[]'"))
-                if "requirements_overrides_json" not in col_names:
-                    conn.execute(
-                        text("ALTER TABLE catalog_mods ADD COLUMN requirements_overrides_json TEXT DEFAULT '{}'")
-                    )
-                conn.commit()
-
             with self.get_session() as session:
                 ghosts = (
                     session.query(CatalogMod)

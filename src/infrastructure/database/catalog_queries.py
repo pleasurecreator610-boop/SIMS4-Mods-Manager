@@ -31,11 +31,17 @@ def build_catalog_query(
 
     if search:
         s_clean = escape_like_term(search.strip())
-        query = query.filter(
-            (CatalogMod.title.ilike(f"%{s_clean}%", escape="\\"))
-            | (CatalogMod.author.ilike(f"%{s_clean}%", escape="\\"))
-            | (CatalogMod.tags.ilike(f"%{s_clean}%", escape="\\"))
-        )
+        from src.infrastructure.database.fts_manager import CatalogFtsManager
+
+        fts_ids = CatalogFtsManager.search_mod_ids(session, search.strip())
+        if fts_ids is not None and len(fts_ids) > 0:
+            query = query.filter(CatalogMod.id.in_(list(fts_ids)))
+        else:
+            query = query.filter(
+                (CatalogMod.title.ilike(f"%{s_clean}%", escape="\\"))
+                | (CatalogMod.author.ilike(f"%{s_clean}%", escape="\\"))
+                | (CatalogMod.tags.ilike(f"%{s_clean}%", escape="\\"))
+            )
 
     if source and source.lower() != "all":
         query = query.filter(CatalogMod.source == source.lower())

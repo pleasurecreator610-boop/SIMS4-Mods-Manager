@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 from typing import Optional
@@ -187,6 +188,9 @@ class InstalledModsService:
         success, message = self.toggle_manager.toggle(mod_id, target_state)
         mod = self.installed_repo.get_by_id(mod_id)
         is_enabled = mod.is_enabled if mod else False
+        from src.infrastructure.cache.catalog_cache import CatalogQueryCache
+
+        CatalogQueryCache.get_instance().invalidate()
         return InstalledToggleResponse(
             success=success,
             message=message,
@@ -196,6 +200,9 @@ class InstalledModsService:
     def uninstall_mod(self, mod_id: int) -> InstalledUninstallResponse:
         """Désinstalle un mod du disque et de la base de données."""
         success, message = ModInstaller.uninstall_mod(mod_id)
+        from src.infrastructure.cache.catalog_cache import CatalogQueryCache
+
+        CatalogQueryCache.get_instance().invalidate()
         return InstalledUninstallResponse(success=success, message=message)
 
     def scan_mods(self) -> InstalledScanResponse:
@@ -280,7 +287,6 @@ class InstalledModsService:
     def restore_backup(self, mod_id: int) -> InstalledRestoreResponse:
         """Restaure la sauvegarde ZIP précédente d'un mod installé."""
         from pathlib import Path
-        import shutil
         from src.infrastructure.filesystem.archive_extractor import extract_archive
 
         if GameDetector.is_game_running():

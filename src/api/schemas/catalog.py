@@ -79,6 +79,7 @@ class CatalogSyncRequest(BaseModel):
     """Classe CatalogSyncRequest : assure la gestion et l'orchestration de Catalogsyncrequest."""
 
     max_pages: int = Field(default=0, ge=0, le=1000, description="0 = toutes les pages disponibles")
+    is_background: bool = Field(default=False, description="Mode tâche de fond basse priorité (2 workers)")
 
 
 class SubCategoryProgress(BaseModel):

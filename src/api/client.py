@@ -1,3 +1,6 @@
+# Hoisted imports (auto)
+import json
+
 import httpx
 from typing import Optional, Dict, Any, List, Union
 
@@ -168,16 +171,17 @@ class ApiClient:
         resp.raise_for_status()
         return resp.json()
 
-    def start_catalog_sync(self, max_pages: int = 0) -> Dict[str, Any]:
+    def start_catalog_sync(self, max_pages: int = 0, is_background: bool = False) -> Dict[str, Any]:
         """Exécute l'opération start catalog sync.
 
         Args:
             max_pages: Paramètre max_pages.
+            is_background: Indique si la synchronisation s'exécute en tâche de fond discrète.
 
         Returns:
             Résultat de l'opération start_catalog_sync.
         """
-        resp = self._client.post("/api/catalog/sync", json={"max_pages": max_pages})
+        resp = self._client.post("/api/catalog/sync", json={"max_pages": max_pages, "is_background": is_background})
         resp.raise_for_status()
         return resp.json()
 
@@ -349,7 +353,6 @@ class ApiClient:
 
     def install_mod_stream(self, payload: Dict[str, Any]):
         """Streams real-time progress events from the API during mod installation."""
-        import json
 
         with self._client.stream("POST", "/api/catalog/install-stream", json=payload, timeout=300.0) as resp:
             resp.raise_for_status()
