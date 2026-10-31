@@ -5,7 +5,6 @@ via CurseForge's CDN (edge.forgecdn.net / /api/v1/mods/{projectId}/files/{fileId
 """
 
 from pathlib import Path
-import threading
 import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from bs4 import BeautifulSoup
@@ -119,25 +118,7 @@ class CurseForgeProvider(BaseSourceProvider):
         },
     ]
 
-    _cf_request_lock = threading.Lock()
-    _last_request_ts: float = 0.0
     _min_request_interval: float = 1.0
-
-    def __init__(self) -> None:
-        super().__init__()
-        self._category_pages_cache: Dict[str, int] = {c["id"]: c["default_pages"] for c in self.CATEGORIES}
-        self.current_category_info: str = "Mods - Gameplay (CurseForge)"
-
-    @classmethod
-    def _pace_request(cls, session: Any) -> None:
-        if getattr(session, "_is_mock", False):
-            return
-        with cls._cf_request_lock:
-            now = time.monotonic()
-            elapsed = now - cls._last_request_ts
-            if elapsed < cls._min_request_interval:
-                time.sleep(cls._min_request_interval - elapsed)
-            cls._last_request_ts = time.monotonic()
 
     def _get_with_retry(
         self,
@@ -156,9 +137,12 @@ class CurseForgeProvider(BaseSourceProvider):
                 if resp.status_code == 429:
                     if attempt < max_retries:
                         retry_after_hdr = resp.headers.get("Retry-After")
-                        delay = float(retry_after_hdr) if retry_after_hdr and retry_after_hdr.isdigit() else backoff_factor * (1.8**attempt)
-                        # Augmenter l'intervalle global pour calmer le serveur
-                        with self._cf_request_lock:
+                        delay = (
+                            float(retry_after_hdr)
+                            if retry_after_hdr and retry_after_hdr.isdigit()
+                            else backoff_factor * (1.8**attempt)
+                        )
+                        with self._request_lock:
                             self._min_request_interval = min(3.0, self._min_request_interval + 0.3)
                         logger.warning(
                             f"CurseForge request rate-limited (429) for {url}, backing off {delay:.1f}s (tentative {attempt + 1}/{max_retries})"
@@ -173,26 +157,6 @@ class CurseForgeProvider(BaseSourceProvider):
                 logger.debug(f"CurseForge GET failed for {url}: {exc}")
                 return None
         return None
-
-    def update_category_detected_pages(self, cat_id: str, detected_pages: int) -> None:
-        if detected_pages > 0:
-            self._category_pages_cache[cat_id] = detected_pages
-
-    def _get_category_page_counts(self) -> List[Tuple[Dict[str, Any], int]]:
-        return [(cat, self._category_pages_cache.get(cat["id"], cat["default_pages"])) for cat in self.CATEGORIES]
-
-    def get_total_pages(self) -> int:
-        return sum(pages for _, pages in self._get_category_page_counts())
-
-    def _resolve_category_page(self, global_page: int) -> Tuple[Dict[str, Any], int, int]:
-        counts = self._get_category_page_counts()
-        remaining = max(1, global_page)
-        for cat, num_pages in counts:
-            if remaining <= num_pages:
-                return cat, remaining, num_pages
-            remaining -= num_pages
-        last_cat, last_pages = counts[-1]
-        return last_cat, max(1, remaining), last_pages
 
     @staticmethod
     def _build_paginated_url(base_cat_url: str, page: int) -> str:
@@ -384,7 +348,9 @@ class CurseForgeProvider(BaseSourceProvider):
 
     def check_user_already_commented(self, page_url: str, required_keywords: List[str]) -> Tuple[bool, Optional[str]]:
         session = SessionManager.get_http_session(self.provider_name)
-        return _cf_check_commented(page_url, required_keywords, session, self.base_url, self.provider_name, self._get_with_retry)
+        return _cf_check_commented(
+            page_url, required_keywords, session, self.base_url, self.provider_name, self._get_with_retry
+        )
 
     def post_mod_comment(self, page_url: str, message: str) -> Tuple[bool, str]:
         session = SessionManager.get_http_session(self.provider_name)
@@ -392,4 +358,6 @@ class CurseForgeProvider(BaseSourceProvider):
 
     def delete_mod_comment(self, page_url: str, required_keywords: Optional[List[str]] = None) -> Tuple[bool, str]:
         session = SessionManager.get_http_session(self.provider_name)
-        return _cf_delete_comment(page_url, session, self.base_url, required_keywords, self.provider_name, self._get_with_retry)
+        return _cf_delete_comment(
+            page_url, session, self.base_url, required_keywords, self.provider_name, self._get_with_retry
+        )

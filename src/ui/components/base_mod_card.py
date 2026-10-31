@@ -1,26 +1,31 @@
+"""Classe de base commune pour les cartes de mods (ModCard et InstalledCard).
+
+Gère le conteneur de miniature, le cache mémoire LRU et le téléchargement/pré-décodage
+asynchrone hors du thread principal Qt.
+"""
+
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Optional
-from PySide6.QtWidgets import (
-    QFrame,
-    QLabel,
-)
-from PySide6.QtGui import QPixmap
-from PySide6.QtCore import Qt, Signal, QObject, QRunnable, QThreadPool
+from PySide6.QtCore import QObject, QRunnable, Qt, QThreadPool, Signal
+from PySide6.QtGui import QImage, QPixmap
+from PySide6.QtWidgets import QFrame, QLabel
 
+from src.api.client import get_api_client
 from src.core.config import AppConfig
 from src.ui.components.image_cache import ImageCache
-from src.api.client import get_api_client
 from src.utils.logger import logger
 
 
 class ImageLoadSignals(QObject):
-    """Classe ImageLoadSignals : assure la gestion et l'orchestration de Imageloadsignals."""
+    """Signaux émis lors de la fin du téléchargement et décodage d'une miniature."""
 
     loaded = Signal(str, str)  # remote_id, local_path
 
 
 class ImageDownloadTask(QRunnable):
-    """Asynchronous background worker fetching remote thumbnails via API."""
+    """Tâche asynchrone téléchargeant une miniature distante via l'API."""
 
     def __init__(self, source: str, remote_id: str, url: str, dest_path: Path, signals: ImageLoadSignals):
         super().__init__()
@@ -30,8 +35,8 @@ class ImageDownloadTask(QRunnable):
         self.dest_path = dest_path
         self.signals = signals
 
-    def run(self):
-        """Exécute l'opération run."""
+    def run(self) -> None:
+        """Télécharge la miniature et l'écrit dans le cache disque."""
         try:
             api_client = get_api_client()
             resp = api_client.client.get(
@@ -49,10 +54,7 @@ class ImageDownloadTask(QRunnable):
 
 
 class BaseModCard(QFrame):
-    """
-    Common base class for ModCard and InstalledCard.
-    Encapsulates thumbnail caching, asynchronous image downloading, and card framing.
-    """
+    """Classe de base partagée par ModCard et InstalledCard."""
 
     details_requested = Signal(dict)
 
@@ -62,11 +64,13 @@ class BaseModCard(QFrame):
         self.thumb_label: Optional[QLabel] = None
         self.thumb_width = 271
         self.thumb_height = 145
+        self._placeholder_icon = "🎮"
         self.signals = ImageLoadSignals()
         self.signals.loaded.connect(self._on_image_loaded)
 
-    def _create_thumbnail_container(self, height: int = 145) -> QLabel:
-        """Creates standard thumbnail preview label with dark modern backdrop."""
+    def _create_thumbnail_container(self, height: int = 145, placeholder_icon: str = "🎮") -> QLabel:
+        """Crée le QLabel standard d'aperçu de miniature avec fond sombre."""
+        self._placeholder_icon = placeholder_icon
         label = QLabel()
         label.setFixedHeight(height)
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -77,15 +81,22 @@ class BaseModCard(QFrame):
             color: #64748b;
             font-size: 28px;
         """)
-        label.setText("🎮")
+        label.setText(placeholder_icon)
         self.thumb_label = label
         self.thumb_height = height
         return label
 
-    def _load_thumbnail_async(self):
-        """Checks memory/disk cache or dispatches async download task."""
+    def _reset_thumbnail_placeholder(self) -> None:
+        """Réinitialise l'aperçu de miniature avant le chargement d'un nouveau mod recyclé."""
+        if self.thumb_label:
+            self.thumb_label.setPixmap(QPixmap())
+            self.thumb_label.setText(self._placeholder_icon)
+
+    def _load_thumbnail_async(self) -> None:
+        """Vérifie le cache mémoire/disque ou planifie un téléchargement asynchrone."""
         thumb_url = self.mod_data.get("thumbnail_url", "")
         if not thumb_url:
+            self._reset_thumbnail_placeholder()
             return
 
         scaled_pix = ImageCache.get_or_scale(thumb_url, self.thumb_width, self.thumb_height)
@@ -103,25 +114,28 @@ class BaseModCard(QFrame):
         if cache_path.exists() and cache_path.stat().st_size > 100:
             self._display_image(str(cache_path))
         else:
+            self._reset_thumbnail_placeholder()
             task = ImageDownloadTask(source, remote_id, thumb_url, cache_path, self.signals)
             QThreadPool.globalInstance().start(task)
 
-    def _on_image_loaded(self, remote_id: str, local_path: str):
-        """Callback invoked when ImageDownloadTask successfully downloads the image."""
+    def _on_image_loaded(self, remote_id: str, local_path: str) -> None:
+        """Callback déclenché lorsque ImageDownloadTask a terminé le téléchargement."""
         if str(self.mod_data.get("remote_id")) == remote_id:
             self._display_image(local_path)
 
-    def _display_image(self, image_path: str):
-        """Displays pixmap on thumb_label and saves both raw and pre-scaled versions to memory cache."""
-        pixmap = QPixmap(image_path)
-        if not pixmap.isNull():
+    def _display_image(self, image_path: str) -> None:
+        """Décode via QImage, redimensionne et met en cache la miniature."""
+        qimg = QImage(image_path)
+        if not qimg.isNull():
             thumb_url = self.mod_data.get("thumbnail_url", "")
-            scaled = pixmap.scaled(
+            scaled_qimg = qimg.scaled(
                 self.thumb_width,
                 self.thumb_height,
                 Qt.AspectRatioMode.KeepAspectRatioByExpanding,
                 Qt.TransformationMode.SmoothTransformation,
             )
+            pixmap = QPixmap.fromImage(qimg)
+            scaled = QPixmap.fromImage(scaled_qimg)
             if thumb_url:
                 ImageCache.set(thumb_url, pixmap)
                 ImageCache.set_scaled(thumb_url, self.thumb_width, self.thumb_height, scaled)

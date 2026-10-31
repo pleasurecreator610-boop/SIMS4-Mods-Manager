@@ -2,19 +2,20 @@
 
 Analyse l'ensemble des fichiers .package présents dans le dossier Mods des Sims 4
 et identifie les collisions de ressources TGI (Type, Group, Instance).
+Intègre un cache persistant SQLite (DbpfPackageCache) indexé par (file_path, mtime, file_size).
 """
 
 from __future__ import annotations
 
 import concurrent.futures
 from dataclasses import dataclass, field
+import json
 import os
 from pathlib import Path
 import threading
 from typing import Dict, List, Optional, Tuple
 
 from src.infrastructure.filesystem.dbpf_parser import DbpfParser
-
 from src.utils.logger import logger
 
 
@@ -40,7 +41,7 @@ class ModConflictReport:
 
 
 class ConflictDetectorService:
-    """Service d'analyse et de diagnostic des conflits de mods."""
+    """Service d'analyse et de diagnostic des conflits de mods avec cache SQLite persistant."""
 
     # Cache mtime/taille thread-safe partagé : path_str -> (mtime, size, list[(tgi_str, res_name, is_stbl)])
     _cache: dict[str, tuple[float, int, list[tuple[str, str, bool]]]] = {}
@@ -48,9 +49,81 @@ class ConflictDetectorService:
 
     def __init__(self, parser: Optional[type[DbpfParser]] = None) -> None:
         self.parser = parser or DbpfParser
+        self._dirty_entries: dict[str, tuple[float, int, list[tuple[str, str, bool]]]] = {}
+
+    def _hydrate_cache_from_db(self, package_files: List[Path]) -> None:
+        """Précharge les entrées d'index DBPF connues depuis SQLite en une seule requête."""
+        if not package_files:
+            return
+        try:
+            from src.infrastructure.database.manager import DatabaseManager
+            from src.infrastructure.database.models import DbpfPackageCache
+
+            db = DatabaseManager.get_instance()
+            path_keys = [str(p.resolve()) for p in package_files]
+            with self._cache_lock:
+                missing_keys = [k for k in path_keys if k not in self._cache]
+            if not missing_keys:
+                return
+
+            with db.get_session() as session:
+                rows = session.query(DbpfPackageCache).filter(DbpfPackageCache.file_path.in_(missing_keys)).all()
+                with self._cache_lock:
+                    for row in rows:
+                        try:
+                            raw_list = row.get_tgi_list()
+                            parsed_items = [(str(item[0]), str(item[1]), bool(item[2])) for item in raw_list]
+                            self._cache[row.file_path] = (float(row.mtime), int(row.file_size), parsed_items)
+                        except Exception:
+                            continue
+        except Exception as e:
+            logger.debug(f"Chargement du cache DBPF SQLite ignoré : {e}")
+
+    def _flush_dirty_cache_to_db(self) -> None:
+        """Persiste en lot dans SQLite les nouveaux index de packages scannés."""
+        with self._cache_lock:
+            if not self._dirty_entries:
+                return
+            to_persist = dict(self._dirty_entries)
+            self._dirty_entries.clear()
+
+        try:
+            from src.infrastructure.database.manager import DatabaseManager
+            from src.infrastructure.database.models import DbpfPackageCache
+
+            db = DatabaseManager.get_instance()
+            with db.get_session() as session:
+                existing_rows = (
+                    session.query(DbpfPackageCache)
+                    .filter(DbpfPackageCache.file_path.in_(list(to_persist.keys())))
+                    .all()
+                )
+                existing_map = {r.file_path: r for r in existing_rows}
+
+                for path_key, (mtime, size, parsed_items) in to_persist.items():
+                    serialized = json.dumps(parsed_items)
+                    row = existing_map.get(path_key)
+                    if row is not None:
+                        row.mtime = mtime
+                        row.file_size = size
+                        row.resource_count = len(parsed_items)
+                        row.tgi_json = serialized
+                    else:
+                        session.add(
+                            DbpfPackageCache(
+                                file_path=path_key,
+                                mtime=mtime,
+                                file_size=size,
+                                resource_count=len(parsed_items),
+                                tgi_json=serialized,
+                            )
+                        )
+                session.commit()
+        except Exception as e:
+            logger.debug(f"Persistance du cache DBPF SQLite ignorée : {e}")
 
     def _parse_package_safe(self, pkg: Path, mods_dir: Path) -> Tuple[str, List[Tuple[str, str, bool]], int]:
-        """Parse un package individuel avec mise en cache mtime/taille pour accélération."""
+        """Parse un package individuel avec mise en cache mtime/taille mémoire + SQLite."""
         try:
             rel_path = str(pkg.relative_to(mods_dir)).replace("\\", "/")
         except Exception:
@@ -64,7 +137,7 @@ class ConflictDetectorService:
 
             with self._cache_lock:
                 cached = self._cache.get(path_key)
-                if cached is not None and cached[0] == mtime and cached[1] == size:
+                if cached is not None and abs(cached[0] - mtime) < 1e-4 and cached[1] == size:
                     return rel_path, cached[2], len(cached[2])
 
             entries = self.parser.parse_index(pkg)
@@ -80,6 +153,7 @@ class ConflictDetectorService:
 
             with self._cache_lock:
                 self._cache[path_key] = (mtime, size, parsed_items)
+                self._dirty_entries[path_key] = (mtime, size, parsed_items)
 
             return rel_path, parsed_items, len(entries)
         except Exception as e:
@@ -116,15 +190,15 @@ class ConflictDetectorService:
         if not mods_dir.exists() or not mods_dir.is_dir():
             return report
 
-        # Trouver tous les fichiers .package non désactivés (en élaguant les sous-dossiers .disabled dès la traversée)
         package_files = self._scan_enabled_packages(mods_dir)
         report.total_packages_scanned = len(package_files)
 
-        # Table d'indexation inversée : TGI -> (nom de ressource, is_translation, liste des chemins relatifs)
+        # Hydrater le cache mémoire depuis SQLite si disponible
+        self._hydrate_cache_from_db(package_files)
+
         tgi_map: Dict[str, tuple[str, bool, List[str]]] = {}
         total_resources = 0
 
-        # Traitement multithreadé adaptatif
         max_workers = min(16, (os.cpu_count() or 4) + 4)
         if len(package_files) <= 4:
             results = [self._parse_package_safe(pkg, mods_dir) for pkg in package_files]
@@ -132,6 +206,9 @@ class ConflictDetectorService:
             with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                 futures = [executor.submit(self._parse_package_safe, pkg, mods_dir) for pkg in package_files]
                 results = [f.result() for f in futures]
+
+        # Persister les nouveaux index scannés dans SQLite
+        self._flush_dirty_cache_to_db()
 
         for rel_path, parsed_items, res_count in results:
             total_resources += res_count
@@ -143,7 +220,6 @@ class ConflictDetectorService:
 
         report.total_resources_indexed = total_resources
 
-        # Filtrer uniquement les ressources présentes dans au moins 2 packages distincts
         conflicts: List[ModConflictItem] = []
         translation_override_count = 0
         for tgi_str, (res_name, is_stbl, packages) in tgi_map.items():
@@ -159,7 +235,6 @@ class ConflictDetectorService:
                     )
                 )
 
-        # Trier en mettant d'abord les vrais conflits de tuning/ressources, puis par nombre de packages
         report.conflicts = sorted(
             conflicts,
             key=lambda c: (not c.is_translation_override, len(c.conflicting_packages)),

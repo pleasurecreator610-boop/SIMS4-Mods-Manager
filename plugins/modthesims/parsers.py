@@ -38,7 +38,7 @@ def extract_item_id(url_or_id: str, soup: Optional[BeautifulSoup] = None, html_t
         m = re.search(r'name="id"\s+value="(\d+)"', html_text)
         if m:
             return m.group(1)
-        m = re.search(r'/metadatat/(\d+)/', html_text)
+        m = re.search(r"/metadatat/(\d+)/", html_text)
         if m:
             return m.group(1)
 
@@ -208,7 +208,7 @@ def extract_mts_requirements(
                 req_items.append(
                     {
                         "title": clean_item,
-                        "remote_id": f"mts_req_{len(req_items)+1}",
+                        "remote_id": f"mts_req_{len(req_items) + 1}",
                         "source": provider_name,
                         "is_installed": False,
                         "notes": "Extrait de la description ModTheSims",
@@ -217,4 +217,3 @@ def extract_mts_requirements(
 
     item_id = extract_item_id(own_id, soup=soup, html_text=page_text)
     return item_id, raw_html, req_items
-

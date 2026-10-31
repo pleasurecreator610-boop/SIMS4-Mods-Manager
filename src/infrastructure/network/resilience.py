@@ -46,7 +46,9 @@ def resilient_network_call(
                             jitter = random.uniform(0.1, 0.5)
                             wait_time = min(max_delay, (base_delay * (exponential_factor ** (attempt - 1))) + jitter)
 
-                        logger.info(f"[RESILIENCE] HTTP 429 reçu. Attente de {wait_time:.2f}s (tentative {attempt}/{max_retries})...")
+                        logger.info(
+                            f"[RESILIENCE] HTTP 429 reçu. Attente de {wait_time:.2f}s (tentative {attempt}/{max_retries})..."
+                        )
                         sleep_fn(wait_time)
                         continue
                     raise
@@ -54,12 +56,16 @@ def resilient_network_call(
                 except (httpx.ConnectError, httpx.TimeoutException, httpx.ReadTimeout) as e:
                     attempt += 1
                     if attempt > max_retries:
-                        logger.warning(f"[RESILIENCE] Nombre maximal de retries ({max_retries}) dépassé sur erreur réseau: {e}")
+                        logger.warning(
+                            f"[RESILIENCE] Nombre maximal de retries ({max_retries}) dépassé sur erreur réseau: {e}"
+                        )
                         raise
 
                     jitter = random.uniform(0.1, 0.5)
                     wait_time = min(max_delay, (base_delay * (exponential_factor ** (attempt - 1))) + jitter)
-                    logger.info(f"[RESILIENCE] Erreur réseau transitoire ({type(e).__name__}). Attente {wait_time:.2f}s...")
+                    logger.info(
+                        f"[RESILIENCE] Erreur réseau transitoire ({type(e).__name__}). Attente {wait_time:.2f}s..."
+                    )
                     sleep_fn(wait_time)
 
         return wrapper  # type: ignore[return-value]

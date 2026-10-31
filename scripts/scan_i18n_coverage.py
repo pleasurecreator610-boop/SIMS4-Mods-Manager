@@ -77,7 +77,9 @@ def main():
         l_keys = flatten_keys(data)
         missing = fr_keys - l_keys
         extra = l_keys - fr_keys
-        print(f"  - [{lang.upper()}] Clés : {len(l_keys)} | Manquantes : {len(missing)} | Supplémentaires : {len(extra)}")
+        print(
+            f"  - [{lang.upper()}] Clés : {len(l_keys)} | Manquantes : {len(missing)} | Supplémentaires : {len(extra)}"
+        )
 
     tr_keys, hardcoded = scan_ui_tr_usage()
     print(f"\nClés de traduction référencées dans le code UI : {len(tr_keys)}")

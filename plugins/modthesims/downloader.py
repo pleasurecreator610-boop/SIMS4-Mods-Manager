@@ -64,4 +64,3 @@ def download_mts_file(
     except Exception as e:
         logger.error(f"Erreur lors du téléchargement MTS sur {url}: {e}", exc_info=True)
         return False, str(e)
-

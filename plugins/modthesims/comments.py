@@ -69,7 +69,9 @@ def check_user_already_commented(
         current_user = (acc.user_display_name or "").strip().lower() if acc else ""
         kw_lower = [k.strip().lower() for k in required_keywords if k and k.strip()]
 
-        for post in soup.find_all(["div", "table", "li"], class_=lambda c: c and any(w in c.lower() for w in ["post", "message", "comment"])):
+        for post in soup.find_all(
+            ["div", "table", "li"], class_=lambda c: c and any(w in c.lower() for w in ["post", "message", "comment"])
+        ):
             txt_lower = post.get_text(" ", strip=True).lower()
             author_el = post.select_one(".bigusername, .username, a[href*='/member/'], a[href*='/m/']")
             author_name = author_el.get_text(strip=True).lower() if author_el else ""
@@ -158,4 +160,3 @@ def delete_mod_comment(
         return True, "Commentaire ModTheSims nettoyé ou supprimé avec succès."
     except Exception as e:
         return False, str(e)
-

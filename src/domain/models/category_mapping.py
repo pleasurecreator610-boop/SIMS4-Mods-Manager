@@ -89,75 +89,75 @@ class CategoryMappingService:
     PROVIDER_CATEGORY_MAP: Dict[str, Dict[str, str]] = {
         # LoversLab
         "loverslab": {
-            "174": "adult_nsfw",              # WickedWhims
-            "201": "animations_poses",         # Animations - WickedWhims
-            "215": "translations",             # Translations - WickedWhims
-            "202": "animations_poses",         # Animations - Other
-            "200": "gameplay",                 # Extensions
-            "203": "clothing",                 # Clothing
-            "204": "accessories",              # Accessories & Makeup
-            "205": "body_makeup",              # Body Parts
-            "206": "build_buy",                # Objects
-            "404": "build_buy",                # Paintings & Posters
-            "207": "lots_housing",             # Lots
-            "209": "translations",             # Translations
-            "210": "miscellaneous",            # Other
-            "216": "miscellaneous",            # Uncategorized
+            "174": "adult_nsfw",  # WickedWhims
+            "201": "animations_poses",  # Animations - WickedWhims
+            "215": "translations",  # Translations - WickedWhims
+            "202": "animations_poses",  # Animations - Other
+            "200": "gameplay",  # Extensions
+            "203": "clothing",  # Clothing
+            "204": "accessories",  # Accessories & Makeup
+            "205": "body_makeup",  # Body Parts
+            "206": "build_buy",  # Objects
+            "404": "build_buy",  # Paintings & Posters
+            "207": "lots_housing",  # Lots
+            "209": "translations",  # Translations
+            "210": "miscellaneous",  # Other
+            "216": "miscellaneous",  # Uncategorized
         },
         # NSFWMods
         "nsfwmods": {
-            "nsfwmods_287": "adult_nsfw",      # Sims Mods (NSFWMods)
-            "nsfwmods_364": "adult_nsfw",      # Adult (NSFWMods)
-            "nsfwmods_289": "clothing",        # Clothing
-            "nsfwmods_296": "clothing",        # Shoes
-            "nsfwmods_292": "accessories",     # Accessories
-            "nsfwmods_288": "body_makeup",     # Body Types
-            "nsfwmods_290": "hair",            # Hair
-            "nsfwmods_294": "body_makeup",     # Skintones
-            "nsfwmods_295": "hair",            # Facial Hair
-            "nsfwmods_291": "body_makeup",     # Makeup
-            "nsfwmods_293": "body_makeup",     # Eyes
+            "nsfwmods_287": "adult_nsfw",  # Sims Mods (NSFWMods)
+            "nsfwmods_364": "adult_nsfw",  # Adult (NSFWMods)
+            "nsfwmods_289": "clothing",  # Clothing
+            "nsfwmods_296": "clothing",  # Shoes
+            "nsfwmods_292": "accessories",  # Accessories
+            "nsfwmods_288": "body_makeup",  # Body Types
+            "nsfwmods_290": "hair",  # Hair
+            "nsfwmods_294": "body_makeup",  # Skintones
+            "nsfwmods_295": "hair",  # Facial Hair
+            "nsfwmods_291": "body_makeup",  # Makeup
+            "nsfwmods_293": "body_makeup",  # Eyes
         },
         # CurseForge
         "curseforge": {
-            "cf_mods_gameplay": "gameplay",           # Mods - Gameplay
-            "cf_mods_utilities": "tools_utilities",   # Mods - Utilities
-            "cf_mods_poses": "animations_poses",      # Mods - Poses & Animations
-            "cf_create_a_sim": "clothing",            # Create a Sim
-            "cf_build_buy": "build_buy",              # Build / Buy
-            "cf_rooms_lots": "lots_housing",          # Rooms / Lots
+            "cf_mods_gameplay": "gameplay",  # Mods - Gameplay
+            "cf_mods_utilities": "tools_utilities",  # Mods - Utilities
+            "cf_mods_poses": "animations_poses",  # Mods - Poses & Animations
+            "cf_create_a_sim": "clothing",  # Create a Sim
+            "cf_build_buy": "build_buy",  # Build / Buy
+            "cf_rooms_lots": "lots_housing",  # Rooms / Lots
             "cf_sims_households": "sims_households",  # Sims / Households
-            "cf_worlds": "lots_housing",              # Worlds
-            "cf_translations": "translations",        # Translations
+            "cf_worlds": "lots_housing",  # Worlds
+            "cf_translations": "translations",  # Translations
         },
         # The Sims Resource (TSR)
         "thesimsresource": {
-            "tsr_mods": "gameplay",            # Mods
-            "tsr_clothing": "clothing",        # Clothing
-            "tsr_hair": "hair",                # Hair
-            "tsr_shoes": "clothing",           # Shoes
+            "tsr_mods": "gameplay",  # Mods
+            "tsr_clothing": "clothing",  # Clothing
+            "tsr_hair": "hair",  # Hair
+            "tsr_shoes": "clothing",  # Shoes
             "tsr_accessories": "accessories",  # Accessories
-            "tsr_makeup": "body_makeup",       # Makeup
-            "tsr_skintones": "body_makeup",    # Skintones
-            "tsr_eyecolors": "body_makeup",    # Eye Colors
-            "tsr_objects": "build_buy",        # Objects
-            "tsr_sets": "build_buy",           # Sets
+            "tsr_makeup": "body_makeup",  # Makeup
+            "tsr_skintones": "body_makeup",  # Skintones
+            "tsr_eyecolors": "body_makeup",  # Eye Colors
+            "tsr_objects": "build_buy",  # Objects
+            "tsr_sets": "build_buy",  # Sets
             "tsr_lots_rooms": "lots_housing",  # Lots & Rooms
-            "tsr_sims": "sims_households",     # Sims
+            "tsr_sims": "sims_households",  # Sims
         },
         # ModTheSims (MTS)
         "modthesims": {
-            "mts_game_mods": "gameplay",              # Game Mods
-            "mts_traits": "traits_careers",           # Traits
-            "mts_careers": "traits_careers",          # Careers
-            "mts_build_mode": "build_buy",            # Build Mode
-            "mts_buy_mode": "build_buy",              # Buy Mode
-            "mts_body_shop": "clothing",              # Body Shop
-            "mts_lots_housing": "lots_housing",       # Lots & Housing
-            "mts_sims": "sims_households",            # Sims
-            "mts_pets": "sims_households",            # Pets
-            "mts_programs_utilities": "tools_utilities", # Programs and Utilities
-            "mts_miscellaneous": "miscellaneous",     # Miscellaneous
+            "mts_game_mods": "gameplay",  # Game Mods
+            "mts_traits": "traits_careers",  # Traits
+            "mts_careers": "traits_careers",  # Careers
+            "mts_build_mode": "build_buy",  # Build Mode
+            "mts_buy_mode": "build_buy",  # Buy Mode
+            "mts_body_shop": "clothing",  # Body Shop
+            "mts_lots_housing": "lots_housing",  # Lots & Housing
+            "mts_sims": "sims_households",  # Sims
+            "mts_pets": "sims_households",  # Pets
+            "mts_programs_utilities": "tools_utilities",  # Programs and Utilities
+            "mts_miscellaneous": "miscellaneous",  # Miscellaneous
         },
         # SimsFinds
         "simsfinds": {
@@ -218,7 +218,4 @@ class CategoryMappingService:
     @classmethod
     def list_all_unified(cls) -> List[Dict[str, Any]]:
         """Liste exhaustive des catégories unifiées pour les menus de filtre."""
-        return [
-            {"id": key, **info}
-            for key, info in cls.UNIFIED_CATEGORIES.items()
-        ]
+        return [{"id": key, **info} for key, info in cls.UNIFIED_CATEGORIES.items()]

@@ -108,6 +108,7 @@ def isolate_test_database(tmp_path_factory):
 def client():
     """TestClient FastAPI pré-configuré avec l'instance de base de données de test et authentification interne."""
     from src.core.security import get_internal_token
+
     token = get_internal_token()
     with TestClient(app, headers={"X-Internal-Token": token or ""}) as c:
         yield c

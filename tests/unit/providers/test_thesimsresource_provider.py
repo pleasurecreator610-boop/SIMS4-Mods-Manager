@@ -173,7 +173,7 @@ def test_thesimsresource_get_mod_details_and_ticket_download(tmp_path: Path):
 
     with (
         patch("src.core.session_manager.SessionManager.get_http_session", return_value=mock_session),
-        patch("plugins.thesimsresource.scraper.time.sleep"),
+        patch("plugins.thesimsresource.provider.time.sleep"),
     ):
         details = prov.get_mod_details("https://www.thesimsresource.com/downloads/details/id/1736888")
         assert len(details["download_urls"]) == 1
@@ -199,4 +199,3 @@ def test_thesimsresource_filter_adapter():
     """Vérifie que l'adaptateur de filtre UI traduit 'The Sims Resource' en source='thesimsresource'."""
     params = build_catalog_api_params({"source": "The Sims Resource"}, current_page=1, page_size=24)
     assert params["source"] == "thesimsresource"
-

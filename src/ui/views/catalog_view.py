@@ -290,7 +290,7 @@ class CatalogView(QWidget):
             self.card_grid.set_empty_message(tr("catalog.empty_desc"))
             return
 
-        new_cards = []
+        prepared_items = []
         for m in items:
             mod_dict = {
                 "id": m["id"],
@@ -308,21 +308,35 @@ class CatalogView(QWidget):
                 "dependencies": m.get("dependencies", []),
                 "external_links": [],
                 "download_urls": [],
+                "is_installed": m.get("is_installed", False),
+                "has_update": m.get("has_update", False),
             }
+            prepared_items.append(mod_dict)
 
+        def _create_card(mod_dict: dict) -> ModCard:
             card = ModCard(
                 mod_dict,
-                is_installed=m.get("is_installed", False),
-                has_update=m.get("has_update", False),
+                is_installed=mod_dict.get("is_installed", False),
+                has_update=mod_dict.get("has_update", False),
                 is_patreon_auth=is_patreon_auth,
                 is_loverslab_auth=is_loverslab_auth,
                 is_nsfwmods_auth=is_nsfwmods_auth,
             )
             card.install_requested.connect(self.install_mod)
-            card.details_requested.connect(lambda d, inst=m.get("is_installed", False): self._show_mod_details(d, inst))
-            new_cards.append(card)
+            card.details_requested.connect(lambda d: self._show_mod_details(d, d.get("is_installed", False)))
+            return card
 
-        self.card_grid.set_cards(new_cards)
+        def _update_card(card: ModCard, mod_dict: dict) -> None:
+            card.update_data(
+                mod_dict,
+                is_installed=mod_dict.get("is_installed", False),
+                has_update=mod_dict.get("has_update", False),
+                is_patreon_auth=is_patreon_auth,
+                is_loverslab_auth=is_loverslab_auth,
+                is_nsfwmods_auth=is_nsfwmods_auth,
+            )
+
+        self.card_grid.update_pool(prepared_items, _create_card, _update_card)
 
     def _on_catalog_fetch_error(self, error_msg: str, fetch_id: int):
         if fetch_id != self._fetch_id:

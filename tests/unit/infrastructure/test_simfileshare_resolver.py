@@ -47,8 +47,12 @@ def test_resolve_direct_download_html_parsing():
     mock_session = MagicMock()
     mock_session.get.return_value = mock_resp
 
-    with patch("src.infrastructure.network.simfileshare_resolver.SessionManager.get_http_session", return_value=mock_session):
-        direct_url, filename, _ = SimFileShareResolver.resolve_direct_download("https://simfileshare.net/download/123456/")
+    with patch(
+        "src.infrastructure.network.simfileshare_resolver.SessionManager.get_http_session", return_value=mock_session
+    ):
+        direct_url, filename, _ = SimFileShareResolver.resolve_direct_download(
+            "https://simfileshare.net/download/123456/"
+        )
         assert direct_url is not None
         assert "123456" in direct_url
         assert filename == "LumpinousToolbox.ts4script"
@@ -69,10 +73,15 @@ def test_download_mod_file_mock(tmp_path: Path):
     mock_session = MagicMock()
     mock_session.get.return_value = mock_stream_resp
 
-    with patch("src.infrastructure.network.simfileshare_resolver.SessionManager.get_http_session", return_value=mock_session):
-        with patch.object(SimFileShareResolver, "resolve_direct_download", return_value=("https://simfileshare.net/download/123456/?dl", "LumpinousToolbox.ts4script", 12)):
+    with patch(
+        "src.infrastructure.network.simfileshare_resolver.SessionManager.get_http_session", return_value=mock_session
+    ):
+        with patch.object(
+            SimFileShareResolver,
+            "resolve_direct_download",
+            return_value=("https://simfileshare.net/download/123456/?dl", "LumpinousToolbox.ts4script", 12),
+        ):
             ok, res_path = resolver.download_mod_file("https://simfileshare.net/download/123456/", dest)
             assert ok
             assert Path(res_path).exists()
             assert Path(res_path).read_bytes() == b"Sims4Script!"
-

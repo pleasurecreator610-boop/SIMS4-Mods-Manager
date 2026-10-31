@@ -1,14 +1,16 @@
 """Parseur binaire haute performance pour les conteneurs DBPF des Sims 4 (.package).
 
 Permet d'extraire la table d'index des ressources TGI (Type, Group, Instance 64-bit)
-sans charger les données lourdes en mémoire, afin de détecter les collisions de tuning.
+par projection mémoire (mmap zero-copy) sans charger les données lourdes en mémoire,
+afin de détecter les collisions de tuning.
 """
 
 from __future__ import annotations
 
-import struct
 from dataclasses import dataclass
+import mmap
 from pathlib import Path
+import struct
 from typing import List, Optional
 
 from src.utils.logger import logger
@@ -61,7 +63,7 @@ class DbpfResourceEntry:
 
 
 class DbpfParser:
-    """Parseur binaire pour conteneurs DBPF 2.0 / 2.1 (The Sims 4 .package)."""
+    """Parseur binaire zero-copy (mmap) pour conteneurs DBPF 2.0 / 2.1 (The Sims 4 .package)."""
 
     HEADER_MAGIC = b"DBPF"
     HEADER_SIZE = 96
@@ -79,9 +81,9 @@ class DbpfParser:
 
     @classmethod
     def parse_index(cls, file_path: Path) -> List[DbpfResourceEntry]:
-        """Lit la table d'index du fichier .package et retourne toutes les clés TGI.
+        """Lit la table d'index du fichier .package via mmap et retourne toutes les clés TGI.
 
-        Cette opération ne lit que l'en-tête et la table d'index (très rapide).
+        Cette opération projette le fichier en lecture seule sans copie mémoire intermédiaire.
         """
         if not cls.is_dbpf(file_path):
             return []
@@ -90,102 +92,98 @@ class DbpfParser:
         try:
             file_size = file_path.stat().st_size
             with open(file_path, "rb") as f:
-                header = f.read(cls.HEADER_SIZE)
-                if len(header) < cls.HEADER_SIZE:
-                    return []
+                with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
+                    if len(mm) < cls.HEADER_SIZE:
+                        return []
 
-                magic, major, minor = struct.unpack_from("<4sII", header, 0)
-                if magic != cls.HEADER_MAGIC or major != 2:
-                    return []
+                    magic, major, _minor = struct.unpack_from("<4sII", mm, 0)
+                    if magic != cls.HEADER_MAGIC or major != 2:
+                        return []
 
-                index_record_count = struct.unpack_from("<I", header, 40)[0]
-                index_pos_low = struct.unpack_from("<I", header, 44)[0]
-                index_size = struct.unpack_from("<I", header, 48)[0]
+                    index_record_count = struct.unpack_from("<I", mm, 40)[0]
+                    index_pos_low = struct.unpack_from("<I", mm, 44)[0]
+                    index_size = struct.unpack_from("<I", mm, 48)[0]
 
-                # Position 64-bit de l'index dans DBPF 2.1 si spécifiée
-                index_pos_64 = struct.unpack_from("<Q", header, 64)[0]
-                index_offset = index_pos_64 if (index_pos_64 > 0 and index_pos_64 < file_size) else index_pos_low
+                    # Position 64-bit de l'index dans DBPF 2.1 si spécifiée
+                    index_pos_64 = struct.unpack_from("<Q", mm, 64)[0]
+                    index_offset = index_pos_64 if (0 < index_pos_64 < file_size) else index_pos_low
 
-                if (
-                    index_record_count == 0
-                    or index_record_count > 500_000
-                    or index_size > 50 * 1024 * 1024
-                    or index_offset >= file_size
-                    or index_offset <= 0
-                    or (index_offset + index_size) > file_size + 1024
-                ):
-                    return []
+                    if (
+                        index_record_count == 0
+                        or index_record_count > 500_000
+                        or index_size > 50 * 1024 * 1024
+                        or index_offset >= file_size
+                        or index_offset <= 0
+                        or (index_offset + index_size) > file_size + 1024
+                    ):
+                        return []
 
-                f.seek(index_offset)
-                index_data = f.read(index_size)
-                if len(index_data) < 4:
-                    return []
+                    index_end = min(file_size, index_offset + index_size)
+                    if index_end - index_offset < 4:
+                        return []
 
-                # Format Sims 4 Index 7.x
-                # Les 4 premiers octets indiquent les flags de constantes (constant Type/Group/Instance)
-                flags = struct.unpack_from("<I", index_data, 0)[0]
-                offset = 4
+                    # Format Sims 4 Index 7.x directement lu depuis la vue mmap
+                    flags = struct.unpack_from("<I", mm, index_offset)[0]
+                    offset = index_offset + 4
 
-                const_type: Optional[int] = None
-                const_group: Optional[int] = None
-                const_inst_high: Optional[int] = None
+                    const_type: Optional[int] = None
+                    const_group: Optional[int] = None
+                    const_inst_high: Optional[int] = None
 
-                if flags & 0x01:
-                    const_type = struct.unpack_from("<I", index_data, offset)[0]
-                    offset += 4
-                if flags & 0x02:
-                    const_group = struct.unpack_from("<I", index_data, offset)[0]
-                    offset += 4
-                if flags & 0x04:
-                    const_inst_high = struct.unpack_from("<I", index_data, offset)[0]
-                    offset += 4
-
-                for _ in range(index_record_count):
-                    if offset >= len(index_data):
-                        break
-
-                    r_type = const_type if const_type is not None else struct.unpack_from("<I", index_data, offset)[0]
-                    if const_type is None:
+                    if flags & 0x01:
+                        const_type = struct.unpack_from("<I", mm, offset)[0]
+                        offset += 4
+                    if flags & 0x02:
+                        const_group = struct.unpack_from("<I", mm, offset)[0]
+                        offset += 4
+                    if flags & 0x04:
+                        const_inst_high = struct.unpack_from("<I", mm, offset)[0]
                         offset += 4
 
-                    r_group = (
-                        const_group if const_group is not None else struct.unpack_from("<I", index_data, offset)[0]
-                    )
-                    if const_group is None:
-                        offset += 4
+                    for _ in range(index_record_count):
+                        if offset >= index_end:
+                            break
 
-                    if const_inst_high is not None:
-                        inst_low = struct.unpack_from("<I", index_data, offset)[0]
-                        offset += 4
-                        r_instance = (const_inst_high << 32) | inst_low
-                    else:
-                        r_instance = struct.unpack_from("<Q", index_data, offset)[0]
-                        offset += 8
+                        r_type = const_type if const_type is not None else struct.unpack_from("<I", mm, offset)[0]
+                        if const_type is None:
+                            offset += 4
 
-                    if offset + 12 > len(index_data):
-                        break
+                        r_group = const_group if const_group is not None else struct.unpack_from("<I", mm, offset)[0]
+                        if const_group is None:
+                            offset += 4
 
-                    r_file_offset, r_file_size, r_decomp_size = struct.unpack_from("<III", index_data, offset)
-                    offset += 12
+                        if const_inst_high is not None:
+                            inst_low = struct.unpack_from("<I", mm, offset)[0]
+                            offset += 4
+                            r_instance = (const_inst_high << 32) | inst_low
+                        else:
+                            r_instance = struct.unpack_from("<Q", mm, offset)[0]
+                            offset += 8
 
-                    # Flag de compression (2 octets) + flags de validité (2 octets)
-                    is_compressed = False
-                    if offset + 2 <= len(index_data):
-                        comp_flag = struct.unpack_from("<H", index_data, offset)[0]
-                        is_compressed = bool(comp_flag & 0xFFFF)
-                        offset += 4
+                        if offset + 12 > index_end:
+                            break
 
-                    # Filtrer les ressources nulles
-                    if r_type != 0 or r_instance != 0:
-                        entries.append(
-                            DbpfResourceEntry(
-                                key=DbpfResourceKey(type_id=r_type, group_id=r_group, instance_id=r_instance),
-                                file_offset=r_file_offset,
-                                file_size=r_file_size,
-                                decompressed_size=r_decomp_size,
-                                is_compressed=is_compressed,
+                        r_file_offset, r_file_size, r_decomp_size = struct.unpack_from("<III", mm, offset)
+                        offset += 12
+
+                        # Flag de compression (2 octets) + flags de validité (2 octets)
+                        is_compressed = False
+                        if offset + 2 <= index_end:
+                            comp_flag = struct.unpack_from("<H", mm, offset)[0]
+                            is_compressed = bool(comp_flag & 0xFFFF)
+                            offset += 4
+
+                        # Filtrer les ressources nulles
+                        if r_type != 0 or r_instance != 0:
+                            entries.append(
+                                DbpfResourceEntry(
+                                    key=DbpfResourceKey(type_id=r_type, group_id=r_group, instance_id=r_instance),
+                                    file_offset=r_file_offset,
+                                    file_size=r_file_size,
+                                    decompressed_size=r_decomp_size,
+                                    is_compressed=is_compressed,
+                                )
                             )
-                        )
 
         except Exception as e:
             logger.debug(f"Erreur lors du parsing de l'index DBPF sur {file_path.name}: {e}")

@@ -26,9 +26,7 @@ def get_creator_info(
         if resp.status_code != 200:
             return None, None, None
         soup = BeautifulSoup(resp.text, "html.parser")
-        author_el = soup.select_one(
-            "a.creator-name, .big-creator-name a, a[href*='/artists/'], a[href*='/members/']"
-        )
+        author_el = soup.select_one("a.creator-name, .big-creator-name a, a[href*='/artists/'], a[href*='/members/']")
         if author_el:
             name = author_el.get_text(strip=True)
             href = author_el.get("href", "")

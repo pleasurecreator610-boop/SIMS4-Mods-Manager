@@ -20,10 +20,10 @@ from src.core.config import AppConfig
 from src.i18n import tr
 from src.ui.components.provider_drawer.drawer_styles import DrawerStyles
 from src.ui.components.provider_drawer.subcategory_row import SubcategoryRowWidget
-from src.ui.components.provider_drawer.provider_cards import (
+from src.ui.components.provider_drawer.patreon_card import PatreonDrawerCard
+from src.ui.components.provider_drawer.provider_scraper_card import (
     ProviderScraperDrawerCard,
-    LoversLabDrawerCard,
-    PatreonDrawerCard,
+    LOVERSLAB_SUBCATS,
     NSFWMODS_SUBCATS,
     CURSEFORGE_SUBCATS,
     TSR_SUBCATS,
@@ -131,7 +131,9 @@ class ProviderDrawer(QWidget):
         self.tab_nexusmods_pill = self._create_edge_pill("Nexus Mods 🟢", "Statut Nexus Mods - Cliquer pour détails")
         edge_container_layout.addWidget(self.tab_nexusmods_pill)
 
-        self.tab_mmccworld_pill = self._create_edge_pill("MMCCWorld 🟢", "Statut Maxis Match CC World - Cliquer pour détails")
+        self.tab_mmccworld_pill = self._create_edge_pill(
+            "MMCCWorld 🟢", "Statut Maxis Match CC World - Cliquer pour détails"
+        )
         edge_container_layout.addWidget(self.tab_mmccworld_pill)
 
         self.tab_patreon_pill = self._create_edge_pill("Patreon 🟢", tr("drawer.pill_tip_patreon"))
@@ -168,7 +170,9 @@ class ProviderDrawer(QWidget):
         # Drawer Header
         d_header = QHBoxLayout()
         self.d_title = QLabel(tr("drawer.title"))
-        self.d_title.setStyleSheet("font-size: 14px; font-weight: 700; color: #f8fafc; background: transparent; border: none;")
+        self.d_title.setStyleSheet(
+            "font-size: 14px; font-weight: 700; color: #f8fafc; background: transparent; border: none;"
+        )
         d_header.addWidget(self.d_title)
         d_header.addStretch()
 
@@ -255,7 +259,13 @@ class ProviderDrawer(QWidget):
         )
 
         # --- 7. LoversLab Provider Card (+18) ---
-        self.ll_card = LoversLabDrawerCard(self)
+        self.ll_card = ProviderScraperDrawerCard(
+            provider_name="loverslab",
+            display_name="LoversLab",
+            subcategories_meta=LOVERSLAB_SUBCATS,
+            expanded_by_default=True,
+            parent=self,
+        )
 
         # --- 8. NSFWMods Provider Card (+18) ---
         self.nm_card = ProviderScraperDrawerCard(

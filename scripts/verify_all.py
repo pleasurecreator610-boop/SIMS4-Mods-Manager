@@ -32,7 +32,10 @@ def main() -> int:
         ("Linting & Code Style (Ruff)", ["uv", "run", "ruff", "check", "."]),
         ("Strict Type Checking (Mypy)", ["uv", "run", "mypy", "src/"]),
         ("Documentation Build (MkDocs strict)", ["uv", "run", "mkdocs", "build", "--strict"]),
-        ("Test Suites & Coverage (Pytest)", ["uv", "run", "pytest", "-q", "--cov=src", "--cov-report=term-missing:skip-covered"]),
+        (
+            "Test Suites & Coverage (Pytest)",
+            ["uv", "run", "pytest", "-q", "--cov=src", "--cov-report=term-missing:skip-covered"],
+        ),
     ]
 
     all_ok = True

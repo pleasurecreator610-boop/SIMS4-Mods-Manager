@@ -2055,7 +2055,9 @@ def test_adult_content_disabled_by_default_and_multi_provider_drawer_e2e(e2e_env
     card = AccountCardWidget("curseforge", "CurseForge Title", "CurseForge Description")
     assert card.objectName() == "card_curseforge"
     assert "QFrame#card_curseforge" in card.styleSheet()
-    assert "QLabel {\n                background-color: transparent;\n                border: none;" in card.styleSheet()
+    assert (
+        "QLabel {\n                background-color: transparent;\n                border: none;" in card.styleSheet()
+    )
     assert card.title_lbl.text() == "CurseForge Title"
     assert card.desc_lbl.text() == "CurseForge Description"
 
@@ -2162,10 +2164,11 @@ def test_nsfwmods_login_timeout_account_free_downloads_and_comments_e2e(tmp_path
     from src.api.client import ApiClient
     from src.core.session_manager import SessionManager
     from src.ui.components.mod_card import ModCard
-    from plugins.curseforge.scraper import CurseForgeProvider
-    from plugins.thesimsresource.scraper import TheSimsResourceProvider
+    from plugins.curseforge.provider import CurseForgeProvider
+    from plugins.thesimsresource.provider import TheSimsResourceProvider
 
-    _app = QApplication.instance() or QApplication([])
+    if QApplication.instance() is None:
+        QApplication([])
 
     # 1. Verify ApiClient.login_account passes extended timeout (>= 360s for 300s login)
     client = ApiClient("http://127.0.0.1:8000")
@@ -2364,14 +2367,14 @@ def test_all_platforms_comments_and_ambiguous_requirements_interpellation_e2e(tm
     from src.infrastructure.database.manager import DatabaseManager
     from src.infrastructure.database.models import CatalogMod
     from src.core.session_manager import SessionManager
-    from plugins.loverslab.scraper import LoversLabProvider
-    from plugins.nsfwmods.scraper import NSFWModsProvider
-    from plugins.thesimsresource.scraper import TheSimsResourceProvider
-    from plugins.curseforge.scraper import CurseForgeProvider
-    from plugins.modthesims.scraper import ModTheSimsProvider
-    from plugins.simsfinds.scraper import SimsFindsProvider
-    from plugins.nexusmods.scraper import NexusModsProvider
-    from plugins.mmccworld.scraper import MMCCWorldProvider
+    from plugins.loverslab.provider import LoversLabProvider
+    from plugins.nsfwmods.provider import NSFWModsProvider
+    from plugins.thesimsresource.provider import TheSimsResourceProvider
+    from plugins.curseforge.provider import CurseForgeProvider
+    from plugins.modthesims.provider import ModTheSimsProvider
+    from plugins.simsfinds.provider import SimsFindsProvider
+    from plugins.nexusmods.provider import NexusModsProvider
+    from plugins.mmccworld.provider import MMCCWorldProvider
 
     cases = [
         # LoversLab
@@ -2781,7 +2784,9 @@ def test_eight_platforms_cross_deduplication_and_shared_deps_e2e(e2e_env, monkey
         mock_prov.download_mod_file = _download_mod_file
         return mock_prov
 
-    providers = {src: _make_provider(src) for src in ("modthesims", "curseforge", "nexusmods", "simsfinds", "mmccworld")}
+    providers = {
+        src: _make_provider(src) for src in ("modthesims", "curseforge", "nexusmods", "simsfinds", "mmccworld")
+    }
     monkeypatch.setattr(ProviderRegistry, "get_provider", classmethod(lambda cls, name: providers.get(name)))
 
     # Also mock SimFileShareResolver.download_mod_file so SFS URLs resolve deterministically
@@ -2803,9 +2808,7 @@ def test_eight_platforms_cross_deduplication_and_shared_deps_e2e(e2e_env, monkey
 
     # 1. Install XML Injector v4 from ModTheSims
     mts_xml_id = db_ids[("modthesims", "mts_685412")]
-    res1 = perform_mod_install(
-        CatalogInstallRequest(catalog_mod_id=mts_xml_id, install_dependencies=True)
-    )
+    res1 = perform_mod_install(CatalogInstallRequest(catalog_mod_id=mts_xml_id, install_dependencies=True))
     assert res1.success is True
 
     # Verify exactly 1 folder on disk for XML Injector
@@ -2819,15 +2822,11 @@ def test_eight_platforms_cross_deduplication_and_shared_deps_e2e(e2e_env, monkey
 
     # 2. Attempt duplicate install of XML Injector from CurseForge and Nexus Mods
     cf_xml_id = db_ids[("curseforge", "cf_xml_injector")]
-    res2 = perform_mod_install(
-        CatalogInstallRequest(catalog_mod_id=cf_xml_id, install_dependencies=True)
-    )
+    res2 = perform_mod_install(CatalogInstallRequest(catalog_mod_id=cf_xml_id, install_dependencies=True))
     assert res2.success is True
 
     nexus_xml_id = db_ids[("nexusmods", "nexus_xml_injector")]
-    res3 = perform_mod_install(
-        CatalogInstallRequest(catalog_mod_id=nexus_xml_id, install_dependencies=True)
-    )
+    res3 = perform_mod_install(CatalogInstallRequest(catalog_mod_id=nexus_xml_id, install_dependencies=True))
     assert res3.success is True
 
     # Check deduplication: STILL exactly 1 folder and 1 physical package file on disk!
@@ -2836,9 +2835,7 @@ def test_eight_platforms_cross_deduplication_and_shared_deps_e2e(e2e_env, monkey
 
     # 3. Install Realistic Cooking Mod (MTS) which depends on XML Injector
     cooking_id = db_ids[("modthesims", "mts_cooking_mod")]
-    res4 = perform_mod_install(
-        CatalogInstallRequest(catalog_mod_id=cooking_id, install_dependencies=True)
-    )
+    res4 = perform_mod_install(CatalogInstallRequest(catalog_mod_id=cooking_id, install_dependencies=True))
     assert res4.success is True
 
     cooking_folders = [p for p in mods_dir.glob("*") if "cooking" in p.name.lower()]
@@ -2847,9 +2844,7 @@ def test_eight_platforms_cross_deduplication_and_shared_deps_e2e(e2e_env, monkey
 
     # 4. Install SimsFinds mod (resolving SFS)
     sf_id = db_ids[("simsfinds", "sf_trillyke_crop")]
-    res5 = perform_mod_install(
-        CatalogInstallRequest(catalog_mod_id=sf_id, install_dependencies=True)
-    )
+    res5 = perform_mod_install(CatalogInstallRequest(catalog_mod_id=sf_id, install_dependencies=True))
     assert res5.success is True
     sf_folders = [p for p in mods_dir.glob("*") if "trillyke" in p.name.lower()]
     assert len(sf_folders) == 1
@@ -2857,17 +2852,8 @@ def test_eight_platforms_cross_deduplication_and_shared_deps_e2e(e2e_env, monkey
 
     # 5. Install MMCCWorld mod (resolving SFS)
     mmccw_id = db_ids[("mmccworld", "mmccw_sixam_counter")]
-    res6 = perform_mod_install(
-        CatalogInstallRequest(catalog_mod_id=mmccw_id, install_dependencies=True)
-    )
+    res6 = perform_mod_install(CatalogInstallRequest(catalog_mod_id=mmccw_id, install_dependencies=True))
     assert res6.success is True
     mmccw_folders = [p for p in mods_dir.glob("*") if "sixam" in p.name.lower()]
     assert len(mmccw_folders) == 1
     assert (mmccw_folders[0] / "SixamCC_ModularCounters.package").exists()
-
-
-
-
-
-
-

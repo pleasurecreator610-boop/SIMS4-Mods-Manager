@@ -1,12 +1,12 @@
 from unittest.mock import patch, MagicMock
-from plugins.loverslab.forum_service import LoversLabForumService
+from plugins.loverslab.comments import LoversLabForumService
 from src.application.dependencies.requirement_reporter_service import RequirementReporterService
 from src.ui.workers.report_workers import SubmitReportWorker
 
 
 def test_forum_service_logs_error_on_unauthenticated():
-    with patch("plugins.loverslab.forum_service.SessionManager.is_member_authenticated", return_value=False):
-        with patch("plugins.loverslab.forum_service.logger.error") as mock_err:
+    with patch("plugins.loverslab.comments.SessionManager.is_member_authenticated", return_value=False):
+        with patch("plugins.loverslab.comments.logger.error") as mock_err:
             success, msg = LoversLabForumService.post_mod_comment("https://example.com/mod", "Test message")
             assert not success
             mock_err.assert_called()
@@ -25,9 +25,9 @@ def test_forum_service_logs_error_on_http_failure():
     mock_post.text = "Forbidden / Cloudflare"
     mock_session.post.return_value = mock_post
 
-    with patch("plugins.loverslab.forum_service.SessionManager.is_member_authenticated", return_value=True):
-        with patch("plugins.loverslab.forum_service.SessionManager.get_http_session", return_value=mock_session):
-            with patch("plugins.loverslab.forum_service.logger.error") as mock_err:
+    with patch("plugins.loverslab.comments.SessionManager.is_member_authenticated", return_value=True):
+        with patch("plugins.loverslab.comments.SessionManager.get_http_session", return_value=mock_session):
+            with patch("plugins.loverslab.comments.logger.error") as mock_err:
                 success, msg = LoversLabForumService.post_mod_comment("https://example.com/mod", "Test message")
                 assert not success
                 mock_err.assert_called()

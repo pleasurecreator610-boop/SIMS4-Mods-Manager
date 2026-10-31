@@ -52,7 +52,7 @@ def test_sanitize_description_html_strips_scripts_and_cleans_styles():
 
 
 def test_requirements_negative_statements_and_settings_skipped():
-    from plugins.loverslab.scraper import LoversLabProvider
+    from plugins.loverslab.provider import LoversLabProvider
 
     provider = LoversLabProvider()
     html = """

@@ -147,9 +147,7 @@ def test_extract_mts_download_links():
 def test_extract_mts_requirements():
     """Vérifie l'extraction des prérequis depuis la description d'un mod MTS."""
     soup = BeautifulSoup(SAMPLE_MTS_DETAIL_HTML, "html.parser")
-    item_id, raw_html, reqs = extract_mts_requirements(
-        soup, page_text=soup.get_text(), own_id="701054"
-    )
+    item_id, raw_html, reqs = extract_mts_requirements(soup, page_text=soup.get_text(), own_id="701054")
 
     assert len(reqs) >= 2
     titles = [r["title"] for r in reqs]

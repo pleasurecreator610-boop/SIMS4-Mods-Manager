@@ -1119,10 +1119,22 @@ class SimulationRunner:
                 "author": "MelBennett",
                 "page_url": "https://www.thesimsresource.com/downloads/details/id/1787392",
                 "custom_deps": [
-                    {"title": "[MB] Canned Soda and Beer Accessory RIGHT", "remote_id": "canned-soda-acc", "source": "thesimsresource"},
+                    {
+                        "title": "[MB] Canned Soda and Beer Accessory RIGHT",
+                        "remote_id": "canned-soda-acc",
+                        "source": "thesimsresource",
+                    },
                     {"title": "Basketball Accessory", "remote_id": "1573507", "source": "thesimsresource"},
-                    {"title": "https://blog.naver.com/mel_165/222563632404", "remote_id": "naver-link", "source": "thesimsresource"},
-                    {"title": "Pose Player & Teleport Any Sim required in game", "remote_id": "pose-note", "source": "thesimsresource"},
+                    {
+                        "title": "https://blog.naver.com/mel_165/222563632404",
+                        "remote_id": "naver-link",
+                        "source": "thesimsresource",
+                    },
+                    {
+                        "title": "Pose Player & Teleport Any Sim required in game",
+                        "remote_id": "pose-note",
+                        "source": "thesimsresource",
+                    },
                 ],
                 "expected_comments": [
                     "https://blog.naver.com/mel_165/222563632404",
@@ -1164,7 +1176,11 @@ class SimulationRunner:
                 "page_url": "https://www.thesimsresource.com/downloads/details/id/1795603",
                 "custom_deps": [
                     {"title": "WINGS-TO1218-90s style curly hair", "remote_id": "1577470", "source": "thesimsresource"},
-                    {"title": "Recolor only - mesh not included in package", "remote_id": "mesh-note", "source": "thesimsresource"},
+                    {
+                        "title": "Recolor only - mesh not included in package",
+                        "remote_id": "mesh-note",
+                        "source": "thesimsresource",
+                    },
                 ],
                 "expected_comments": [
                     "Recolor only - mesh not included in package",
@@ -1205,7 +1221,11 @@ class SimulationRunner:
                 "page_url": "https://www.curseforge.com/sims4/mods/social-activities-visit-friends-family-and-more",
                 "custom_deps": [
                     {"title": "XML Injector", "remote_id": "xml-injector", "source": "curseforge"},
-                    {"title": "Toddler don't go to Daycare Mod", "remote_id": "toddler-daycare", "source": "curseforge"},
+                    {
+                        "title": "Toddler don't go to Daycare Mod",
+                        "remote_id": "toddler-daycare",
+                        "source": "curseforge",
+                    },
                     {
                         "title": "Optional Addons included in archive - remove the ones you do not want",
                         "remote_id": "addons-note",
@@ -1295,7 +1315,11 @@ class SimulationRunner:
                 "page_url": "https://modthesims.info/d/701052/irresistible-aura.html",
                 "custom_deps": [
                     {"title": "Lumpinou Mood Pack", "remote_id": "mood-pack", "source": "modthesims"},
-                    {"title": "Make sure to delete localthumbcache.package before launching", "remote_id": "cache-note", "source": "modthesims"},
+                    {
+                        "title": "Make sure to delete localthumbcache.package before launching",
+                        "remote_id": "cache-note",
+                        "source": "modthesims",
+                    },
                 ],
                 "expected_comments": [
                     "Make sure to delete localthumbcache.package before launching",
@@ -1314,7 +1338,11 @@ class SimulationRunner:
                 "page_url": "https://www.simsfinds.com/downloads/408347/warm-and-wicked-living-room-part-2-sims4",
                 "custom_deps": [
                     {"title": "Warm And Wicked Living Room Part 1", "remote_id": "sf-living-p1", "source": "simsfinds"},
-                    {"title": "Activer le code bb.moveobjects on avant de placer", "remote_id": "moveobjects-note", "source": "simsfinds"},
+                    {
+                        "title": "Activer le code bb.moveobjects on avant de placer",
+                        "remote_id": "moveobjects-note",
+                        "source": "simsfinds",
+                    },
                     {"title": "Compatible jeu de base patch 1.108+", "remote_id": "patch-note", "source": "simsfinds"},
                 ],
                 "expected_comments": [
@@ -1334,7 +1362,11 @@ class SimulationRunner:
                 "page_url": "https://www.simsfinds.com/downloads/408416/chroma-nails-by-trillyke-sims4",
                 "custom_deps": [
                     {"title": "Trillyke Base CAS Rig Mesh", "remote_id": "trillyke-mesh", "source": "simsfinds"},
-                    {"title": "Désactiver le Laptop Mode pour le rendu HD", "remote_id": "laptop-note", "source": "simsfinds"},
+                    {
+                        "title": "Désactiver le Laptop Mode pour le rendu HD",
+                        "remote_id": "laptop-note",
+                        "source": "simsfinds",
+                    },
                     {"title": "Emplacement CAS : Accessoires > Ongles", "remote_id": "cas-note", "source": "simsfinds"},
                 ],
                 "expected_comments": [
@@ -1354,7 +1386,11 @@ class SimulationRunner:
                 "page_url": "https://www.simsfinds.com/downloads/409082/halloween-black-widow-set-sims4",
                 "custom_deps": [
                     {"title": "XML Injector v4", "remote_id": "xml-inj", "source": "simsfinds"},
-                    {"title": "Supprimer impérativement les versions antérieures v1", "remote_id": "v1-clean-note", "source": "simsfinds"},
+                    {
+                        "title": "Supprimer impérativement les versions antérieures v1",
+                        "remote_id": "v1-clean-note",
+                        "source": "simsfinds",
+                    },
                     {"title": "Miniatures personnalisées incluses", "remote_id": "thumb-note", "source": "simsfinds"},
                 ],
                 "expected_comments": [
@@ -1436,9 +1472,7 @@ class SimulationRunner:
                     m_sec, n_sec = f_msg.split("🧹 Notes / Instructions to clean from Requirements:", 1)
                     m_lines = {line.strip() for line in m_sec.splitlines() if line.strip().startswith("- ")}
                     n_lines = {line.strip() for line in n_sec.splitlines() if line.strip().startswith("- ")}
-                    separation_ok = all(
-                        f"- {m}" in m_lines and f"- {m}" not in n_lines for m in unf_titles
-                    ) and all(
+                    separation_ok = all(f"- {m}" in m_lines and f"- {m}" not in n_lines for m in unf_titles) and all(
                         f"- {cm_t}" in n_lines and f"- {cm_t}" not in m_lines for cm_t in comm_titles
                     )
 
@@ -1820,7 +1854,9 @@ class SimulationRunner:
                         safe_app = str(inc.get("app_status", "")).replace("|", "-")
                         safe_net = str(inc.get("internet_status", "")).replace("|", "-")
                         safe_det = str(inc.get("details", "")).replace("|", "-")
-                        rf.write(f"| {safe_title} | [{safe_title}]({safe_url}) | {safe_app} | {safe_net} | {safe_det} |\n")
+                        rf.write(
+                            f"| {safe_title} | [{safe_title}]({safe_url}) | {safe_app} | {safe_net} | {safe_det} |\n"
+                        )
                     else:
                         safe_msg = str(inc).replace("|", "-")
                         rf.write(f"| {safe_msg} | - | Incohérence | - | {safe_msg} |\n")
@@ -1856,8 +1892,12 @@ class SimulationRunner:
                 rf.write("\n")
 
             if self.ambiguous_validation_results:
-                rf.write("## 3.2 Validation E2E : Dépendances Ambiguës, Commentaires & Interpellation Forum (Multi-Plateformes)\n\n")
-                rf.write("| Plateforme | Mod | Commentaires Qualifiés | Mods Non Trouvés | Séparation Message Forum | Statut |\n")
+                rf.write(
+                    "## 3.2 Validation E2E : Dépendances Ambiguës, Commentaires & Interpellation Forum (Multi-Plateformes)\n\n"
+                )
+                rf.write(
+                    "| Plateforme | Mod | Commentaires Qualifiés | Mods Non Trouvés | Séparation Message Forum | Statut |\n"
+                )
                 rf.write("| :---: | :--- | :--- | :--- | :---: | :---: |\n")
                 for amb in self.ambiguous_validation_results:
                     st = "✅ OK" if amb["success"] else "❌ FAIL"
@@ -1869,9 +1909,18 @@ class SimulationRunner:
                 rf.write("\n")
 
                 # Exemple de message d'interpellation avec séparation stricte Commentaires vs Mods non trouvés
-                sample = next((a for a in self.ambiguous_validation_results if a.get("comments_detected") and a.get("unfound_mods_detected")), None)
+                sample = next(
+                    (
+                        a
+                        for a in self.ambiguous_validation_results
+                        if a.get("comments_detected") and a.get("unfound_mods_detected")
+                    ),
+                    None,
+                )
                 if sample and sample.get("formatted_message"):
-                    rf.write("### 3.2.1 Exemple de Message d'Interpellation Généré (Commentaires vs Mods Non Trouvés)\n\n")
+                    rf.write(
+                        "### 3.2.1 Exemple de Message d'Interpellation Généré (Commentaires vs Mods Non Trouvés)\n\n"
+                    )
                     rf.write(f"> **Mod cible** : `{sample['title']}` (Auteur : `{sample.get('author', 'Author')}`)\n\n")
                     rf.write("```text\n")
                     rf.write(sample["formatted_message"].strip() + "\n")
@@ -1941,7 +1990,9 @@ class SimulationRunner:
         """Valide le plugin NSFWMods (https://nsfwmods.com/files/category/287-sims-mods/) en conditions réelles."""
         from src.providers.registry import ProviderRegistry
 
-        print("\n[ÉTAPE 3quater] Validation E2E du plugin NSFWMods (https://nsfwmods.com/files/category/287-sims-mods/)...")
+        print(
+            "\n[ÉTAPE 3quater] Validation E2E du plugin NSFWMods (https://nsfwmods.com/files/category/287-sims-mods/)..."
+        )
         prov = ProviderRegistry.get_provider("nsfwmods")
         if not prov:
             self.inconsistencies.append("Plugin 'nsfwmods' non enregistré dans ProviderRegistry.")
@@ -2128,9 +2179,7 @@ class SimulationRunner:
         from src.infrastructure.database.models import InstalledMod
         from src.providers.registry import ProviderRegistry
 
-        print(
-            "\n[ÉTAPE 3septies] Validation E2E ModTheSims & Déduplication Inter-Plateformes (MTS <-> CurseForge)..."
-        )
+        print("\n[ÉTAPE 3septies] Validation E2E ModTheSims & Déduplication Inter-Plateformes (MTS <-> CurseForge)...")
 
         # 1. Vérification session MTS
         ok_mts, msg_mts = SessionManager.verify_session("modthesims")
@@ -2248,9 +2297,7 @@ class SimulationRunner:
         from src.infrastructure.database.models import InstalledMod
         from src.providers.registry import ProviderRegistry
 
-        print(
-            "\n[ÉTAPE 3septies] Validation E2E SimsFinds & Déduplication Inter-Plateformes (5 plateformes)..."
-        )
+        print("\n[ÉTAPE 3septies] Validation E2E SimsFinds & Déduplication Inter-Plateformes (5 plateformes)...")
         sf_prov = ProviderRegistry.get_provider("simsfinds")
         if not sf_prov:
             self.inconsistencies.append("Plugin 'simsfinds' non enregistré dans ProviderRegistry.")
@@ -2347,9 +2394,7 @@ class SimulationRunner:
         from src.infrastructure.database.models import InstalledMod
         from src.providers.registry import ProviderRegistry
 
-        print(
-            "\n[ÉTAPE 3octies] Validation E2E Nexus Mods & Déduplication Inter-Plateformes (Nexus <-> LoversLab)..."
-        )
+        print("\n[ÉTAPE 3octies] Validation E2E Nexus Mods & Déduplication Inter-Plateformes (Nexus <-> LoversLab)...")
         nm_prov = ProviderRegistry.get_provider("nexusmods")
         if not nm_prov:
             self.inconsistencies.append("Plugin 'nexusmods' non enregistré dans ProviderRegistry.")
@@ -2380,9 +2425,7 @@ class SimulationRunner:
             f"COMMENTs={len(comment_reqs)} ({'OK' if has_comment_note else 'FAIL'})"
         )
         if not has_mod_dep or not has_comment_note:
-            self.inconsistencies.append(
-                "Échec de la distinction stricte MOD vs COMMENT pour le mod Nexus Mods #923."
-            )
+            self.inconsistencies.append("Échec de la distinction stricte MOD vs COMMENT pour le mod Nexus Mods #923.")
 
         # Validation Déduplication Multi-Plateforme (WickedWhims installé depuis LoversLab)
         db = DatabaseManager.get_instance()
@@ -2460,9 +2503,7 @@ class SimulationRunner:
         from src.infrastructure.database.models import InstalledMod
         from src.providers.registry import ProviderRegistry
 
-        print(
-            "\n[ÉTAPE 3nonies] Validation E2E Maxis Match CC World & Résolution SimFileShare..."
-        )
+        print("\n[ÉTAPE 3nonies] Validation E2E Maxis Match CC World & Résolution SimFileShare...")
 
         # 1. Vérification session SimFileShare
         ok_sfs, msg_sfs = SessionManager.verify_session("simfileshare")
@@ -2489,6 +2530,7 @@ class SimulationRunner:
         <p>Note: Base Game compatible - Maxis Match friendly.</p>
         """
         from plugins.mmccworld.parsers import extract_mmccworld_requirements
+
         reqs = extract_mmccworld_requirements(sample_post)
         mod_reqs = [r for r in reqs if r.get("type") == "MOD"]
         comment_reqs = [r for r in reqs if r.get("type") == "COMMENT"]
@@ -2500,9 +2542,7 @@ class SimulationRunner:
             f"COMMENTs={len(comment_reqs)} ({'OK' if has_comment_note else 'FAIL'})"
         )
         if not has_mod_dep or not has_comment_note:
-            self.inconsistencies.append(
-                "Échec de la distinction stricte MOD vs COMMENT pour Maxis Match CC World."
-            )
+            self.inconsistencies.append("Échec de la distinction stricte MOD vs COMMENT pour Maxis Match CC World.")
 
         # 4. Validation Déduplication Multi-Plateforme (Trillyke Knit Base Mesh préinstallé depuis TSR)
         db = DatabaseManager.get_instance()
@@ -2595,9 +2635,7 @@ class SimulationRunner:
             if not self.skip_audit:
                 self.audit_mods_consistency()
             else:
-                print(
-                    "\n[ÉTAPE 3] Audit de cohérence LoversLab ignoré (--skip-audit actif)."
-                )
+                print("\n[ÉTAPE 3] Audit de cohérence LoversLab ignoré (--skip-audit actif).")
             self.validate_ambiguous_dependencies_and_forum_interpellation()
             self.validate_shared_dependencies_group_installation()
             self.validate_nsfwmods_provider_e2e()

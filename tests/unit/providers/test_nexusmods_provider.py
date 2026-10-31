@@ -23,11 +23,7 @@ SAMPLE_GRAPHQL_MODS = [
         "pictureUrl": "https://staticdelivery.nexusmods.com/mods/641/images/223.jpg",
         "version": "v180",
         "category": "Gameplay",
-        "modRequirements": {
-            "nexusRequirements": {
-                "nodes": []
-            }
-        },
+        "modRequirements": {"nexusRequirements": {"nodes": []}},
     },
     {
         "modId": 923,
@@ -45,7 +41,7 @@ SAMPLE_GRAPHQL_MODS = [
                     {
                         "modName": "WickedWhims",
                         "notes": "Without it my animations are useless.",
-                        "url": "https://www.nexusmods.com/thesims4/mods/223"
+                        "url": "https://www.nexusmods.com/thesims4/mods/223",
                     }
                 ]
             }
@@ -137,10 +133,11 @@ def test_nexusmods_download_with_api_key(tmp_path):
     """Vérifie le flux de téléchargement avec résolution via clé API Nexus Mods v1."""
     dest = tmp_path / "mod_file.zip"
 
-    with patch("src.core.session_manager.SessionManager.get_saved_cookies") as mock_cookies, \
-         patch("httpx.get") as mock_httpx_get, \
-         patch("src.core.session_manager.SessionManager.get_http_session") as mock_session:
-
+    with (
+        patch("src.core.session_manager.SessionManager.get_saved_cookies") as mock_cookies,
+        patch("httpx.get") as mock_httpx_get,
+        patch("src.core.session_manager.SessionManager.get_http_session") as mock_session,
+    ):
         mock_cookies.return_value = {"nexusmods_api_key": "test_api_key_12345"}
 
         # Réponse API Nexus Mods v1 pour download_link.json

@@ -33,19 +33,23 @@ def extract_nexusmods_requirements(mod_data: Dict[str, Any]) -> List[Dict[str, A
         notes = (req.get("notes") or "").strip()
 
         if mod_name:
-            requirements.append({
-                "name": mod_name,
-                "type": "MOD",
-                "resolved": False,
-                "url": url,
-            })
+            requirements.append(
+                {
+                    "name": mod_name,
+                    "type": "MOD",
+                    "resolved": False,
+                    "url": url,
+                }
+            )
 
         if notes:
-            requirements.append({
-                "name": notes,
-                "type": "COMMENT",
-                "resolved": False,
-            })
+            requirements.append(
+                {
+                    "name": notes,
+                    "type": "COMMENT",
+                    "resolved": False,
+                }
+            )
 
     # 2. External Requirements
     ext_reqs = reqs_block.get("externalRequirements") or {}
@@ -56,19 +60,23 @@ def extract_nexusmods_requirements(mod_data: Dict[str, Any]) -> List[Dict[str, A
         notes = (req.get("notes") or "").strip()
 
         if mod_name:
-            requirements.append({
-                "name": mod_name,
-                "type": "MOD",
-                "resolved": False,
-                "url": url,
-            })
+            requirements.append(
+                {
+                    "name": mod_name,
+                    "type": "MOD",
+                    "resolved": False,
+                    "url": url,
+                }
+            )
 
         if notes:
-            requirements.append({
-                "name": notes,
-                "type": "COMMENT",
-                "resolved": False,
-            })
+            requirements.append(
+                {
+                    "name": notes,
+                    "type": "COMMENT",
+                    "resolved": False,
+                }
+            )
 
     # 3. DLC Requirements
     dlc_reqs = reqs_block.get("dlcRequirements") or []
@@ -76,11 +84,13 @@ def extract_nexusmods_requirements(mod_data: Dict[str, Any]) -> List[Dict[str, A
         for dlc in dlc_reqs:
             d_name = dlc.get("name") if isinstance(dlc, dict) else str(dlc)
             if d_name:
-                requirements.append({
-                    "name": f"DLC requis: {d_name}",
-                    "type": "COMMENT",
-                    "resolved": False,
-                })
+                requirements.append(
+                    {
+                        "name": f"DLC requis: {d_name}",
+                        "type": "COMMENT",
+                        "resolved": False,
+                    }
+                )
 
     # 4. Fallback analyse textuelle de la description si aucun prérequis formel
     desc = mod_data.get("description") or ""
@@ -100,14 +110,15 @@ def extract_nexusmods_requirements(mod_data: Dict[str, Any]) -> List[Dict[str, A
                     kw in clean.lower()
                     for kw in ["injector", "xml", "whims", "mccc", "command center", "framework", "mesh", "library"]
                 ) and not any(
-                    kw in clean.lower()
-                    for kw in ["patch", "pc", "mac", "moveobjects", "delete", "supprimer", "update"]
+                    kw in clean.lower() for kw in ["patch", "pc", "mac", "moveobjects", "delete", "supprimer", "update"]
                 )
-                requirements.append({
-                    "name": clean,
-                    "type": "MOD" if is_mod else "COMMENT",
-                    "resolved": False,
-                })
+                requirements.append(
+                    {
+                        "name": clean,
+                        "type": "MOD" if is_mod else "COMMENT",
+                        "resolved": False,
+                    }
+                )
 
     return requirements
 
@@ -141,21 +152,23 @@ def parse_nexusmods_graphql_mods(
 
         reqs = extract_nexusmods_requirements(node)
 
-        mods.append({
-            "remote_id": f"nexusmods_{mod_id}",
-            "title": name,
-            "description": summary,
-            "page_url": page_url,
-            "author": author,
-            "version": version,
-            "category": unified_cat,
-            "native_category_id": native_cat_id,
-            "thumbnail_url": picture_url,
-            "source": source,
-            "downloads_count": node.get("downloads", 0),
-            "likes_count": node.get("endorsements", 0),
-            "requirements": reqs,
-            "tags": ["nexusmods", category.get("slug", "ts4")],
-        })
+        mods.append(
+            {
+                "remote_id": f"nexusmods_{mod_id}",
+                "title": name,
+                "description": summary,
+                "page_url": page_url,
+                "author": author,
+                "version": version,
+                "category": unified_cat,
+                "native_category_id": native_cat_id,
+                "thumbnail_url": picture_url,
+                "source": source,
+                "downloads_count": node.get("downloads", 0),
+                "likes_count": node.get("endorsements", 0),
+                "requirements": reqs,
+                "tags": ["nexusmods", category.get("slug", "ts4")],
+            }
+        )
 
     return mods

@@ -42,7 +42,6 @@ def init_security(disable_auth: bool = False) -> str:
 
 def get_internal_token() -> Optional[str]:
     """Retourne le jeton de sécurité interne actuellement actif (initialisé si nécessaire)."""
-    global _internal_token
     if _internal_token is None and not is_auth_disabled():
         init_security()
     return _internal_token
@@ -65,7 +64,6 @@ def verify_internal_token(provided_token: Optional[str]) -> bool:
     if is_auth_disabled():
         return True
 
-    global _internal_token
     if _internal_token is None:
         init_security()
 
