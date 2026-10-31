@@ -257,6 +257,27 @@ class BrowserLoginHelper:
                             if not display_name:
                                 display_name = "CurseForge User"
                             member_logged_in = True
+                    elif prov_lower == "simsfinds":
+                        body_elem = page.query_selector("body")
+                        body_cls = body_elem.get_attribute("class") if body_elem else ""
+                        body_logged = body_elem.get_attribute("data-logado") if body_elem else "0"
+                        if (
+                            body_logged == "1"
+                            or "_logado" in (body_cls or "")
+                            or page.query_selector("._bt4j276e8")
+                            or cookies_dict.get("sfp_id")
+                            or cookies_dict.get("sfp_auth")
+                            or cookies_dict.get("sfp_usuario")
+                        ):
+                            is_authenticated = True
+                            user_elem = page.query_selector("a[href*='/creator/'], a._ptflink-profile")
+                            if user_elem:
+                                display_name = user_elem.inner_text().strip()
+                            if not display_name and cookies_dict.get("sfp_usuario"):
+                                display_name = str(cookies_dict.get("sfp_usuario"))
+                            elif not display_name:
+                                display_name = "SimsFinds User"
+                            member_logged_in = True
 
                     if member_logged_in:
                         time.sleep(1.5)
@@ -295,7 +316,7 @@ class BrowserLoginHelper:
                     is_authenticated = True
                 elif "cf_clearance" in cookies_dict or "ips4_hasAcceptedAge" in cookies_dict:
                     is_authenticated = True
-            elif provider_name.lower() in ("thesimsresource", "curseforge", "modthesims"):
+            elif provider_name.lower() in ("thesimsresource", "curseforge", "modthesims", "simsfinds"):
                 is_authenticated = True
                 if not display_name:
                     if provider_name.lower() == "thesimsresource":
@@ -306,6 +327,8 @@ class BrowserLoginHelper:
                         display_name = f"MTS Membre #{uid}" if uid else "MTS User"
                     elif provider_name.lower() == "curseforge":
                         display_name = "CurseForge User"
+                    elif provider_name.lower() == "simsfinds":
+                        display_name = "SimsFinds User"
 
             save_session_callback(
                 provider_name=provider_name,

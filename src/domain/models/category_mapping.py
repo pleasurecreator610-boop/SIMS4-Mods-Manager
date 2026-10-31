@@ -159,6 +159,22 @@ class CategoryMappingService:
             "mts_programs_utilities": "tools_utilities", # Programs and Utilities
             "mts_miscellaneous": "miscellaneous",     # Miscellaneous
         },
+        # SimsFinds
+        "simsfinds": {
+            "sfinds_hairstyles": "hair",
+            "sfinds_clothing": "clothing",
+            "sfinds_accessories": "accessories",
+            "sfinds_shoes": "shoes",
+            "sfinds_makeup": "body_makeup",
+            "sfinds_skintones": "body_makeup",
+            "sfinds_eyebrows": "body_makeup",
+            "sfinds_objects": "build_buy",
+            "sfinds_build_mode": "build_buy",
+            "sfinds_mods": "gameplay",
+            "sfinds_sims": "sims_households",
+            "sfinds_tattoos": "body_makeup",
+            "sfinds_poses": "animations_poses",
+        },
     }
 
     @classmethod

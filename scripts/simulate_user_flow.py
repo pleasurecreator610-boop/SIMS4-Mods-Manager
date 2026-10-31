@@ -81,6 +81,7 @@ class SimulationRunner:
         limit_audit: int = -1,
         fail_on_errors: bool = False,
         skip_sync: bool = False,
+        skip_audit: bool = False,
     ):
         self.api_url = api_url.rstrip("/")
         self.max_pages = max_pages
@@ -92,6 +93,7 @@ class SimulationRunner:
         self.limit_audit = -1 if (limit_audit is None or limit_audit <= 0) else limit_audit
         self.fail_on_errors = fail_on_errors
         self.skip_sync = skip_sync
+        self.skip_audit = skip_audit
 
         import os
 
@@ -1303,6 +1305,67 @@ class SimulationRunner:
                 ],
                 "live_target": False,
             },
+            # --- 6. SIMSFINDS (3 mods) ---
+            {
+                "source": "simsfinds",
+                "remote_id": "e2e_sf_408347",
+                "title": "Warm And Wicked Living Room Part 2",
+                "author": "SimsFinds Creator",
+                "page_url": "https://www.simsfinds.com/downloads/408347/warm-and-wicked-living-room-part-2-sims4",
+                "custom_deps": [
+                    {"title": "Warm And Wicked Living Room Part 1", "remote_id": "sf-living-p1", "source": "simsfinds"},
+                    {"title": "Activer le code bb.moveobjects on avant de placer", "remote_id": "moveobjects-note", "source": "simsfinds"},
+                    {"title": "Compatible jeu de base patch 1.108+", "remote_id": "patch-note", "source": "simsfinds"},
+                ],
+                "expected_comments": [
+                    "Activer le code bb.moveobjects on avant de placer",
+                    "Compatible jeu de base patch 1.108+",
+                ],
+                "expected_unfound": [
+                    "Warm And Wicked Living Room Part 1",
+                ],
+                "live_target": True,
+            },
+            {
+                "source": "simsfinds",
+                "remote_id": "e2e_sf_408416",
+                "title": "Chroma Nails by trillyke",
+                "author": "trillyke",
+                "page_url": "https://www.simsfinds.com/downloads/408416/chroma-nails-by-trillyke-sims4",
+                "custom_deps": [
+                    {"title": "Trillyke Base CAS Rig Mesh", "remote_id": "trillyke-mesh", "source": "simsfinds"},
+                    {"title": "Désactiver le Laptop Mode pour le rendu HD", "remote_id": "laptop-note", "source": "simsfinds"},
+                    {"title": "Emplacement CAS : Accessoires > Ongles", "remote_id": "cas-note", "source": "simsfinds"},
+                ],
+                "expected_comments": [
+                    "Désactiver le Laptop Mode pour le rendu HD",
+                    "Emplacement CAS : Accessoires > Ongles",
+                ],
+                "expected_unfound": [
+                    "Trillyke Base CAS Rig Mesh",
+                ],
+                "live_target": False,
+            },
+            {
+                "source": "simsfinds",
+                "remote_id": "e2e_sf_409082",
+                "title": "Halloween Black Widow Set",
+                "author": "harmonia",
+                "page_url": "https://www.simsfinds.com/downloads/409082/halloween-black-widow-set-sims4",
+                "custom_deps": [
+                    {"title": "XML Injector v4", "remote_id": "xml-inj", "source": "simsfinds"},
+                    {"title": "Supprimer impérativement les versions antérieures v1", "remote_id": "v1-clean-note", "source": "simsfinds"},
+                    {"title": "Miniatures personnalisées incluses", "remote_id": "thumb-note", "source": "simsfinds"},
+                ],
+                "expected_comments": [
+                    "Supprimer impérativement les versions antérieures v1",
+                    "Miniatures personnalisées incluses",
+                ],
+                "expected_unfound": [
+                    "XML Injector v4",
+                ],
+                "live_target": False,
+            },
         ]
 
         db = DatabaseManager.get_instance()
@@ -1751,12 +1814,16 @@ class SimulationRunner:
                 rf.write("| Titre du Mod | URL | Statut Application | Résultat Internet Réel | Explication |\n")
                 rf.write("| :--- | :--- | :--- | :--- | :--- |\n")
                 for inc in self.inconsistencies:
-                    safe_title = inc["title"].replace("|", "-")
-                    safe_url = inc["url"]
-                    safe_app = inc["app_status"].replace("|", "-")
-                    safe_net = inc["internet_status"].replace("|", "-")
-                    safe_det = inc["details"].replace("|", "-")
-                    rf.write(f"| {safe_title} | [{safe_title}]({safe_url}) | {safe_app} | {safe_net} | {safe_det} |\n")
+                    if isinstance(inc, dict):
+                        safe_title = str(inc.get("title", "")).replace("|", "-")
+                        safe_url = inc.get("url", "-")
+                        safe_app = str(inc.get("app_status", "")).replace("|", "-")
+                        safe_net = str(inc.get("internet_status", "")).replace("|", "-")
+                        safe_det = str(inc.get("details", "")).replace("|", "-")
+                        rf.write(f"| {safe_title} | [{safe_title}]({safe_url}) | {safe_app} | {safe_net} | {safe_det} |\n")
+                    else:
+                        safe_msg = str(inc).replace("|", "-")
+                        rf.write(f"| {safe_msg} | - | Incohérence | - | {safe_msg} |\n")
                 rf.write("\n")
 
             # Tableau des installations
@@ -2048,6 +2115,105 @@ class SimulationRunner:
         i18n_ok = ("Unified Catalog" in en_cat) and ("Catalogue Unifié" in fr_cat) and (en_tsr != fr_tsr)
         print(f" -> [{'OK' if i18n_ok else 'FAIL'}] Basculement i18n FR/EN : FR='{fr_cat}' | EN='{en_cat}'")
 
+    def validate_simsfinds_and_cross_platform_dedup_e2e(self) -> None:
+        """
+        Valide en conditions réelles :
+        1. Le plugin SimsFinds (https://www.simsfinds.com/en/downloads/sims4) :
+           scraping du catalogue, détails, extraction de liens et de redirections.
+        2. La déduplication inter-plateformes et l'absence de redondance :
+           Vérifie qu'un mod SimsFinds dépendant de XML Injector v4 détecte immédiatement
+           la présence de XML Injector installé depuis CurseForge ou ModTheSims.
+        """
+        from src.infrastructure.database.models import InstalledMod
+        from src.providers.registry import ProviderRegistry
+
+        print(
+            "\n[ÉTAPE 3septies] Validation E2E SimsFinds & Déduplication Inter-Plateformes (5 plateformes)..."
+        )
+        sf_prov = ProviderRegistry.get_provider("simsfinds")
+        if not sf_prov:
+            self.inconsistencies.append("Plugin 'simsfinds' non enregistré dans ProviderRegistry.")
+            return
+
+        cat = sf_prov.CATEGORIES[0]
+        mods, _ = sf_prov.scrape_category_page(cat, page=1)
+        print(f" -> Catégorie SimsFinds '{cat['name']}' scrapée : {len(mods)} mod(s) détecté(s).")
+        if not mods:
+            self.inconsistencies.append("Aucun mod retourné par SimsFinds sur la catégorie Hairstyles.")
+            return
+
+        # Mod details
+        first_mod = mods[0]
+        details = sf_prov.get_mod_details(first_mod["page_url"])
+        dl_urls = details.get("download_urls", [])
+        print(
+            f" -> Détails SimsFinds pour '{first_mod['title']}' (ID #{first_mod['remote_id']}) : "
+            f"{len(dl_urls)} lien(s) de redirection/téléchargement."
+        )
+
+        # Validation Déduplication Multi-Plateforme (XML Injector installé depuis CurseForge ou MTS)
+        db = DatabaseManager.get_instance()
+        temp_rids = ["e2e_cf_xml_shared", "e2e_sf_blackwidow_consumer"]
+        try:
+            with db.get_session() as s:
+                s.query(InstalledMod).filter(InstalledMod.remote_id.in_(temp_rids)).delete(synchronize_session=False)
+                s.query(CatalogMod).filter(CatalogMod.remote_id.in_(temp_rids)).delete(synchronize_session=False)
+
+                # XML Injector préinstallé
+                s.add(
+                    InstalledMod(
+                        source="curseforge",
+                        remote_id="e2e_cf_xml_shared",
+                        title="XML Injector",
+                        folder_name="[CurseForge] XML Injector",
+                    )
+                )
+
+                # Mod SimsFinds nécessitant XML Injector v4
+                cm_sf = CatalogMod(
+                    source="simsfinds",
+                    remote_id="e2e_sf_blackwidow_consumer",
+                    title="Halloween Black Widow Set (Cross-Platform Dedup Check)",
+                    page_url="https://www.simsfinds.com/downloads/409082/halloween-black-widow-set-sims4",
+                    requirements_status="FOUND",
+                )
+                cm_sf.set_requirements_mods_list(
+                    [
+                        {
+                            "source": "simsfinds",
+                            "remote_id": "xml-inj",
+                            "title": "XML Injector v4",
+                            "url": "https://www.simsfinds.com/downloads/xml-injector",
+                        }
+                    ]
+                )
+                s.add(cm_sf)
+                s.commit()
+                sf_mod_id = cm_sf.id
+
+            chk_sf = self.call_api(
+                "check_dependencies",
+                {
+                    "catalog_mod_id": sf_mod_id,
+                    "source": "simsfinds",
+                    "title": "Halloween Black Widow Set (Cross-Platform Dedup Check)",
+                },
+            )
+            missing = chk_sf.get("missing_dependencies", [])
+            already = chk_sf.get("already_installed_dependencies", [])
+            dedup_ok = len(missing) == 0 and len(already) == 1
+            print(
+                f" -> [{'OK' if dedup_ok else 'FAIL'}] Déduplication inter-plateformes (SimsFinds -> CurseForge/MTS) : "
+                f"Manquantes={len(missing)}, Déjà installées={len(already)}"
+            )
+            if not dedup_ok:
+                self.inconsistencies.append("Échec de la déduplication inter-plateformes SimsFinds <-> CurseForge.")
+        finally:
+            with db.get_session() as s:
+                s.query(InstalledMod).filter(InstalledMod.remote_id.in_(temp_rids)).delete(synchronize_session=False)
+                s.query(CatalogMod).filter(CatalogMod.remote_id.in_(temp_rids)).delete(synchronize_session=False)
+                s.commit()
+
     def run(self) -> None:
         """Exécute toutes les étapes de la simulation."""
         print("=" * 80)
@@ -2068,12 +2234,18 @@ class SimulationRunner:
                 print(
                     "\n[ÉTAPE 2] Synchronisation LoversLab ignorée (--skip-sync actif). Réutilisation du catalogue existant."
                 )
-            self.audit_mods_consistency()
+            if not self.skip_audit:
+                self.audit_mods_consistency()
+            else:
+                print(
+                    "\n[ÉTAPE 3] Audit de cohérence LoversLab ignoré (--skip-audit actif)."
+                )
             self.validate_ambiguous_dependencies_and_forum_interpellation()
             self.validate_shared_dependencies_group_installation()
             self.validate_nsfwmods_provider_e2e()
             self.validate_curseforge_and_cross_platform_e2e()
             self.validate_thesimsresource_and_i18n_e2e()
+            self.validate_simsfinds_and_cross_platform_dedup_e2e()
             self.install_mods_sequentially()
             self.cleanup_installed_test_mods()
         finally:
@@ -2116,6 +2288,11 @@ def main():
         "--skip-sync",
         action="store_true",
         help="Ignorer l'étape de scraping/synchronisation du catalogue LoversLab et réutiliser les données locales",
+    )
+    parser.add_argument(
+        "--skip-audit",
+        action="store_true",
+        help="Ignorer l'audit de cohérence LoversLab et passer directement aux validations E2E",
     )
     parser.add_argument(
         "--force-login",
@@ -2170,6 +2347,7 @@ def main():
         concurrency=args.concurrency,
         limit_audit=args.limit_audit,
         fail_on_errors=args.fail_on_errors,
+        skip_audit=args.skip_audit,
     )
     runner.run()
 
