@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 240" width="160" height="240">
+  <defs>
+    <linearGradient id="pTopL" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#B9F6CA"/>
+      <stop offset="100%" stop-color="#00E676"/>
+    </linearGradient>
+    <linearGradient id="pTopR" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#69F0AE"/>
+      <stop offset="100%" stop-color="#00C853"/>
+    </linearGradient>
+    <linearGradient id="pMid" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#00E676"/>
+      <stop offset="100%" stop-color="#00A152"/>
+    </linearGradient>
+    <linearGradient id="pBotL" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00C853"/>
+      <stop offset="100%" stop-color="#00695C"/>
+    </linearGradient>
+    <linearGradient id="pBotR" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#009624"/>
+      <stop offset="100%" stop-color="#004D40"/>
+    </linearGradient>
+  </defs>
+  <polygon points="80,8 16,120 54,120" fill="url(#pTopL)"/>
+  <polygon points="80,8 54,120 106,120" fill="url(#pMid)"/>
+  <polygon points="80,8 106,120 144,120" fill="url(#pTopR)"/>
+  <polygon points="80,232 16,120 54,120" fill="url(#pBotL)"/>
+  <polygon points="80,232 54,120 106,120" fill="#008E46"/>
+  <polygon points="80,232 106,120 144,120" fill="url(#pBotR)"/>
+  <polyline points="80,8 54,120 80,232 106,120 80,8" fill="none" stroke="rgba(255,255,255,0.65)" stroke-width="2"/>
+  <line x1="16" y1="120" x2="144" y2="120" stroke="rgba(255,255,255,0.7)" stroke-width="2"/>
+</svg>
+

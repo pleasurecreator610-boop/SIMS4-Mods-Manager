@@ -9,17 +9,17 @@ hide:
 <div class="s4-hero">
   <div class="s4-hero-grid">
     <div class="s4-hero-content">
-      <div class="s4-badge-pill">💎 Écosystème Unifié Les Sims 4 • Clean Architecture & POO 3-Tiers</div>
-      <h1>Gérez, Résolvez & Protégez tous vos Mods <span>Les Sims 4</span></h1>
+      <div class="s4-badge-pill">💎 Le Compagnon Tout-en-Un pour vos Mods & Custom Content Les Sims 4</div>
+      <h1>Gérez, Installez & Protégez tous vos Mods <span>Les Sims 4</span></h1>
       <p>
-        Explorez simultanément <strong>22 plateformes de mods</strong>, téléchargez automatiquement vos frameworks
-        (<em>MCCC, XML Injector, RPO, WickedWhims, Basemental, Pose Player</em>) depuis leurs <strong>sites officiels</strong>,
-        dédupliquez vos installations inter-plateformes et détectez instantanément les conflits binaires <code>.package</code> (DBPF).
+        Parcourez tous vos sites de mods et de Custom Content au même endroit, installez automatiquement
+        les <strong>mods prérequis depuis les sites officiels</strong> de leurs créateurs, évitez les doublons
+        dans votre dossier <code>Mods</code> et détectez en un clic les fichiers incompatibles qui ralentissent ou font planter votre jeu.
       </p>
       <div class="s4-cta-row">
         <a href="features/" class="s4-btn s4-btn-primary">✨ Découvrir les Fonctionnalités</a>
-        <a href="providers/" class="s4-btn s4-btn-secondary">🔌 Explorer les 22 Plateformes</a>
-        <a href="architecture/" class="s4-btn s4-btn-secondary">🏛️ Architecture & BDD</a>
+        <a href="providers/" class="s4-btn s4-btn-secondary">🔌 Explorer les Plateformes</a>
+        <a href="#installation-rapide" class="s4-btn s4-btn-secondary">🚀 Installation Rapide</a>
       </div>
     </div>
     <div class="s4-plumbob-wrap" aria-hidden="true">
@@ -61,100 +61,99 @@ hide:
 
 <div class="s4-stats-strip">
   <div class="s4-stat-box">
-    <span class="s4-stat-number">22</span>
-    <span class="s4-stat-label">Plateformes Intégrées</span>
+    <span class="s4-stat-number">Tout-en-Un</span>
+    <span class="s4-stat-label">Tous vos sites de Mods & CC réunis</span>
   </div>
   <div class="s4-stat-box">
-    <span class="s4-stat-number">100%</span>
-    <span class="s4-stat-label">Priorité Sites Officiels</span>
+    <span class="s4-stat-number">100% Officiel</span>
+    <span class="s4-stat-label">Prérequis téléchargés à la source sans compte</span>
   </div>
   <div class="s4-stat-box">
-    <span class="s4-stat-number">O(log N)</span>
-    <span class="s4-stat-label">Moteur SQLite FTS5 & B-Tree</span>
+    <span class="s4-stat-number">Recherche Éclair</span>
+    <span class="s4-stat-label">Trouvez un mod ou CC en un instant</span>
   </div>
   <div class="s4-stat-box">
-    <span class="s4-stat-number">Zero-Copy</span>
-    <span class="s4-stat-label">Analyse Binaire DBPF mmap</span>
+    <span class="s4-stat-number">Zéro Lenteur</span>
+    <span class="s4-stat-label">Détecte les conflits sans ralentir votre PC</span>
   </div>
   <div class="s4-stat-box">
-    <span class="s4-stat-number">477</span>
-    <span class="s4-stat-label">Tests Unitaires & E2E Validés</span>
+    <span class="s4-stat-number">100% Sûr</span>
+    <span class="s4-stat-label">Sauvegarde & retour en arrière en 1 clic</span>
   </div>
 </div>
 
 ---
 
-## 🌟 Les 6 Piliers de l'Application
+## 🌟 Pourquoi utiliser SIMS 4 Mods Manager ?
 
 <div class="s4-features-grid">
   <div class="s4-feature-card">
     <span class="s4-feature-icon">🌐</span>
-    <h3>1. Catalogue Unifié (22 Sources)</h3>
+    <h3>1. Tous vos Catalogues au Même Endroit</h3>
     <p>
-      Agrège en temps réel les frameworks officiels, les catalogues communautaires SFW et les portails adultes
-      (masqués par défaut) avec recherche plein texte <code>SQLite FTS5</code> et filtre indexé par type de mod.
+      Parcourez dans une seule interface les sites officiels de créateurs, les grands catalogues communautaires
+      (coiffures, vêtements, meubles, gameplay) et les portails adultes (masqués par défaut), avec recherche instantanée et tri par catégorie.
     </p>
   </div>
   <div class="s4-feature-card">
     <span class="s4-feature-icon">🛡️</span>
-    <h3>2. Priorité Absolue aux Sites Officiels</h3>
+    <h3>2. Prérequis Téléchargés à la Source</h3>
     <p>
-      Toute dépendance vers <strong>MCCC (Deaderpool)</strong>, <strong>XML Injector (Scumbumbo)</strong>,
-      <strong>RPO / Mood Pack (Lumpinou)</strong>, <strong>WickedWhims (Wicked.cc)</strong>, <strong>Basemental</strong>
-      ou <strong>Pose Player</strong> est redirigée en <code>O(1)</code> vers son site officiel public sans compte requis.
+      Lorsqu'un mod a besoin d'un mod socle ou d'un utilitaire pour fonctionner, l'application va automatiquement
+      le chercher sur le <strong>site officiel de son créateur</strong>, gratuitement et sans compte requis, même si la fiche pointe vers un lien tiers.
     </p>
   </div>
   <div class="s4-feature-card">
     <span class="s4-feature-icon">🧩</span>
-    <h3>3. Déduplication Inter-Plateformes</h3>
+    <h3>3. Fin des Doublons & Tri Automatique</h3>
     <p>
-      L'empreinte canonique <code>title_fingerprint</code> reconnaît un même mod entre CurseForge, ModTheSims,
-      Patreon ou LoversLab, évite toute réinstallation en doublon et filtre automatiquement les consignes d'auteurs (<code>COMMENT_NOISE</code>).
+      L'application reconnaît un même mod quel que soit le site d'où il provient pour ne jamais l'installer deux fois,
+      et sépare automatiquement les vrais mods requis des simples consignes d'installation écrites par les auteurs.
     </p>
   </div>
   <div class="s4-feature-card">
     <span class="s4-feature-icon">📢</span>
-    <h3>4. Interpellation & MP aux Créateurs</h3>
+    <h3>4. Contact Direct avec les Créateurs</h3>
     <p>
-      Publiez un commentaire ou envoyez un message privé standardisé à l'auteur lorsqu'un prérequis est manquant,
-      avec vérification anti-doublon automatique, invitation à s'authentifier et révocation en 1 clic.
+      Un prérequis manquant ou un lien cassé sur la fiche d'un mod ? Prévenez l'auteur en un clic par commentaire
+      ou message privé directement depuis l'application, avec vérification automatique pour ne jamais envoyer deux fois le même message.
     </p>
   </div>
   <div class="s4-feature-card">
     <span class="s4-feature-icon">⚔️</span>
-    <h3>5. Détecteur de Conflits DBPF (mmap)</h3>
+    <h3>5. Détecteur de Mods Incompatibles</h3>
     <p>
-      Inspecte les tables d'index binaires <code>TGI (Type-Group-Instance)</code> de vos fichiers <code>.package</code>
-      sans copie RAM, distingue les collisions de Tuning des traductions <code>STBL</code> et désactive les conflits en 1 clic.
+      Identifiez immédiatement les fichiers qui modifient les mêmes éléments du jeu (causant bugs ou crashs) sans les confondre
+      avec les simples traductions, et désactivez les mods en conflit en un clic sans ralentir votre ordinateur.
     </p>
   </div>
   <div class="s4-feature-card">
     <span class="s4-feature-icon">📦</span>
-    <h3>6. Règle .ts4script & Rollback ZIP</h3>
+    <h3>6. Installation Propre & Retour en Arrière</h3>
     <p>
-      Remonte automatiquement les scripts <code>.ts4script</code> au niveau 1 (exigence stricte du jeu Les Sims 4),
-      préserve vos fichiers de configuration et crée une sauvegarde ZIP restaurable avant chaque mise à jour.
+      Vos scripts <code>.ts4script</code> sont placés automatiquement au bon endroit dans votre dossier <code>Mods</code>
+      pour être chargés par Les Sims 4, vos fichiers de réglages sont préservés et une sauvegarde vous permet d'annuler une mise à jour en 1 clic.
     </p>
   </div>
 </div>
 
 ---
 
-## 🔌 Explorateur Interactif des 22 Plateformes Intégrées
+## 🔌 Explorateur des Plateformes & Sites Supportés
 
-Recherchez un mod, un framework ou filtrez par catégorie pour explorer les **22 plateformes** et ouvrir leur fiche technique détaillée :
+Recherchez un site, un créateur ou filtrez par catégorie pour découvrir les plateformes compatibles et ouvrir leur fiche détaillée :
 
 <div class="s4-search-bar-wrap">
-  <input id="s4-provider-search" class="s4-search-input" type="search" placeholder="🔍 Rechercher une plateforme, un framework ou un créateur (ex: MCCC, XML Injector, CurseForge, Lumpinou, WickedWhims, TSR...)" />
+  <input id="s4-provider-search" class="s4-search-input" type="search" placeholder="🔍 Rechercher un site, un créateur ou un type de contenu (ex: vêtements, gameplay, meubles, animations...)" />
 </div>
 
 <div class="s4-filter-toolbar">
-  <button class="s4-filter-btn active" data-filter="all">✨ Toutes les Plateformes (22)</button>
-  <button class="s4-filter-btn" data-filter="official">🛡️ Frameworks Officiels (5)</button>
-  <button class="s4-filter-btn" data-filter="sfw">🌟 Catalogues & Créateurs SFW (12)</button>
-  <button class="s4-filter-btn" data-filter="adult">🔞 Portails Adultes +18 (5)</button>
-  <button class="s4-filter-btn" data-filter="no-account">✅ Accès Direct Sans Compte (10)</button>
-  <button class="s4-filter-btn" data-filter="comments">💬 Support Commentaires & MP (13)</button>
+  <button class="s4-filter-btn active" data-filter="all">✨ Toutes les Plateformes</button>
+  <button class="s4-filter-btn" data-filter="official">🛡️ Sites Officiels de Prérequis</button>
+  <button class="s4-filter-btn" data-filter="sfw">🌟 Catalogues & Créateurs</button>
+  <button class="s4-filter-btn" data-filter="adult">🔞 Portails Adultes (+18)</button>
+  <button class="s4-filter-btn" data-filter="no-account">✅ Téléchargement Sans Compte</button>
+  <button class="s4-filter-btn" data-filter="comments">💬 Commentaires & Messages</button>
 </div>
 
 <div class="s4-providers-grid">
@@ -164,9 +163,9 @@ Recherchez un mod, un framework ou filtrez par catégorie pour explorer les **22
         <span class="s4-provider-title">⚙️ Deaderpool (MCCC)</span>
         <span class="s4-tag s4-tag-official">Officiel</span>
       </div>
-      <div class="s4-provider-desc">Site officiel de MC Command Center (MCCC) et MC WooHoo. Priorité absolue sur toute dépendance MCCC.</div>
+      <div class="s4-provider-desc">Site officiel de MC Command Center (MCCC) et MC WooHoo. Téléchargement officiel automatique sans compte.</div>
     </div>
-    <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Public (Sans compte)</span><span class="s4-meta-pill">⚡ API / Direct</span></div>
+    <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Public (Sans compte)</span><span class="s4-meta-pill">⚡ Téléchargement direct</span></div>
   </a>
 
   <a class="s4-provider-card" href="providers/scumbumbo/" data-category="official" data-tags="official,no-account">
@@ -175,9 +174,9 @@ Recherchez un mod, un framework ou filtrez par catégorie pour explorer les **22
         <span class="s4-provider-title">🧪 Scumbumbo Memorial</span>
         <span class="s4-tag s4-tag-official">Officiel</span>
       </div>
-      <div class="s4-provider-desc">Portail officiel de XML Injector, Teleport Any Sim, Keep Instruments et utilitaires scripts Sims 4.</div>
+      <div class="s4-provider-desc">Portail officiel de XML Injector, Teleport Any Sim, Keep Instruments et utilitaires scripts indispensables.</div>
     </div>
-    <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Public (Sans compte)</span><span class="s4-meta-pill">⚡ Direct ZIP/Package</span></div>
+    <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Public (Sans compte)</span><span class="s4-meta-pill">⚡ Téléchargement direct</span></div>
   </a>
 
   <a class="s4-provider-card" href="providers/lumpinou/" data-category="official" data-tags="official,no-account">
@@ -188,7 +187,7 @@ Recherchez un mod, un framework ou filtrez par catégorie pour explorer les **22
       </div>
       <div class="s4-provider-desc">Site officiel de RPO (Relationship & Pregnancy Overhaul), Mood Pack Mod, Lumpinou's Toolbox et LGBTQIA+.</div>
     </div>
-    <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Public (Sans compte)</span><span class="s4-meta-pill">⚡ Direct / SFS</span></div>
+    <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Public (Sans compte)</span><span class="s4-meta-pill">⚡ Téléchargement direct</span></div>
   </a>
 
   <a class="s4-provider-card" href="providers/wickedcc/" data-category="official" data-tags="official,adult,no-account">
@@ -199,7 +198,7 @@ Recherchez un mod, un framework ou filtrez par catégorie pour explorer les **22
       </div>
       <div class="s4-provider-desc">Portail officiel de WickedWhims, WonderfulWhims et du répertoire officiel des créateurs d'animations.</div>
     </div>
-    <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Public (Sans compte)</span><span class="s4-meta-pill">🔞 +18 / SFW</span></div>
+    <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Public (Sans compte)</span><span class="s4-meta-pill">🔞 +18 / Tout public</span></div>
   </a>
 
   <a class="s4-provider-card" href="providers/basemental/" data-category="official" data-tags="official,adult,no-account">
@@ -208,7 +207,7 @@ Recherchez un mod, un framework ou filtrez par catégorie pour explorer les **22
         <span class="s4-provider-title">🌿 Basemental CC</span>
         <span class="s4-tag s4-tag-official">Officiel</span>
       </div>
-      <div class="s4-provider-desc">Site officiel de Basemental Drugs, Basemental Gangs et du framework Universal Venue List.</div>
+      <div class="s4-provider-desc">Site officiel de Basemental Drugs, Basemental Gangs et de l'utilitaire Universal Venue List.</div>
     </div>
     <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Public (Sans compte)</span><span class="s4-meta-pill">🔞 +18</span></div>
   </a>
@@ -217,9 +216,9 @@ Recherchez un mod, un framework ou filtrez par catégorie pour explorer les **22
     <div>
       <div class="s4-provider-head">
         <span class="s4-provider-title">🔥 CurseForge</span>
-        <span class="s4-tag s4-tag-sfw">Catalogue SFW</span>
+        <span class="s4-tag s4-tag-sfw">Catalogue CC & Mods</span>
       </div>
-      <div class="s4-provider-desc">Catalogue officiel Sims 4 avec téléchargement direct ForgeCDN, détection des dépendances et commentaires.</div>
+      <div class="s4-provider-desc">Catalogue officiel Sims 4 avec téléchargement en un clic, détection automatique des prérequis et commentaires.</div>
     </div>
     <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Compte optionnel</span><span class="s4-meta-pill">✅ Commentaires</span></div>
   </a>
@@ -228,9 +227,9 @@ Recherchez un mod, un framework ou filtrez par catégorie pour explorer les **22
     <div>
       <div class="s4-provider-head">
         <span class="s4-provider-title">👗 The Sims Resource (TSR)</span>
-        <span class="s4-tag s4-tag-sfw">Catalogue SFW</span>
+        <span class="s4-tag s4-tag-sfw">Catalogue CC & Mods</span>
       </div>
-      <div class="s4-provider-desc">Plus grand catalogue mondial de Custom Content (coiffures, vêtements, meubles, maquillage et mods).</div>
+      <div class="s4-provider-desc">Plus grand catalogue mondial de Custom Content (coiffures, vêtements, meubles, maquillage et maisons).</div>
     </div>
     <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Compte optionnel</span><span class="s4-meta-pill">✅ Commentaires</span></div>
   </a>
@@ -239,9 +238,9 @@ Recherchez un mod, un framework ou filtrez par catégorie pour explorer les **22
     <div>
       <div class="s4-provider-head">
         <span class="s4-provider-title">🛠️ ModTheSims (MTS)</span>
-        <span class="s4-tag s4-tag-sfw">Catalogue SFW</span>
+        <span class="s4-tag s4-tag-sfw">Catalogue CC & Mods</span>
       </div>
-      <div class="s4-provider-desc">Portail historique de mods de gameplay, scripts, traits, carrières et utilitaires pour Les Sims 4.</div>
+      <div class="s4-provider-desc">Portail historique de mods de gameplay, scripts, traits de caractère, carrières et utilitaires Sims 4.</div>
     </div>
     <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Compte optionnel</span><span class="s4-meta-pill">✅ Commentaires</span></div>
   </a>
@@ -250,11 +249,11 @@ Recherchez un mod, un framework ou filtrez par catégorie pour explorer les **22
     <div>
       <div class="s4-provider-head">
         <span class="s4-provider-title">⚡ Nexus Mods</span>
-        <span class="s4-tag s4-tag-sfw">Catalogue SFW</span>
+        <span class="s4-tag s4-tag-sfw">Catalogue CC & Mods</span>
       </div>
-      <div class="s4-provider-desc">Intégration GraphQL v2 et API REST v1 pour les mods Sims 4, presets Reshade et refontes de gameplay.</div>
+      <div class="s4-provider-desc">Portail communautaire proposant des mods de gameplay, améliorations visuelles Reshade et utilitaires Sims 4.</div>
     </div>
-    <div class="s4-provider-meta"><span class="s4-meta-pill">🔑 Clé API / Session</span><span class="s4-meta-pill">✅ Commentaires</span></div>
+    <div class="s4-provider-meta"><span class="s4-meta-pill">🔑 Compte / Clé API</span><span class="s4-meta-pill">✅ Commentaires</span></div>
   </a>
 
   <a class="s4-provider-card" href="providers/patreon/" data-category="sfw" data-tags="sfw,comments">
@@ -263,7 +262,7 @@ Recherchez un mod, un framework ou filtrez par catégorie pour explorer les **22
         <span class="s4-provider-title">🎨 Patreon</span>
         <span class="s4-tag s4-tag-sfw">Créateurs</span>
       </div>
-      <div class="s4-provider-desc">Synchronisation des publications publiques et abonnés des créateurs de mods et CC Sims 4.</div>
+      <div class="s4-provider-desc">Suivi des publications gratuites et abonnés de vos créateurs préférés de mods et Custom Content Sims 4.</div>
     </div>
     <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Compte optionnel</span><span class="s4-meta-pill">✅ Commentaires</span></div>
   </a>
@@ -272,9 +271,9 @@ Recherchez un mod, un framework ou filtrez par catégorie pour explorer les **22
     <div>
       <div class="s4-provider-head">
         <span class="s4-provider-title">🔎 SimsFinds</span>
-        <span class="s4-tag s4-tag-sfw">Catalogue SFW</span>
+        <span class="s4-tag s4-tag-sfw">Catalogue CC & Mods</span>
       </div>
-      <div class="s4-provider-desc">Répertoire communautaire de Custom Content, meubles, tenues et mods avec téléchargement direct.</div>
+      <div class="s4-provider-desc">Répertoire communautaire de Custom Content, meubles, tenues et mods avec téléchargement direct intégré.</div>
     </div>
     <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Compte optionnel</span><span class="s4-meta-pill">✅ Commentaires</span></div>
   </a>
@@ -285,20 +284,20 @@ Recherchez un mod, un framework ou filtrez par catégorie pour explorer les **22
         <span class="s4-provider-title">🌈 Maxis Match CC World</span>
         <span class="s4-tag s4-tag-sfw">Maxis Match</span>
       </div>
-      <div class="s4-provider-desc">Plus grand annuaire Tumblr de créations Maxis Match avec résolution automatique SimFileShare & Patreon.</div>
+      <div class="s4-provider-desc">Plus grand annuaire de créations Maxis Match (fidèles au style graphique officiel des Sims 4).</div>
     </div>
-    <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Compte Tumblr opt.</span><span class="s4-meta-pill">✅ Commentaires</span></div>
+    <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Compte optionnel</span><span class="s4-meta-pill">✅ Commentaires</span></div>
   </a>
 
   <a class="s4-provider-card" href="providers/simfileshare/" data-category="sfw" data-tags="sfw,no-account">
     <div>
       <div class="s4-provider-head">
         <span class="s4-provider-title">📁 SimFileShare (SFS)</span>
-        <span class="s4-tag s4-tag-sfw">Hébergeur Direct</span>
+        <span class="s4-tag s4-tag-sfw">Hébergeur Sims</span>
       </div>
-      <div class="s4-provider-desc">Résolveur natif haute vitesse pour tous les fichiers individuels et dossiers partagés SimFileShare.</div>
+      <div class="s4-provider-desc">Téléchargement direct haute vitesse pour tous les fichiers individuels et dossiers partagés sur SimFileShare.</div>
     </div>
-    <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Public (Sans compte)</span><span class="s4-meta-pill">⚡ Direct CDN</span></div>
+    <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Public (Sans compte)</span><span class="s4-meta-pill">⚡ Téléchargement direct</span></div>
   </a>
 
   <a class="s4-provider-card" href="providers/sims4studio/" data-category="sfw" data-tags="sfw,official,comments">
@@ -307,18 +306,18 @@ Recherchez un mod, un framework ou filtrez par catégorie pour explorer les **22
         <span class="s4-provider-title">🎬 Sims 4 Studio</span>
         <span class="s4-tag s4-tag-sfw">Officiel & Studios</span>
       </div>
-      <div class="s4-provider-desc">Hébergeur officiel d'Andrew's Pose Player, Teleport Any Sim et des Creator Studios communautaires.</div>
+      <div class="s4-provider-desc">Portail officiel d'Andrew's Pose Player, Teleport Any Sim et des galeries de créateurs de la communauté.</div>
     </div>
-    <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Compte Forum opt.</span><span class="s4-meta-pill">✅ Commentaires</span></div>
+    <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Compte optionnel</span><span class="s4-meta-pill">✅ Commentaires</span></div>
   </a>
 
   <a class="s4-provider-card" href="providers/gamebanana/" data-category="sfw" data-tags="sfw,comments">
     <div>
       <div class="s4-provider-head">
         <span class="s4-provider-title">🍌 GameBanana</span>
-        <span class="s4-tag s4-tag-sfw">API Core v11</span>
+        <span class="s4-tag s4-tag-sfw">Catalogue CC & Mods</span>
       </div>
-      <div class="s4-provider-desc">Catalogue Sims 4 propulsé par l'API JSON publique Core v11 de GameBanana (Game ID 5508).</div>
+      <div class="s4-provider-desc">Catalogue communautaire regroupant des mods, remplacements d'interfaces, tenues et créations originales Sims 4.</div>
     </div>
     <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Compte optionnel</span><span class="s4-meta-pill">✅ Commentaires</span></div>
   </a>
@@ -327,11 +326,11 @@ Recherchez un mod, un framework ou filtrez par catégorie pour explorer les **22
     <div>
       <div class="s4-provider-head">
         <span class="s4-provider-title">📚 The Sims Catalog</span>
-        <span class="s4-tag s4-tag-sfw">Catalogue SFW</span>
+        <span class="s4-tag s4-tag-sfw">Catalogue CC & Mods</span>
       </div>
-      <div class="s4-provider-desc">Portail public de mods de gameplay, carrières, traits de caractère et coiffures Sims 4.</div>
+      <div class="s4-provider-desc">Sélection publique de mods de gameplay, carrières, traits de caractère et coiffures Sims 4.</div>
     </div>
-    <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Public (Sans compte)</span><span class="s4-meta-pill">⚡ Accès Direct</span></div>
+    <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Public (Sans compte)</span><span class="s4-meta-pill">⚡ Téléchargement direct</span></div>
   </a>
 
   <a class="s4-provider-card" href="providers/itchio/" data-category="sfw" data-tags="sfw,comments">
@@ -340,7 +339,7 @@ Recherchez un mod, un framework ou filtrez par catégorie pour explorer les **22
         <span class="s4-provider-title">🎮 itch.io (Sims 4)</span>
         <span class="s4-tag s4-tag-sfw">Créateurs Indés</span>
       </div>
-      <div class="s4-provider-desc">Mods indépendants, outils et créations tagués <code>sims-4</code> sur la plateforme itch.io.</div>
+      <div class="s4-provider-desc">Créations indépendantes, mods narratifs et contenus personnalisés publiés pour Les Sims 4 sur itch.io.</div>
     </div>
     <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Compte optionnel</span><span class="s4-meta-pill">✅ Commentaires</span></div>
   </a>
@@ -351,20 +350,20 @@ Recherchez un mod, un framework ou filtrez par catégorie pour explorer les **22
         <span class="s4-provider-title">🌟 LittleMsSam's Mods</span>
         <span class="s4-tag s4-tag-sfw">Créatrice Majeure</span>
       </div>
-      <div class="s4-provider-desc">Plus de 200 mods de gameplay, Random Small Mods (RSM) et correctifs maintenus à chaque patch EA.</div>
+      <div class="s4-provider-desc">Plus de 200 mods de gameplay, améliorations du quotidien et correctifs mis à jour à chaque patch officiel EA.</div>
     </div>
-    <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Public (Sans compte)</span><span class="s4-meta-pill">⚡ Direct / SFS</span></div>
+    <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Public (Sans compte)</span><span class="s4-meta-pill">⚡ Téléchargement direct</span></div>
   </a>
 
   <a class="s4-provider-card" href="providers/sixamcc/" data-category="sfw" data-tags="sfw,no-account">
     <div>
       <div class="s4-provider-head">
         <span class="s4-provider-title">🛋️ SixamCC</span>
-        <span class="s4-tag s4-tag-sfw">Packs CC</span>
+        <span class="s4-tag s4-tag-sfw">Packs Meubles & CC</span>
       </div>
-      <div class="s4-provider-desc">Packs d'objets, mobilier et décoration Maxis Match conçus comme des Kits officiels Sims 4.</div>
+      <div class="s4-provider-desc">Packs complets de mobilier, d'objets et de décoration Maxis Match conçus comme des Kits officiels Sims 4.</div>
     </div>
-    <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Public (Sans compte)</span><span class="s4-meta-pill">⚡ Accès Direct</span></div>
+    <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Public (Sans compte)</span><span class="s4-meta-pill">⚡ Téléchargement direct</span></div>
   </a>
 
   <a class="s4-provider-card" href="providers/loverslab/" data-category="adult" data-tags="adult,comments">
@@ -373,9 +372,9 @@ Recherchez un mod, un framework ou filtrez par catégorie pour explorer les **22
         <span class="s4-provider-title">🔞 LoversLab</span>
         <span class="s4-tag s4-tag-adult">Adulte +18</span>
       </div>
-      <div class="s4-provider-desc">Catalogue complet Sims 4 Adulte (14 sous-catégories, animations, frameworks, support Forum IPS4 & MP).</div>
+      <div class="s4-provider-desc">Plus grand portail communautaire Sims 4 Adulte (animations, mods de gameplay +18, vêtements et accessoires).</div>
     </div>
-    <div class="s4-provider-meta"><span class="s4-meta-pill">🔑 Compte requis</span><span class="s4-meta-pill">✅ Forum & MP</span></div>
+    <div class="s4-provider-meta"><span class="s4-meta-pill">🔑 Compte requis</span><span class="s4-meta-pill">✅ Forum & Messages</span></div>
   </a>
 
   <a class="s4-provider-card" href="providers/nsfwmods/" data-category="adult" data-tags="adult,comments">
@@ -384,9 +383,9 @@ Recherchez un mod, un framework ou filtrez par catégorie pour explorer les **22
         <span class="s4-provider-title">🔞 NSFWMods</span>
         <span class="s4-tag s4-tag-adult">Adulte +18</span>
       </div>
-      <div class="s4-provider-desc">Portail communautaire de mods adultes, animations et accessoires Sims 4 sur moteur IPS4.</div>
+      <div class="s4-provider-desc">Portail communautaire dédié aux mods adultes, animations et accessoires personnalisés pour Les Sims 4.</div>
     </div>
-    <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Compte optionnel</span><span class="s4-meta-pill">✅ Forum & MP</span></div>
+    <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Compte optionnel</span><span class="s4-meta-pill">✅ Forum & Messages</span></div>
   </a>
 
   <a class="s4-provider-card" href="providers/synthira/" data-category="adult" data-tags="adult,comments">
@@ -395,7 +394,7 @@ Recherchez un mod, un framework ou filtrez par catégorie pour explorer les **22
         <span class="s4-provider-title">🔞 Synthira.ru</span>
         <span class="s4-tag s4-tag-adult">Adulte +18</span>
       </div>
-      <div class="s4-provider-desc">Portail Sims 4 (+18) regroupant mods adultes, animations WickedWhims et traductions.</div>
+      <div class="s4-provider-desc">Portail Sims 4 (+18) regroupant mods adultes, packs d'animations, tenues et traductions communautaires.</div>
     </div>
     <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Compte optionnel</span><span class="s4-meta-pill">✅ Commentaires</span></div>
   </a>
@@ -406,9 +405,9 @@ Recherchez un mod, un framework ou filtrez par catégorie pour explorer les **22
         <span class="s4-provider-title">🔞 F95zone (Sims 4)</span>
         <span class="s4-tag s4-tag-adult">Adulte +18</span>
       </div>
-      <div class="s4-provider-desc">Fils dédiés aux mods Sims 4, packs d'animations et scripts sur le forum XenForo 2 F95zone.</div>
+      <div class="s4-provider-desc">Discussions et partages dédiés aux mods Sims 4, packs d'animations et utilitaires adultes sur F95zone.</div>
     </div>
-    <div class="s4-provider-meta"><span class="s4-meta-pill">🔑 Compte requis</span><span class="s4-meta-pill">✅ Forum & MP</span></div>
+    <div class="s4-provider-meta"><span class="s4-meta-pill">🔑 Compte requis</span><span class="s4-meta-pill">✅ Forum & Messages</span></div>
   </a>
 
   <a class="s4-provider-card" href="providers/smutbase/" data-category="adult" data-tags="adult,no-account">
@@ -417,21 +416,37 @@ Recherchez un mod, un framework ou filtrez par catégorie pour explorer les **22
         <span class="s4-provider-title">🔞 SmutBase</span>
         <span class="s4-tag s4-tag-adult">Adulte +18</span>
       </div>
-      <div class="s4-provider-desc">Archive publique d'assets 3D, rigs, accessoires et ressources d'animation compatibles Sims 4.</div>
+      <div class="s4-provider-desc">Bibliothèque publique d'accessoires 3D, de modèles et de ressources d'animation compatibles avec Les Sims 4.</div>
     </div>
-    <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Public (Sans compte)</span><span class="s4-meta-pill">⚡ Accès Direct</span></div>
+    <div class="s4-provider-meta"><span class="s4-meta-pill">✅ Public (Sans compte)</span><span class="s4-meta-pill">⚡ Téléchargement direct</span></div>
   </a>
 </div>
 
 ---
 
-## 🧭 Sommaire Général de la Documentation
+## 🚀 Installation Rapide {#installation-rapide}
 
-| Section | Description | Accès Direct |
+Lancez **SIMS 4 Mods Manager** sur votre ordinateur en 3 commandes :
+
+```powershell
+# 1. Installer le gestionnaire d'environnement uv (via Scoop)
+scoop install uv
+
+# 2. Préparer l'application et le navigateur intégré
+uv sync
+uv run playwright install chromium
+
+# 3. Ouvrir SIMS 4 Mods Manager
+uv run python run.py
+```
+
+---
+
+## 🧭 Sommaire des Guides
+
+| Rubrique | Ce que vous y trouverez | Accès Direct |
 | :--- | :--- | :--- |
-| ✨ **Fonctionnalités** | Guide illustré complet de toutes les fonctionnalités utilisateur | [👉 Ouvrir le Guide des Fonctionnalités](features.md) |
-| 🔌 **22 Plateformes** | Comparatif technique et fiches dédiées des 22 providers | [👉 Ouvrir le Catalogue des 22 Plateformes](providers/README.md) |
-| 🏛️ **Architecture & BDD** | Clean Architecture, POO 3-Tiers, SQLite WAL/FTS5, DBPF `mmap` | [👉 Ouvrir l'Architecture Unifiée](architecture.md) |
-| 🧩 **Dépendances & Bruit** | Priorité aux sites officiels, `ModMatcher` et classification `COMMENT_NOISE` | [👉 Ouvrir le Pipeline des Dépendances](dependency_classification_and_noise.md) |
-| 🌐 **API REST FastAPI** | Référence complète des endpoints REST et flux NDJSON | [👉 Ouvrir la Référence API REST](api_reference.md) |
-| 📐 **Décisions ADR** | Architecture Decision Records (ADR 0001 à 0005) | [👉 Ouvrir les Décisions ADR](adr/index.md) |
+| ✨ **Guide des Fonctionnalités** | Découverte pas à pas du catalogue, des prérequis automatiques, des sauvegardes et du détecteur de conflits | [👉 Ouvrir le Guide des Fonctionnalités](features.md) |
+| 🔌 **Plateformes & Sites Supportés** | Présentation de tous les sites de mods et CC compatibles, niveau d'accès et fiches détaillées | [👉 Ouvrir le Catalogue des Plateformes](providers/README.md) |
+| 🌍 **Langues & Accessibilité** | Changement de langue en un clic (Français, Anglais, Espagnol, Chinois, Hindi) | [👉 Ouvrir le Guide des Langues](i18n.md) |
+| 🛠️ **Espace Technique (Développeurs)** | Architecture logicielle, base de données, API REST et ajout de nouvelles plateformes | [👉 Ouvrir la Documentation Technique](architecture.md) |

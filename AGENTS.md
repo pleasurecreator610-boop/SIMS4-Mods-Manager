@@ -60,15 +60,19 @@ Tout ajout ou modification d'un provider par un agent LLM **DOIT** être accompa
 **Toute nouvelle fonctionnalité (feature), évolution d'architecture ou intégration de plateforme DOIT obligatoirement inclure la mise à jour de la GitHub Page et de la documentation modulaire** en respectant les contraintes existantes :
 
 1. **Page Vitrine GitHub Pages "Les Sims 4" (`documentation/index.md`, `documentation/stylesheets/sims4_theme.css`, `documentation/javascripts/sims4_showcase.js`)** :
-   - Conserver l'identité visuelle **Les Sims 4** (Plumbob SVG animé, thème Émeraude `#00E676` / Bleu Saphir `#00B0FF`, cartes glassmorphism `.s4-feature-card` et `.s4-provider-card`).
-   - Mettre à jour les cartes de fonctionnalités (`.s4-features-grid`), les compteurs KPI (`.s4-stats-strip`) et l'explorateur filtrable des plateformes (`.s4-providers-grid` avec attributs `data-category` et `data-tags`).
+   - Conserver l'identité visuelle **Les Sims 4 Clair par défaut** (`scheme: default`, Bleu Saphir `#0077C8` / Vert Plumbob `#00C853`, fond lumineux `#F4F9FD`, icône d'onglet et logo `documentation/assets/plumbob.svg`, cartes `.s4-feature-card` et `.s4-provider-card`).
+   - **Rédaction 100% Orientée Joueur Les Sims 4 sur les pages utilisateur (`index.md`, `features.md`, `providers/README.md`, `README.md`)** :
+     - **Zéro jargon technique** (interdiction d'exposer `O(log N)`, `SQLite FTS5`, `DBPF mmap`, `Clean Architecture`, `TGI`, `STBL` ou le nombre de tests unitaires sur les pages destinées aux joueurs ; ces éléments restent dans `documentation/architecture.md`).
+     - **Zéro compteur figé de plateformes** (ne jamais écrire `22 plateformes` en dur dans les textes, titres, menus ou boutons de filtres car ce nombre évolue).
+     - **Zéro liste figée de mods socles** dans les textes de présentation générale.
+     - Toujours utiliser des indicateurs verts (`✅`) pour les conditions positives (`✅ Public (Sans compte)`, `✅ Compte optionnel`, `✅ Commentaires`).
 2. **Documentation Modulaire & Index (`README.md` & `documentation/`)** :
-   - Maintenir le [`README.md`](./README.md) racine concis et centré sur son rôle d'index.
+   - Maintenir le [`README.md`](./README.md) racine concis, orienté joueur et centré sur son rôle d'index.
    - Mettre à jour les guides spécialisés impactés :
-     - [`documentation/features.md`](./documentation/features.md) (pour toute nouvelle fonctionnalité utilisateur ou métier).
+     - [`documentation/features.md`](./documentation/features.md) (pour toute nouvelle fonctionnalité utilisateur, expliquée du point de vue du joueur Sims 4).
      - [`documentation/architecture.md`](./documentation/architecture.md) (pour toute évolution d'architecture, de schéma/index SQLite ou de sécurité).
      - [`documentation/providers/README.md`](./documentation/providers/README.md) & `documentation/providers/<provider>.md` (pour tout ajout ou modification de provider).
-     - [`mkdocs.yml`](./mkdocs.yml) (navigation et liens).
+     - [`mkdocs.yml`](./mkdocs.yml) (navigation et liens sans compteur figé).
 3. **Validation Obligatoire du Build MkDocs** :
    - Toujours vérifier que la génération statique de la GitHub Page compile sans aucune erreur avant de créer une Pull Request :
      ```powershell
