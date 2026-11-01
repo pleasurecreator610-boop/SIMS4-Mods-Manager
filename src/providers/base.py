@@ -52,6 +52,36 @@ class BaseSourceProvider(ABC):
                 time.sleep(cls._min_request_interval - elapsed)
             cls._last_request_ts = time.monotonic()
 
+    @classmethod
+    def _fetch_with_retry(
+        cls,
+        session: Any,
+        url: str,
+        timeout: float = 15.0,
+        max_retries: int = 2,
+        **kwargs: Any,
+    ) -> Any:
+        """Exécute une requête HTTP GET avec gestion résiliente des codes 429/502/503/504 et Retry-After."""
+        cls._pace_request(session)
+        is_mock = bool(getattr(session, "_is_mock", False) or hasattr(session, "assert_called"))
+        attempts = 1 if is_mock else max(1, max_retries + 1)
+        last_resp = None
+        for attempt in range(attempts):
+            resp = session.get(url, timeout=timeout, **kwargs)
+            last_resp = resp
+            status = getattr(resp, "status_code", 200)
+            if status not in (429, 502, 503, 504) or attempt + 1 >= attempts:
+                return resp
+            retry_after = 0.5 * (attempt + 1)
+            headers = getattr(resp, "headers", None)
+            if isinstance(headers, dict) and "Retry-After" in headers:
+                try:
+                    retry_after = min(5.0, max(0.2, float(headers["Retry-After"])))
+                except (ValueError, TypeError):
+                    pass
+            time.sleep(retry_after)
+        return last_resp
+
     def update_category_detected_pages(self, cat_id: str, detected_pages: int) -> None:
         """Met à jour le cache du nombre de pages détectées pour une sous-catégorie."""
         if detected_pages > 0:

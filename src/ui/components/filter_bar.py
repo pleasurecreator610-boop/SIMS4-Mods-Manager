@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Signal, Qt
 from src.core.config import AppConfig
+from src.core.provider_metadata import PROVIDER_SPECS
 from src.utils.mod_type_classifier import ModTypeClassifier
 from src.i18n import I18nManager, tr
 
@@ -121,30 +122,12 @@ class FilterBar(QWidget):
         self.source_combo.blockSignals(True)
         self.source_combo.clear()
         self.source_combo.addItem(tr("catalog.filter_provider_all"), "all")
-        self.source_combo.addItem("CurseForge", "CurseForge")
-        self.source_combo.addItem("The Sims Resource", "The Sims Resource")
-        self.source_combo.addItem("ModTheSims", "ModTheSims")
-        self.source_combo.addItem("SimsFinds", "SimsFinds")
-        self.source_combo.addItem("Nexus Mods", "Nexus Mods")
-        self.source_combo.addItem("Maxis Match CC World", "Maxis Match CC World")
-        self.source_combo.addItem("Deaderpool (MCCC)", "deaderpool")
-        self.source_combo.addItem("Scumbumbo Mods", "scumbumbo")
-        self.source_combo.addItem("Lumpinou Mods", "lumpinou")
-        self.source_combo.addItem("GameBanana", "gamebanana")
-        self.source_combo.addItem("The Sims Catalog", "thesimscatalog")
-        self.source_combo.addItem("Itch.io (Sims 4)", "itchio")
-        self.source_combo.addItem("Sims 4 Studio", "sims4studio")
-        self.source_combo.addItem("LittleMsSam Mods", "littlemssam")
-        self.source_combo.addItem("Sixam CC", "sixamcc")
-        if self._adult_enabled:
-            self.source_combo.addItem("Wicked.cc (Official WW)", "wickedcc")
-            self.source_combo.addItem("Basemental CC", "basemental")
-            self.source_combo.addItem("Synthira", "synthira")
-            self.source_combo.addItem("F95zone", "f95zone")
-            self.source_combo.addItem("SmutBase", "smutbase")
-            self.source_combo.addItem("LoversLab", "LoversLab")
-            self.source_combo.addItem("NSFWMods", "NSFWMods")
-        self.source_combo.addItem("Patreon", "Patreon")
+        for spec in PROVIDER_SPECS.values():
+            if not spec.in_catalog_filter:
+                continue
+            if spec.is_adult and not self._adult_enabled:
+                continue
+            self.source_combo.addItem(spec.filter_label, spec.filter_data)
         idx = self.source_combo.findData(src_curr)
         if idx >= 0:
             self.source_combo.setCurrentIndex(idx)

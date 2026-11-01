@@ -34,6 +34,7 @@ class DependencyCoordinator:
         is_syncing: bool,
         catalog_remote_ids: Optional[Set[Tuple[str, str]]] = None,
         requirements_overrides: Optional[Dict[str, str]] = None,
+        precomputed_index: Optional[Tuple[List[Any], Set[str]]] = None,
     ) -> DependencyItem:
         """Resolves a single raw dependency item into a typed DependencyItem DTO."""
         source = dep.get("source", "loverslab")
@@ -119,6 +120,7 @@ class DependencyCoordinator:
             title=title,
             installed_by_remote=installed_by_remote,
             installed_by_title=installed_by_title,
+            precomputed_index=precomputed_index,
         )
 
         # 5. Determine status
@@ -168,6 +170,7 @@ class DependencyCoordinator:
         and applies deduplication while preserving ordering.
         """
         items: List[DependencyItem] = []
+        precomputed_index = self.actions.build_installed_index(installed_by_remote, installed_by_title)
 
         for dep in raw_deps:
             dep_dict = dep if isinstance(dep, dict) else {"title": str(dep)}
@@ -179,6 +182,7 @@ class DependencyCoordinator:
                 is_syncing=is_syncing,
                 catalog_remote_ids=catalog_remote_ids,
                 requirements_overrides=requirements_overrides,
+                precomputed_index=precomputed_index,
             )
             items.append(item)
 

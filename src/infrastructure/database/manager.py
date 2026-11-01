@@ -92,7 +92,7 @@ class DatabaseManager:
                         cm.id: cm for cm in session.query(CatalogMod).filter(CatalogMod.id.in_(cat_ids)).all()
                     }
                     for im in installed_mods:
-                        cm = catalog_map.get(im.catalog_mod_id)
+                        cm = catalog_map.get(im.catalog_mod_id) if im.catalog_mod_id is not None else None
                         if not cm:
                             im.catalog_mod_id = None
                             repaired_links += 1

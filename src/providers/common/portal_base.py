@@ -347,13 +347,12 @@ class BasePortalProvider(BaseSourceProvider):
         cat_url = category.get("url", self.base_url)
         url = cat_url if page <= 1 else f"{cat_url.rstrip('/')}/?page={page}"
         session = SessionManager.get_http_session(self.provider_name)
-        self._pace_request(session)
 
         results: List[Dict[str, Any]] = []
         detected_pages: Optional[int] = category.get("default_pages", 1)
 
         try:
-            resp = session.get(url, timeout=15)
+            resp = self._fetch_with_retry(session, url, timeout=15)
             if resp.status_code == 200 and resp.text:
                 parsed, det_p = parse_portal_catalog_html(
                     resp.text,
@@ -418,9 +417,8 @@ class BasePortalProvider(BaseSourceProvider):
             return details
 
         session = SessionManager.get_http_session(self.provider_name)
-        self._pace_request(session)
         try:
-            resp = session.get(mod_url, timeout=15)
+            resp = self._fetch_with_retry(session, mod_url, timeout=15)
             if resp.status_code == 200 and resp.text:
                 soup = BeautifulSoup(resp.text, "html.parser")
                 if not ref and soup.title and soup.title.string:

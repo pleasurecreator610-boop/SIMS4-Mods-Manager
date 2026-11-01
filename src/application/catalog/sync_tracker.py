@@ -11,6 +11,7 @@ from src.api.schemas.catalog import (
     CatalogSyncStatusResponse,
     SubCategoryProgress,
 )
+from src.core.provider_metadata import build_initial_providers_status
 from src.infrastructure.database.manager import DatabaseManager
 from src.core.shutdown_manager import ShutdownManager
 from src.utils.logger import logger
@@ -38,31 +39,7 @@ class SyncTracker:
     page1_ready: bool = False
     last_completed_at: Optional[str] = None
     categories: Dict[str, Dict[str, Any]] = {}
-    providers_status: Dict[str, str] = {
-        "curseforge": "OK",
-        "thesimsresource": "OK",
-        "modthesims": "OK",
-        "simsfinds": "OK",
-        "nexusmods": "OK",
-        "mmccworld": "OK",
-        "deaderpool": "OK",
-        "scumbumbo": "OK",
-        "lumpinou": "OK",
-        "gamebanana": "OK",
-        "thesimscatalog": "OK",
-        "itchio": "OK",
-        "sims4studio": "OK",
-        "littlemssam": "OK",
-        "sixamcc": "OK",
-        "wickedcc": "OK",
-        "basemental": "OK",
-        "synthira": "OK",
-        "f95zone": "OK",
-        "smutbase": "OK",
-        "loverslab": "OK",
-        "nsfwmods": "OK",
-        "patreon": "OK",
-    }
+    providers_status: Dict[str, str] = build_initial_providers_status()
     _cached_db_count: int = 0
     _last_count_time: float = 0.0
 
@@ -325,31 +302,7 @@ class SyncTracker:
             cls.error_message = None
             cls.page1_ready = False
             cls.categories.clear()
-            cls.providers_status = {
-                "curseforge": "OK",
-                "thesimsresource": "OK",
-                "modthesims": "OK",
-                "simsfinds": "OK",
-                "nexusmods": "OK",
-                "mmccworld": "OK",
-                "deaderpool": "OK",
-                "scumbumbo": "OK",
-                "lumpinou": "OK",
-                "gamebanana": "OK",
-                "thesimscatalog": "OK",
-                "itchio": "OK",
-                "sims4studio": "OK",
-                "littlemssam": "OK",
-                "sixamcc": "OK",
-                "wickedcc": "OK",
-                "basemental": "OK",
-                "synthira": "OK",
-                "f95zone": "OK",
-                "smutbase": "OK",
-                "loverslab": "OK",
-                "nsfwmods": "OK",
-                "patreon": "OK",
-            }
+            cls.providers_status = build_initial_providers_status()
 
     @classmethod
     def to_response(cls) -> CatalogSyncStatusResponse:

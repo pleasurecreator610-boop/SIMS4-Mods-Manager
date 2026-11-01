@@ -12,6 +12,7 @@ from src.api.schemas.accounts import (
     AccountStatusItem,
 )
 from src.core.config import ACCOUNT_SUPPORTED_PROVIDERS, PUBLIC_NO_ACCOUNT_PROVIDERS
+from src.core.provider_metadata import build_providers_login_urls
 from src.core.session_manager import SessionManager
 from src.infrastructure.database.repositories.sqlalchemy_account_repository import (
     SqlAlchemyAccountRepository,
@@ -22,24 +23,7 @@ from src.providers import ProviderRegistry
 router = APIRouter(prefix="/accounts", tags=["Accounts & Anti-Bot"])
 _account_repo = SqlAlchemyAccountRepository()
 
-PROVIDERS_LOGIN_URLS = {
-    "loverslab": "https://www.loverslab.com/login/",
-    "nsfwmods": "https://nsfwmods.com/login/",
-    "curseforge": "https://www.curseforge.com/login",
-    "thesimsresource": "https://www.thesimsresource.com/account/login",
-    "patreon": "https://www.patreon.com/login",
-    "modthesims": "https://modthesims.info/member.php?action=login",
-    "simsfinds": "https://www.simsfinds.com/en/downloads/sims4",
-    "nexusmods": "https://users.nexusmods.com/auth/sign_in?redirect_url=https%3A%2F%2Fwww.nexusmods.com%2Fthesims4",
-    "simfileshare": "https://simfileshare.net/",
-    "mmccworld": "https://www.tumblr.com/login?redirect_to=https%3A%2F%2Fmaxismatchccworld.tumblr.com%2F",
-    "maxismatchccworld": "https://www.tumblr.com/login?redirect_to=https%3A%2F%2Fmaxismatchccworld.tumblr.com%2F",
-    "sims4studio": "https://sims4studio.com/login",
-    "f95zone": "https://f95zone.to/login/",
-    "itchio": "https://itch.io/login",
-    "gamebanana": "https://gamebanana.com/members/account/login",
-    "synthira": "https://synthira.ru/index/1",
-}
+PROVIDERS_LOGIN_URLS = build_providers_login_urls()
 
 
 def _get_registered_provider_names() -> list[str]:
@@ -172,7 +156,7 @@ def set_nexusmods_api_key(payload: dict[str, str]) -> AccountActionResponse:
             cookies = {"nexusmods_api_key": key}
             SessionManager.save_session(
                 provider_name="nexusmods",
-                cookies_dict=cookies,
+                cookies=cookies,
                 user_display_name=username,
                 is_authenticated=True,
             )

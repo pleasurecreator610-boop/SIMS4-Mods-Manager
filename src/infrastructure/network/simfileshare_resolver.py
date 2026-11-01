@@ -101,7 +101,7 @@ class SimFileShareResolver(BaseDownloader):
 
             # Chercher <a href="...download/.../?dl"> ou lien contenant /download/
             for a in soup.find_all("a", href=True):
-                href = a["href"]
+                href = str(a.get("href") or "")
                 if "/download/" in href and (file_id in href if file_id else True):
                     direct_link = urllib.parse.urljoin(cls.BASE_URL, href)
                     if not filename:
