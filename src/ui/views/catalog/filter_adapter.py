@@ -7,23 +7,55 @@ from typing import Dict, Any, Optional
 __all__ = ["build_catalog_api_params"]
 
 
+_SOURCE_MAPPING: Dict[str, str] = {
+    "loverslab": "loverslab",
+    "nsfwmods": "nsfwmods",
+    "curseforge": "curseforge",
+    "the sims resource": "thesimsresource",
+    "tsr": "thesimsresource",
+    "thesimsresource": "thesimsresource",
+    "modthesims": "modthesims",
+    "simsfinds": "simsfinds",
+    "nexus mods": "nexusmods",
+    "nexusmods": "nexusmods",
+    "maxis match cc world": "mmccworld",
+    "mmccworld": "mmccworld",
+    "patreon": "patreon",
+    "deaderpool": "deaderpool",
+    "deaderpool (mccc)": "deaderpool",
+    "scumbumbo": "scumbumbo",
+    "scumbumbo mods": "scumbumbo",
+    "lumpinou": "lumpinou",
+    "lumpinou mods": "lumpinou",
+    "gamebanana": "gamebanana",
+    "the sims catalog": "thesimscatalog",
+    "thesimscatalog": "thesimscatalog",
+    "itch.io (sims 4)": "itchio",
+    "itchio": "itchio",
+    "sims 4 studio": "sims4studio",
+    "sims4studio": "sims4studio",
+    "littlemssam": "littlemssam",
+    "littlemssam mods": "littlemssam",
+    "sixam cc": "sixamcc",
+    "sixamcc": "sixamcc",
+    "wicked.cc (official ww)": "wickedcc",
+    "wickedcc": "wickedcc",
+    "basemental": "basemental",
+    "basemental cc": "basemental",
+    "synthira": "synthira",
+    "f95zone": "f95zone",
+    "smutbase": "smutbase",
+}
+
+
 def build_catalog_api_params(
     filter_state: Dict[str, Any],
     current_page: int,
     page_size: int,
 ) -> Dict[str, Any]:
     """Translates UI filter dropdowns and search inputs into REST API query parameters."""
-    source_param: Optional[str] = None
-    if filter_state.get("source") == "LoversLab":
-        source_param = "loverslab"
-    elif filter_state.get("source") == "NSFWMods":
-        source_param = "nsfwmods"
-    elif filter_state.get("source") == "CurseForge":
-        source_param = "curseforge"
-    elif filter_state.get("source") in ("The Sims Resource", "TSR", "thesimsresource"):
-        source_param = "thesimsresource"
-    elif filter_state.get("source") == "Patreon":
-        source_param = "patreon"
+    raw_src = str(filter_state.get("source") or "").strip().lower()
+    source_param: Optional[str] = _SOURCE_MAPPING.get(raw_src)
 
     type_param = filter_state.get("mod_type")
     if type_param == "all":

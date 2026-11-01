@@ -167,6 +167,16 @@ class RequirementReporterService:
                 compose_pm_url = "https://forums.thesimsresource.com/messenger/"
             elif src_lower == "curseforge":
                 compose_pm_url = f"{page_url.rstrip('/')}/comments" if page_url else creator_profile_url
+            elif src_lower == "sims4studio":
+                compose_pm_url = f"https://sims4studio.com/conversation/new/{creator_id}"
+            elif src_lower == "f95zone":
+                compose_pm_url = f"https://f95zone.to/conversations/add?to={creator_name or creator_id}"
+            elif src_lower == "gamebanana":
+                compose_pm_url = f"https://gamebanana.com/pm/add?recipient={creator_id}"
+            elif src_lower == "itchio":
+                compose_pm_url = creator_profile_url or page_url
+            elif src_lower == "synthira":
+                compose_pm_url = f"https://synthira.ru/index/14-{creator_id}-0-1"
             else:
                 compose_pm_url = creator_profile_url
 

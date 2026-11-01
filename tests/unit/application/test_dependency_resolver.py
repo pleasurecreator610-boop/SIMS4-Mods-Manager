@@ -77,17 +77,18 @@ def test_extract_multi_requirements_delimiter_splitting():
 
     titles = [m["title"] for m in mods]
     assert "WickedWhims" in titles
-    assert "Basemental Drug" in titles
+    assert "Basemental Drugs" in titles
 
-    # WickedWhims is matched to known remote_id 3169
+    # WickedWhims is matched to known remote_id 3169 on official wicked.cc
     ww_mod = next(m for m in mods if m["title"] == "WickedWhims")
     assert ww_mod["remote_id"] == "3169"
-    assert "loverslab.com" in ww_mod["url"]
+    assert "wicked.cc" in ww_mod["url"]
 
-    # Basemental Drug is kept with remote_id "" (pending verification)
-    bd_mod = next(m for m in mods if m["title"] == "Basemental Drug")
-    assert bd_mod["remote_id"] == ""
-    assert st == "PENDING_VERIFICATION"
+    # Basemental Drug is matched to official Basemental Drugs on basementalcc.com
+    bd_mod = next(m for m in mods if m["title"] == "Basemental Drugs")
+    assert bd_mod["source"] == "basemental"
+    assert "basementalcc.com" in bd_mod["url"]
+    assert st == "RESOLVED"
 
 
 def test_resolve_mod_dependencies_four_statuses():
@@ -514,10 +515,10 @@ def test_cross_view_synchronization_and_panel_counts():
 
 def test_special_dependency_cases_and_wickedwhims_mapping():
     """
-    Tests that only WickedWhims is defined in SPECIAL_DEPENDENCY_CASES,
-    that all aliases (WW, with/without '-' or '_') match WickedWhims,
-    and that Nisa's Wicked Perversions is NOT in the special cases table
-    and is handled through standard catalog resolution.
+    Tests that official frameworks (WickedWhims, Deaderpool MCCC, Scumbumbo XML Injector,
+    Lumpinou RPO/Mood Pack/Toolbox, Basemental, Andrew's Pose Player) are defined in
+    SPECIAL_DEPENDENCY_CASES and redirected to their official websites, while Nisa's Wicked Perversions
+    is NOT in the special cases table and is handled through standard catalog resolution.
     """
     from src.application.dependencies.dependency_resolver import (
         SPECIAL_DEPENDENCY_CASES,
@@ -527,12 +528,13 @@ def test_special_dependency_cases_and_wickedwhims_mapping():
     from src.infrastructure.database.manager import DatabaseManager
     from src.infrastructure.database.models import CatalogMod
 
-    # 1. Exactly 1 special case defined: WickedWhims
-    assert len(SPECIAL_DEPENDENCY_CASES) == 1
+    # 1. Official framework cases defined starting with WickedWhims on wicked.cc
+    assert len(SPECIAL_DEPENDENCY_CASES) >= 20
     ww_case = SPECIAL_DEPENDENCY_CASES[0]
     assert ww_case["title"] == "WickedWhims"
     assert ww_case["remote_id"] == "3169"
-    assert ww_case["url"] == "https://www.loverslab.com/files/file/3169-wickedwhims/"
+    assert ww_case["source"] == "wickedcc"
+    assert ww_case["url"] == "https://wicked.cc/download/3169-wickedwhims/"
 
     # 2. Test aliases: WW, with/without '-' or '_', casing, spaces
     variations = [
@@ -558,7 +560,8 @@ def test_special_dependency_cases_and_wickedwhims_mapping():
         assert res is not None, f"Failed to match special case for: {var}"
         assert res["title"] == "WickedWhims"
         assert res["remote_id"] == "3169"
-        assert res["url"] == "https://www.loverslab.com/files/file/3169-wickedwhims/"
+        assert res["source"] == "wickedcc"
+        assert res["url"] == "https://wicked.cc/download/3169-wickedwhims/"
 
     # 3. Nisa's Wicked Perversions is NOT in the special cases table
     nisa_special = find_special_dependency_case("Nisa's Wicked Perversions")

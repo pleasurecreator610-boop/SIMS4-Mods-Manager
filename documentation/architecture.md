@@ -1,159 +1,164 @@
-# Architecture du Projet : SIMS 4 Mods Manager
+# Architecture Logicielle Unifiée : SIMS 4 Mods Manager
 
-Ce document décrit en détail l'architecture logicielle de l'application **SIMS 4 Mods Manager**, structurée selon les principes de la **Clean Architecture**, du découpage par responsabilité unique (**SRP**) et d'un **modèle Orienté Objet 3-Tiers**.
+Ce document constitue la référence architecturale unique de **SIMS 4 Mods Manager** (mutualisant la vue d'ensemble, l'architecture hexagonale/Clean Architecture, le découpage POO 3-Tiers, la gestion de la concurrence et les moteurs critiques de résolution de dépendances et d'analyse binaire DBPF).
 
 ---
 
-## 🏛️ Vue d'Ensemble des Couches
+## 1. Principes Fondamentaux (Clean Architecture & Étanchéité)
 
-L'application est conçue pour garantir un découplage total entre l'interface utilisateur, l'orchestration des données, les flux métier et la persistance :
+L'application repose sur cinq piliers :
+
+1. **Séparation Stricte en 5 Couches** :
+   - **Domaine (`src/domain/`)** : Entités métier pures, interfaces de repositories (`ICatalogRepository`, `IInstalledModRepository`, `IAccountRepository`), analyseur binaire DBPF (`DbpfParser`) et détecteur de conflits (`ConflictDetector`).
+   - **Infrastructure (`src/infrastructure/`)** : Implémentations SQLAlchemy/SQLite (mode `WAL`, index `FTS5`), extracteurs d'archives sécurisés (`ZIP`, `7Z`, `RAR`) et chiffrement `AES-256-GCM`.
+   - **Application (`src/application/`)** : Cas d'usage métier structurés selon le modèle **POO 3-Tiers** (`Orchestrator` $\rightarrow$ `Coordinator` $\rightarrow$ `Actions`).
+   - **Providers & Plugins (`src/providers/`, `plugins/`)** : Architecture de plugins auto-découverts (`@register_provider`) reposant sur deux socles mutualisés (`BaseIPSForumProvider` et `BasePortalProvider`).
+   - **Présentation (`src/api/` & `src/ui/`)** : Serveur REST FastAPI asynchrone et interface graphique PySide6 découplée (communiquant exclusivement via `ApiClient`).
+2. **Étanchéité Front $\rightarrow$ Back** :
+   - Aucun composant de `src/ui/` n'importe `DatabaseManager` ni les modèles SQLAlchemy. Toute lecture ou mutation passe par `src/api/client.py`.
+3. **Priorité Absolue aux Sites Officiels des Frameworks (`SPECIAL_DEPENDENCY_CASES`)** :
+   - Toute dépendance vers **Deaderpool (`MCCC`)**, **Scumbumbo (`XML Injector`)**, **Lumpinou (`RPO`, `Mood Pack`, `Toolbox`)**, **Wicked.cc (`WickedWhims`, `WonderfulWhims`)**, **Basemental (`Drugs`, `Gangs`, `Venue List`)** ou **Sims 4 Studio (`Andrew's Pose Player`)** est interceptée en priorité absolue et résolue sur son site officiel public.
+4. **Déduplication Inter-Plateformes & Concurrence (`ActiveInstallationRegistry`)** :
+   - `ModMatcher.canonical_fingerprint` normalise les titres de mods indépendamment de la plateforme et du suffixe de version pour éviter toute réinstallation d'un mod déjà présent.
+   - `ActiveInstallationRegistry` empêche deux installations parallèles de télécharger deux fois une même dépendance partagée.
+5. **Arrêt Propre (`ShutdownManager`)** :
+   - Tous les pools de threads, sessions HTTP `curl_cffi` et workers de scraping coopèrent avec `ShutdownManager.is_shutting_down()` pour une fermeture instantanée sans thread orphelin.
+
+---
+
+## 2. Diagramme Global des Couches
 
 ```mermaid
-graph TD
-    UI[Interface Graphique PySide6<br/>src/ui/views, src/ui/components] -->|Requêtes HTTP Typées| ApiClient[ApiClient HTTP<br/>src/api/client.py]
-    UIWorkers[Workers Asynchrones QThread<br/>src/ui/workers/] -->|Appels Background| ApiClient
-    ApiClient -->|REST JSON / NDJSON| APILayer[API REST FastAPI<br/>src/api/routes/]
-    APILayer -->|Validation & DTOs| Schemas[Schémas Pydantic<br/>src/api/schemas/]
-    APILayer -->|Appel Façade Tier 1| Orchestrators[Application - Orchestrateurs (Tier 1)<br/>src/application/*/*_orchestrator.py]
-    Orchestrators -->|Gestion Boucles & Flux Tier 2| Coordinators[Application - Coordinateurs (Tier 2)<br/>src/application/*/*_coordinator.py]
-    Coordinators -->|Actions Atomiques Tier 3| Actions[Application - Actions & Normalizers (Tier 3)<br/>src/application/*/*_actions.py]
-    Actions -->|Persistance & CRUD| Database[Couche Données<br/>src/database/]
-    Actions -->|Web Scraping & I/O| Providers[Fournisseurs Externes<br/>src/providers/]
-    Providers -->|Sessions & Anti-Bot| Core[Core & Utilitaires<br/>src/core/, src/utils/]
+flowchart TD
+    subgraph UI_Layer ["Front-End Bureau (PySide6 - src/ui/)"]
+        MainWindow["App / MainWindow"]
+        Views["Vues (CatalogView, InstalledView, UpdatesView, AccountsView, ModDetailView)"]
+        Drawer["ProviderDrawer & FilterBar (22 Sources, Toggle +18)"]
+        UIWorkers["Workers QThread & GenericRunnable (QThreadPool)"]
+        ApiClient["ApiClient HTTP (src/api/client.py)"]
+    end
+
+    subgraph API_Layer ["API REST Externe (FastAPI - src/api/)"]
+        Uvicorn["Serveur Uvicorn (Asyncio)"]
+        Routers["Routes (/api/catalog, /api/installed, /api/updates, /api/accounts, /api/settings)"]
+        Schemas["DTOs Pydantic v2 (src/api/schemas/)"]
+    end
+
+    subgraph App_Layer ["Couche Application 3-Tiers POO (src/application/)"]
+        Orchestrators["Tier 1 : Orchestrators (Catalog, Mod, Dependency)"]
+        Coordinators["Tier 2 : Coordinators (Sync, Install, Update, Toggle, Dependency)"]
+        Actions["Tier 3 : Atomic Actions & Special Cases Interceptor"]
+        Reporter["RequirementReporterService (Commentaires & MP Créateurs)"]
+        ActiveReg["ActiveInstallationRegistry (Déduplication Concurrente)"]
+    end
+
+    subgraph Providers_Layer ["Système de Plugins (src/providers/ & plugins/)"]
+        Registry["ProviderRegistry (Auto-Discovery des 22 Plugins)"]
+        IPSBase["BaseIPSForumProvider (loverslab, nsfwmods)"]
+        PortalBase["BasePortalProvider (deaderpool, scumbumbo, lumpinou, wickedcc, basemental, ...)"]
+        CustomProviders["Providers Spécialisés (curseforge, thesimsresource, patreon, nexusmods, ...)"]
+    end
+
+    subgraph Domain_Infra ["Domaine & Infrastructure (src/domain/, src/infrastructure/, src/core/)"]
+        Dbpf["DbpfParser (mmap Zero-Copy) & ConflictDetector"]
+        ModMatcher["ModMatcher & GameDlcMatcher"]
+        SessionMgr["SessionManager (curl_cffi Thread-Isolated + Playwright)"]
+        SQLite["DatabaseManager SQLite (WAL, FTS5, Cache DBPF)"]
+    end
+
+    MainWindow --> Views
+    Views --> Drawer
+    Views --> UIWorkers
+    UIWorkers --> ApiClient
+    ApiClient -- "HTTP JSON / NDJSON" --> Uvicorn
+    Uvicorn --> Routers
+    Routers --> Schemas
+    Routers --> Orchestrators
+    Orchestrators --> Coordinators
+    Coordinators --> Actions
+    Coordinators --> ActiveReg
+    Orchestrators --> Reporter
+    Actions --> Registry
+    Reporter --> Registry
+    Registry --> IPSBase
+    Registry --> PortalBase
+    Registry --> CustomProviders
+    Actions --> ModMatcher
+    Actions --> Dbpf
+    Actions --> SQLite
+    IPSBase --> SessionMgr
+    PortalBase --> SessionMgr
+    CustomProviders --> SessionMgr
 ```
 
 ---
 
-## 🧩 Modèle d'Architecture 3-Tiers POO (`src/application/`)
+## 3. Modèle d'Architecture 3-Tiers POO (`src/application/`)
 
-Pour garantir une lisibilité optimale, une testabilité unitaire maximale et une évolutivité sans friction, chaque domaine de la couche applicative est découpé en trois niveaux de responsabilité distincts :
+Chaque domaine applicatif est divisé en 3 niveaux stricts :
 
 ```mermaid
 classDiagram
     class Tier1_Orchestrator {
-        <<Tier 1 - Façade API>>
-        +Point d'entrée unique par domaine
-        +Coordonne les différents coordinateurs
-        +Retourne des DTOs validés
+        <<Tier 1 - Façade Domaine>>
+        +Point d'entrée unique appelé par FastAPI
+        +Coordonne les coordinateurs du domaine
+        +Retourne des DTOs Pydantic validés
     }
-
     class Tier2_Coordinator {
-        <<Tier 2 - Flux & Boucles>>
-        +Gestion du flux séquentiel
-        +Gestion des boucles, batchs et filtres
-        +Suivi d'état et progression (SyncTracker)
-        +Appels séquentiels aux actions atomiques
+        <<Tier 2 - Séquençage & Flux>>
+        +Gère les boucles, batchs et la concurrence
+        +Met à jour SyncTracker / ActiveInstallationRegistry
+        +Appelle séquentiellement les Actions atomiques
     }
-
     class Tier3_Actions {
         <<Tier 3 - Actions Atomiques>>
-        +Opérations unitaire pures (I/O, BDD, OS)
-        +Validation DBPF, déplacement .ts4script
-        +Résolution de liens, parsing unitaire
-        +Zéro logique de boucle
+        +Opérations unitaires sans boucle (I/O, SQL, DBPF)
+        +Interception prioritaire SPECIAL_DEPENDENCY_CASES
+        +Aplatissement .ts4script (profondeur <= 1)
     }
-
     Tier1_Orchestrator --> Tier2_Coordinator : Délègue le flux
-    Tier2_Coordinator --> Tier3_Actions : Exécute les actions unitaires
+    Tier2_Coordinator --> Tier3_Actions : Exécute les opérations unitaires
 ```
 
-### 1. Domaine Catalogue (`src/application/catalog/`)
-- **Tier 1 - `CatalogOrchestrator`** (`catalog_orchestrator.py`) : Façade appelée par les routeurs FastAPI (`/api/catalog`). Expose `sync_catalog()`, `get_sync_status()`, `check_dependencies()`.
-- **Tier 2 - `CatalogSyncCoordinator`** (`catalog_sync_coordinator.py`) : Gère le parcours paginé des catégories LoversLab/Patreon, le suivi de progression `SyncTracker` et la concurrence des workers.
-- **Tier 3 - `CatalogSyncActions`** (`catalog_sync_actions.py`) : Exécute l'enregistrement atomique d'un mod en BDD, la conversion des dates et l'extraction unitaire.
+### 3.1 Domaine Catalogue (`src/application/catalog/`)
+- **`CatalogOrchestrator`** : Façade exposant la synchronisation multi-plateformes, la recherche FTS5 et l'inspection détaillée des mods.
+- **`CatalogSyncCoordinator`** : Parcourt en parallèle les sous-catégories des 22 providers, applique un backoff exponentiel en cas de limitation réseau et met à jour `SyncTracker` en temps réel.
+- **`CatalogSyncActions`** : Persistance atomique par lot (`UPSERT` SQLite) et normalisation des métadonnées.
 
-### 2. Domaine Mods (`src/application/mods/`)
-- **Tier 1 - `ModOrchestrator`** (`mod_orchestrator.py`) : Façade pour l'installation, la mise à jour, l'activation/désactivation et le scan des mods installés.
-- **Tier 2 - Coordinateurs de flux** :
-  - `ModInstallCoordinator` (`mod_install_coordinator.py`) : Enchaîne la cascade des dépendances puis l'installation du mod principal.
-  - `ModUpdateCoordinator` (`mod_update_coordinator.py`) : Gère la boucle de mise à jour par lot ou unitaire avec archivage rollback préalable.
-  - `ModToggleCoordinator` (`mod_toggle_coordinator.py`) : Orchestre l'activation / désactivation réversible.
-- **Tier 3 - Actions atomiques** :
-  - `ModInstallActions` (`mod_install_actions.py`) : Téléchargement unitaire, extraction d'archive, application de la règle `.ts4script` (profondeur max 1) et validation binaire DBPF.
-  - `ModUpdateActions` (`mod_update_actions.py`) : Sauvegarde ZIP de secours et restauration automatique en cas d'erreur.
-  - `ModToggleActions` (`mod_toggle_actions.py`) : Renommage atomique des extensions `.disabled` sur le système de fichiers.
+### 3.2 Domaine Mods (`src/application/mods/`)
+- **`ModOrchestrator`** : Façade pour l'installation en cascade, la mise à jour avec rollback, le toggle `.disabled` et le diagnostic de conflits DBPF.
+- **`ModInstallCoordinator` & `ModInstallActions`** :
+  - Utilise `ActiveInstallationRegistry` pour éviter tout téléchargement concurrent en doublon d'une dépendance partagée.
+  - Applique la règle d'or du moteur Les Sims 4 : tout fichier `.ts4script` extrait à plus d'un niveau de profondeur est automatiquement remonté dans `Mods/<NomDuMod>/script.ts4script`.
+  - Valide l'en-tête binaire `DBPF` des fichiers `.package` et rejette les pages HTML d'erreur ou de connexion.
+- **`ModUpdateCoordinator` & `ModUpdateActions`** : Crée une sauvegarde ZIP automatique dans `.sims4_mod_manager/backups/` avant toute mise à jour et restaure automatiquement l'archive en cas d'échec.
+- **`ModToggleCoordinator` & `ModToggleActions`** : Renomme de façon réversible `.package` $\leftrightarrow$ `.package.disabled` et `.ts4script` $\leftrightarrow$ `.ts4script.disabled`.
 
-### 3. Domaine Dépendances (`src/application/dependencies/`)
-- **Tier 1 - `DependencyOrchestrator`** (`dependency_orchestrator.py`) : Façade d'analyse de dépendances et de signalement de prérequis manquants.
-- **Tier 2 - Coordinateurs de flux** :
-  - `DependencyResolutionCoordinator` (`dependency_resolution_coordinator.py`) : Parcours de la liste des prérequis, classification parmi les 4 statuts et requêtes BDD en masse.
-  - `RequirementReportCoordinator` (`requirement_report_coordinator.py`) : Flux de génération de rapports d'interpellation pour forums LoversLab.
-- **Tier 3 - Actions atomiques** :
-  - `DependencyResolutionActions` (`dependency_resolution_actions.py`) : Détection unitaire d'un mod sur disque ou en base, matching de titres.
-  - `RequirementReportActions` (`requirement_report_actions.py`) : Formatage BBCode/Markdown du rapport.
-  - `DependencyNormalizer` (`dependency_normalizer.py`) : Normalisation de texte, détection de bruit et exclusion de phrases narratives.
-
-### 4. Domaine Jeu & Système (`src/application/game/`)
-- `GameService` : Façade unifiée pour la détection du jeu et de son statut.
-- `GameDetector` : Détection du dossier Mods utilisateur (Windows Documents, OneDrive, multilingue) et génération du `Resource.cfg`.
-- `GameLauncher` : Détection du binaire de jeu (`TS4_x64.exe`) via le registre Windows / Steam et lancement supervisé.
+### 3.3 Domaine Dépendances (`src/application/dependencies/`)
+- **`DependencyOrchestrator`, `DependencyCoordinator` & `DependencyActions`** :
+  - **Étape 1 (Interception Officielle Prioritaire)** : Vérifie systématiquement `find_special_dependency_case(title, url, remote_id)` en tout premier lieu. Même si un mod pointe vers un lien tiers (ex. `loverslab.com/files/file/3169-wickedwhims/` ou CurseForge), la dépendance est redirigée vers son site officiel (`wickedcc`, `deaderpool`, `scumbumbo`, `lumpinou`, `basemental`, `sims4studio`).
+  - **Étape 2 (Déduplication Inter-Plateformes)** : Vérifie si le mod est déjà installé localement via `(source, remote_id)`, `SPECIAL_DEPENDENCY_REMOTE_IDS` ou `ModMatcher.canonical_fingerprint`.
+  - **Étape 3 (Classification 4 Statuts & Filtrage Bruit)** : Classe chaque élément en `INSTALLED`, `DETECTED_NOT_INSTALLED`, `NOT_DETECTED_SCANNING`, `NOT_DETECTED_FINISHED` ou `COMMENT_NOISE` (avec surcharge manuelle `MOD` $\leftrightarrow$ `COMMENT`).
+- **`RequirementReporterService`** : Gère la vérification anti-doublon en direct, la génération du message standardisé en anglais, la publication de commentaire ou MP et la suppression de commentaire sur les plateformes supportant l'authentification (`loverslab`, `nsfwmods`, `curseforge`, `thesimsresource`, `modthesims`, `simsfinds`, `nexusmods`, `mmccworld`, `sims4studio`, `f95zone`, `gamebanana`, `itchio`, `synthira`).
 
 ---
 
-## 📂 Arborescence Détaillée du Projet
+## 4. Analyse Binaire DBPF (`mmap` Zero-Copy) & Conflits
 
-```text
-SIMS4-Mods-Manager/
-├── pyproject.toml                     # Configuration projet, dépendances uv et outils de build
-├── run.py                             # Point d'entrée unique (PySide6 GUI par défaut, ou --server FastAPI)
-├── README.md                          # Guide d'accueil, synthèse et démarrage express
-├── INSTRUCTIONS.md                    # Guide des règles métier Sims 4 et retours d'expérience
-├── mkdocs.yml                         # Configuration de la documentation Material for MkDocs
-├── documentation/                     # Documentation technique exhaustive
-│   ├── index.md                       # Portail d'accueil de la documentation
-│   ├── architecture.md                # (Ce document) Principes d'architecture & découpage 3-tiers
-│   ├── modules_and_classes.md         # Diagrammes de liaisons, classes et séquences Mermaid
-│   ├── services_and_providers.md      # Détails des services applicatifs et connecteurs
-│   ├── api_reference.md               # Spécification complète des endpoints REST & DTOs
-│   ├── proposals_and_roadmap.md       # Propositions d'optimisations de performance & feuille de route
-│   └── dependency_classification_and_noise.md # Moteur de prérequis et règles de filtrage
-├── src/
-│   ├── i18n.py                        # Singleton I18nManager & fonction de traduction tr()
-│   ├── locales/                       # Catalogues de traduction JSON (fr.json, en.json, es.json)
-│   ├── api/                           # Présentation API REST (FastAPI)
-│   │   ├── app.py                     # Initialisation FastAPI, middlewares CORS, cycle de vie
-│   │   ├── client.py                  # Client HTTP (ApiClient) consommé par l'UI PySide6
-│   │   ├── deps.py                    # Injection de dépendances (get_db)
-│   │   ├── server.py                  # Gestionnaire Uvicorn (thread daemon ou serveur autonome)
-│   │   ├── schemas/                   # DTOs Pydantic v2 validés par domaine
-│   │   └── routes/                    # Contrôleurs HTTP découplés
-│   ├── application/                   # Couche Applicative Métier (Modèle 3-Tiers POO)
-│   │   ├── catalog/                   # Tier 1, 2, 3 : Catalogue & Synchronisation
-│   │   ├── mods/                      # Tier 1, 2, 3 : Installation, Mises à jour, Toggle
-│   │   ├── dependencies/              # Tier 1, 2, 3 : Résolution de prérequis & Rapports
-│   │   └── game/                      # Détection Sims 4, lanceur et Resource.cfg
-│   ├── database/                      # Couche Persistance (SQLAlchemy + SQLite)
-│   │   ├── connection.py              # Engine SQLite, session factory, création du schéma
-│   │   ├── models.py                  # Entités ORM (CatalogMod, InstalledMod, AccountSession, AppSettings)
-│   │   └── manager.py                 # DatabaseManager singleton, opérations CRUD, maintenance
-│   ├── providers/                     # Connecteurs de plateformes externes
-│   │   ├── base.py                    # Classe abstraite BaseSourceProvider
-│   │   ├── loverslab/                 # Scraper, parser BeautifulSoup et downloader LoversLab
-│   │   └── patreon/                   # Provider Patreon avec support des abonnements payants
-│   ├── core/                          # Fondations techniques transverses (Config, Exceptions, DTOs, Shutdown)
-│   ├── ui/                            # Interface Graphique PySide6 (Vues, Composants réactifs, Workers QThread)
-│   └── utils/                         # Utilitaires (Archives, Cache LRU, FileUtils, ModMatcher, Logger)
-└── tests/                             # Suite de tests automatisée unifiée (229 tests - 100% vert)
-    ├── conftest.py                    # Fixtures pytest partagées (Client API, SQLite mémoire, Mock Qt)
-    ├── unit/                          # Tests Unitaires par module
-    │   ├── api/                       # Validation des routes REST et schémas
-    │   ├── application/               # Tests unitaires des Orchestrators, Coordinators et Actions
-    │   ├── core/                      # Tests des fondations et gestionnaires
-    │   ├── database/                  # Tests CRUD et intégrité relationnelle
-    │   ├── providers/                 # Tests des parsers HTML purs et downloaders
-    │   ├── ui/                        # Tests des composants PySide6 et dialogs
-    │   └── utils/                     # Tests du cache, matcher et gestion des versions
-    └── e2e/                           # Tests de bout en bout (Simulations utilisateur)
-        ├── test_mocked_flow_e2e.py    # Flux complet simulé avec mocks déterministes (FastAPI + BDD + FS)
-        └── test_live_simulation_e2e.py # Scénario de bout en bout marqué live (@pytest.mark.live)
-```
+- **`DbpfParser` (`src/domain/services/dbpf_parser.py`)** :
+  - Utilise `mmap.mmap(..., access=mmap.ACCESS_READ)` pour inspecter les fichiers `.package` sans copier l'intégralité du fichier en RAM.
+  - Vérifie la signature `DBPF` (octets `0..4`), lit le nombre d'entrées d'index et la position de la table d'index (octets `36..68`), puis extrait en une passe vectorisée les triplets `(Type, Group, Instance)` (`TGI`).
+- **Cache Incrémental SQLite (`dbpf_package_cache`)** :
+  - Stocke les ressources TGI indexées par `(file_path, mtime_ns, file_size)` pour éviter de re-parser les fichiers `.package` inchangés lors des diagnostics successifs.
+- **`ConflictDetector` (`src/domain/services/conflict_detector.py`)** :
+  - Identifie et distingue les collisions critiques de **Tuning / SimData** des simples remplacements de traductions **STBL** (`0x220557DA`).
 
 ---
 
-## 🛡️ Règles Architecturales Strictes
+## 5. Concurrence, Sessions HTTP & Sécurité
 
-1. **Aucun Import Direct BDD depuis l'UI** : L'interface graphique PySide6 n'importe jamais `DatabaseManager` ni `src.database.models`. Elle consomme exclusivement les données via `ApiClient` (`src.api.client.py`).
-2. **Pas de Logique Métier dans les Routeurs** : Les fichiers `src/api/routes/*_router.py` sont de simples contrôleurs HTTP. Ils reçoivent les requêtes, valident les schémas Pydantic, appellent l'orchestrateur correspondant dans `src/application/` et retournent les réponses formatées.
-3. **Immutabilité des Schémas (DTOs)** : Les schémas d'entrée/sortie sont isolés dans `src/api/schemas/` et ne dépendent jamais des modèles ORM SQLAlchemy.
-4. **Découplage 3-Tiers Strict** : Les orchestrateurs (Tier 1) ne réalisent aucune boucle ni action de bas niveau. Les coordinateurs (Tier 2) gèrent le séquençage et délèguent chaque action atomique aux classes Actions (Tier 3).
-5. **Gestion de l'Arrêt Propre (Graceful Shutdown)** : Tous les processus asynchrones vérifient périodiquement `ShutdownManager.is_shutting_down()` pour éviter toute fuite mémoire ou plantage de threads orphelins.
+- **`ThreadPoolManager` (`src/core/thread_pool.py`)** : Pools bornés séparés pour les opérations I/O réseau et les calculs CPU (extraction d'archives, hachage).
+- **Isolation Thread-Safe `curl_cffi` (`SessionManager`)** : Les sessions HTTP d'impersonation Chrome sont isolées par clé `(provider_name, thread_id)` pour garantir le réemploi Keep-Alive sans corruption de descripteurs libcurl entre threads.
+- **Chiffrement `AES-256-GCM`** : Les cookies de session et clés API stockés dans SQLite (`AccountSession`) sont chiffrés au repos via `CredentialCipher`.
+- **Défense Anti-Zip-Bomb & SSRF** : Contrôle strict des ratios de compression, des quotas d'octets extraits, blocage du *Path Traversal* (`..`) et validation des schémas/hôtes d'URLs.

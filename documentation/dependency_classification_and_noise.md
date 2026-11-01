@@ -1,59 +1,54 @@
-# Classification des Dépendances, Filtrage du Bruit & Surcharge Utilisateur
+# Résolution des Dépendances, Priorité Officielle, Filtrage du Bruit & Signalement Créateurs
 
-Ce document décrit le fonctionnement du moteur d'extraction, de filtrage heuristique et de résolution des dépendances de **SIMS 4 Mods Manager**.
-
----
-
-## 1. Vue d'ensemble
-
-Lorsqu'un mod est extrait depuis LoversLab ou Patreon, la section **Requirements** / **Prérequis** contient fréquemment :
-1. De vrais mods Sims 4 indispensables ou complémentaires (ex: *WickedWhims*, *Nisa's Wicked Perversions*, *Lot 51 Core Library*).
-2. Des DLCs ou packs officiels du jeu Sims 4 (ex: *Chiens et Chats*, *Saisons*, *Heure de gloire*).
-3. Des consignes techniques de configuration du jeu (ex: *"Script Mods enabled in Game Options"*).
-4. Des disclaimers d'auteurs (ex: *"No third-party library or framework is required"*).
-5. Des phrases narratives ou de description du mod.
-
-Pour garantir une expérience utilisateur fluide et éviter de bloquer des installations à cause de faux positifs, l'application combine **3 couches de traitement** :
-- **Couche 1 : Filtrage heuristique automatique (`dependency_noise_rules.py`)** éliminant le bruit évident dès l'extraction.
-- **Couche 2 : Contrôle & Surcharge utilisateur (`requirements_overrides`)** permettant à l'utilisateur de requalifier manuellement n'importe quel élément en `MOD` ou `COMMENT`.
-- **Couche 3 : Installation tolérante aux dépendances (`allow_partial=True`)** permettant d'installer le mod principal même si certaines dépendances sont introuvables.
+Ce document décrit le pipeline complet d'extraction, de redirection officielle, de déduplication inter-plateformes, de filtrage du bruit et de signalement aux créateurs de **SIMS 4 Mods Manager**.
 
 ---
 
-## 2. Tableau Centralisé des Motifs de Commentaires & Faux Positifs
+## 1. Priorité Absolue aux Sites Officiels des Frameworks (`SPECIAL_DEPENDENCY_CASES`)
 
-Le module [`src/application/dependencies/dependency_noise_rules.py`](file:///d:/Workspace/Github/OLAHOUZE/SIMS4-Mods-Manager/src/application/dependencies/dependency_noise_rules.py) regroupe les motifs et expressions courantes reconnus comme des commentaires ou du bruit :
+De nombreux mods publiés sur LoversLab, CurseForge, ModTheSims, Patreon, F95zone ou Synthira dépendent de grands frameworks communautaires. Afin d'éviter les miroirs obsolètes et les blocages d'authentification, [`src/application/dependencies/dependency_special_cases.py`](../src/application/dependencies/dependency_special_cases.py) intercepte en priorité absolue ces dépendances et les redirige vers leur **site officiel public** (aucun compte requis) :
 
-| Catégorie | Exemples de motifs reconnus | Action du Moteur |
-| :--- | :--- | :--- |
-| **Options et Configuration du Jeu** | `Game Options`, `Script Mods Allowed`, `Script Mods Enabled`, `Custom Content`, `Restart the game`, `Redémarrer le jeu` | Ignoré à l'extraction / Classé en `COMMENT_NOISE` |
-| **Disclaimers d'absence de mod** | `No third-party library or framework is required`, `No .package file is required`, `Script-only mod`, `does not add tuning`, `Not required:`, `Pas requis` | Ignoré à l'extraction / Classé en `COMMENT_NOISE` |
-| **Consignes de versions & patchs** | `The Sims 4 build 1.125.59 (Patch actual)`, `Tested on 1.125.59`, `Current compatible version`, `Latest patch` | Si ce n'est pas un DLC officiel, filtré pour éviter de chercher un mod inexistant |
-| **Phrases narratives / Prose** | `EA gives you Flirty...`, `The save remembers...`, `Bad decisions. Better stories`, `If you only install...`, `You are missing the gameplay ecosystem` | Détecté par analyse de structure (longueur > 55 car., ponctuation de dialogue, verbes conjugués) et éliminé |
-| **Navigation & Chemins** | `Game Options → Other → Script Mods Allowed`, `Menu -> Options` | Rejeté en tant qu'instruction de navigation |
-
----
-
-## 3. Surcharge Utilisateur (`requirements_overrides`)
-
-Bien que le filtrage automatique couvre la majorité des cas, l'utilisateur a le contrôle final dans l'interface :
-
-1. Dans la boîte de dialogue des détails du mod ou de gestion des dépendances, chaque ligne de prérequis peut être basculée entre :
-   - **`MOD`** : L'utilisateur confirme qu'il s'agit d'un vrai mod attendu. Même si le titre ressemble à une consigne, le système cherchera à le résoudre dans le catalogue.
-   - **`COMMENT`** : L'utilisateur indique qu'il s'agit d'un commentaire d'auteur, d'une note ou d'un conseil. L'élément est immédiatement marqué `COMMENT_NOISE` et ne bloque plus le statut du mod.
-2. Les choix sont persistés dans la colonne `requirements_overrides_json` de la table `catalog_mods` sous la forme d'un dictionnaire `{ "titre_du_prérequis": "MOD" | "COMMENT" }`.
+| Framework / Mod | Provider Officiel | ID Canonique | URL Officielle Prioritaire | Principaux Alias Reconnus |
+| :--- | :--- | :--- | :--- | :--- |
+| **WickedWhims** | `wickedcc` | `3169` | `https://wicked.cc/download/3169-wickedwhims/` | `WW`, `WickedWhims`, `Wicked-Whims`, `Wicked_Whims`, `loverslab.com/.../3169` |
+| **WonderfulWhims** | `wickedcc` | `wonderfulwhims_official` | `https://wonderfulwhims.com/` | `WonderfulWhims`, `Wonderful Whims` |
+| **MC Command Center** | `deaderpool` | `deaderpool_mccc` | `https://deaderpool-mccc.com/downloads.html#mccc` | `MCCC`, `MC Command Center`, `Deaderpool MCCC` |
+| **MC WooHoo** | `deaderpool` | `deaderpool_mc_woohoo` | `https://deaderpool-mccc.com/downloads.html#mcwoohoo` | `MC WooHoo`, `MCWooHoo` |
+| **XML Injector** | `scumbumbo` | `scumbumbo_xml_injector` | `https://scumbumbomods.com/xml-injector` | `XML Injector`, `Scumbumbo XML Injector`, `xmlinjector` |
+| **Teleport Any Sim** | `scumbumbo` | `scumbumbo_teleport_any_sim` | `https://scumbumbomods.com/teleport-any-sim` | `Teleport Any Sim`, `Andrew's Teleport Any Sim` |
+| **RPO (WooHoo Wellness)** | `lumpinou` | `lumpinou_rpo_collection` | `https://www.lumpinoumods.com/woohoo-wellness-and-pregnancy-overhaul` | `RPO`, `Relationship & Pregnancy Overhaul`, `WooHoo Wellness` |
+| **Mood Pack Mod** | `lumpinou` | `lumpinou_mood_pack` | `https://www.lumpinoumods.com/mood-pack-mod/` | `Mood Pack Mod`, `Lumpinou Mood Pack` |
+| **Lumpinou's Toolbox** | `lumpinou` | `lumpinou_toolbox` | `https://www.lumpinoumods.com/lumpinous-toolbox/` | `Lumpinou's Toolbox`, `Lumpinou Toolbox Library` |
+| **LGBTQIA+ Mod** | `lumpinou` | `lumpinou_lgbtqia` | `https://www.lumpinoumods.com/lgbtqia-mod/` | `Lumpinou LGBTQIA+`, `LGBTQIA Mod` |
+| **Basemental Drugs** | `basemental` | `basemental_drugs` | `https://basementalcc.com/adult_mods/basemental-drugs/` | `Basemental Drugs`, `Basemental Drug` |
+| **Basemental Gangs** | `basemental` | `basemental_gangs` | `https://basementalcc.com/adult_mods/basemental-gangs/` | `Basemental Gangs` |
+| **Universal Venue List** | `basemental` | `basemental_universal_venue_list` | `https://basementalcc.com/mods/universal-venue-list/` | `Universal Venue List`, `Basemental Venue List` |
+| **Andrew's Pose Player** | `sims4studio` | `s4s_pose_player` | `https://sims4studio.com/thread/2617/andrews-studio` | `Andrew's Pose Player`, `Andrew's Studio Pose Player`, `Pose Player` |
 
 ---
 
-## 4. Gestion des Installations Partielles (`allow_partial`)
+## 2. Déduplication Inter-Plateformes & Installations Multiples
 
-Lors de l'installation d'un mod via l'API REST (`POST /api/catalog/install`) :
-- **Paramètre `allow_partial`** (valeur par défaut : `True`) :
-  - Si une dépendance requise n'a pas pu être trouvée dans le catalogue distant ou si son téléchargement échoue (ex: mod archivé, lien Patreon payant), l'orchestrateur **ne fait pas échouer l'installation du mod principal**.
-  - Le mod principal est téléchargé et déployé normalement dans le dossier `Mods/`.
-  - La réponse API indique un succès partiel :
-    `"Installation partielle réussie ! Le mod 'Nom' a été installé avec succès, mais X dépendance(s) introuvable(s) (...) n'ont pas pu être ajoutées."`
-- **Dans le script de test [`scripts/simulate_user_flow.py`](file:///d:/Workspace/Github/OLAHOUZE/SIMS4-Mods-Manager/scripts/simulate_user_flow.py)** :
-  - Le script active explicitement `allow_partial=True`.
-  - Le rapport d'exécution comptabilise distinctement les installations complètes (`✅ Succès`) et partielles (`⚠️ Succès partiel`).
-  - Tous les mods installés en mode partiel sont tracés et nettoyés lors de la phase de désinstallation post-test.
+1. **Empreinte Canonique Inter-Plateformes (`ModMatcher.canonical_fingerprint`)** :
+   - Nettoie les préfixes (`The Sims 4`, `[TS4]`), les numéros de version (`v1.4`, `2026.2.0`) et la ponctuation.
+   - Si un mod a été installé depuis `scumbumbo`, `littlemssam` ou `wickedcc`, et qu'un mod téléchargé depuis `f95zone`, `thesimscatalog` ou `loverslab` le réclame via un lien `curseforge` ou `modthesims`, le résolveur le détecte immédiatement comme **`INSTALLED`** sans le re-télécharger.
+2. **Registre d'Installations Actives (`ActiveInstallationRegistry`)** :
+   - Lors de l'installation simultanée de plusieurs mods partageant une ou plusieurs dépendances (de la même plateforme ou de plateformes différentes), `ActiveInstallationRegistry` verrouille chaque dépendance par `(source, remote_id)` et par empreinte canonique de titre.
+
+---
+
+## 3. Filtrage du Bruit (`COMMENT_NOISE`) & Surcharge Utilisateur (`MOD` $\leftrightarrow$ `COMMENT`)
+
+- **Détection Heuristique (`src/utils/dependency_noise_rules.py`)** :
+  - Identifie automatiquement les consignes de jeu (*"Script Mods Enabled in Game Options"*), les notes de compatibilité (*"Compatible with patch 1.110+"*) et les mentions d'auteurs (*"Please do not reupload"*) en tant que **`COMMENT_NOISE`**.
+- **Surcharge Manuelle (`requirements_overrides`)** :
+  - Dans l'interface ou via l'API, l'utilisateur peut basculer tout élément entre **`MOD`** (vrai mod requis) et **`COMMENT`** (simple note ignorée).
+
+---
+
+## 4. Signalement & Commentaires aux Créateurs (`RequirementReporterService`)
+
+Lorsqu'un prérequis est introuvable ou qu'une note pollue la section *Requirements*, l'utilisateur peut contacter l'auteur sur les plateformes compatibles (`loverslab`, `nsfwmods`, `curseforge`, `thesimsresource`, `modthesims`, `simsfinds`, `nexusmods`, `mmccworld`, `sims4studio`, `f95zone`, `gamebanana`, `itchio`, `synthira`) :
+1. **Vérification d'Authentification** : Si `SessionManager.is_member_authenticated(source)` vaut `False`, l'application invite l'utilisateur à se connecter dans l'onglet **Comptes & Anti-Bot**.
+2. **Anti-Doublon en Direct** : `check_report_status` inspecte la page du mod en direct pour vérifier si l'utilisateur a déjà signalé ce prérequis.
+3. **Publication & Suppression** : `submit_report` publie le message en anglais standardisé (en commentaire ou en MP) et `delete_report` permet de supprimer le commentaire publié.

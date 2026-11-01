@@ -1,42 +1,42 @@
-# Directives de Tests Unitaires & Validation (Green State)
+# Directives de Tests Unitaires & Validation Par Provider (Green State)
 
 ## 1. Règle de Validation Obligatoire (Green State)
-Avant chaque commit ou validation de tâche, les vérifications suivantes doivent être exécutées avec succès (100% succès, 0 erreur, 0 warning) :
+Avant chaque commit ou fusion de Pull Request, les vérifications suivantes doivent passer à 100% (0 erreur, 0 warning) :
 
-```bash
-# 1. Analyse statique et linter (doit retourner 0 erreur)
-uv run ruff check src/ tests/
+```powershell
+# 1. Audit de conformité statique complet (Ruff, Bandit, Vulture, Deptry, Mypy)
+python D:\Workspace\Gitlab\workspace\02_compliance_code\python\analyze.py --target . --skip-update
 
-# 2. Exécution des tests ÉLÉMENT PAR ÉLÉMENT en terminal visible (JAMAIS la suite globale d'un bloc ni en background)
-uv run pytest tests/core -v
-uv run pytest tests/utils -v
-uv run pytest tests/database -v
-uv run pytest tests/api -v
-uv run pytest tests/providers -v
-uv run pytest tests/ui -v
-uv run pytest tests/services -v
+# 2. Exécution des tests ÉLÉMENT PAR ÉLÉMENT en terminal visible (-v)
+.\.venv\Scripts\python.exe -m pytest tests/unit/core -v
+.\.venv\Scripts\python.exe -m pytest tests/unit/utils -v
+.\.venv\Scripts\python.exe -m pytest tests/unit/database -v
+.\.venv\Scripts\python.exe -m pytest tests/unit/domain -v
+.\.venv\Scripts\python.exe -m pytest tests/unit/infrastructure -v
+.\.venv\Scripts\python.exe -m pytest tests/unit/security -v
+.\.venv\Scripts\python.exe -m pytest tests/unit/providers -v
+.\.venv\Scripts\python.exe -m pytest tests/unit/application -v
+.\.venv\Scripts\python.exe -m pytest tests/unit/api -v
+.\.venv\Scripts\python.exe -m pytest tests/unit/ui -v
+.\.venv\Scripts\python.exe -m pytest tests/e2e -v
 ```
 
 ---
 
-## 2. RÈGLES CRITIQUES D'EXÉCUTION DES TESTS (WINDOWS & WORKSPACE)
+## 2. Les 7 Familles de Tests Obligatoires pour Chaque Provider
 
-1. **Exécution Élément par Élément (Obligatoire)** :
-   - Ne **JAMAIS** lancer la commande globale `pytest tests/` ou `pytest tests/ -v`. Sur cette machine Windows, l'exécution globale en un seul bloc provoque des blocages complets et des freezes de processus.
-   - Toujours exécuter les tests dossier par dossier (module par module) ou fichier par fichier.
-
-2. **Terminal Visible et Synchrone (Zéro Background Tasks)** :
-   - Ne **JAMAIS** exécuter de tests en tâche de fond (`manage_task` / background task silencieuse).
-   - Toujours utiliser `run_command` avec un timeout suffisant (`WaitMsBeforeAsync: 10000`) afin que la commande s'exécute de façon synchrone et affiche son résultat immédiatement et visiblement.
-   - Ne jamais utiliser le mode silencieux (`-q`), toujours le mode verbeux (`-v`).
-
-3. **Zéro Warning & Zéro Appel Réseau Réel** :
-   - Tous les tests doivent s'exécuter avec 0 avertissement (0 warning).
-   - Tous les appels HTTP distants vers des sites web réels (LoversLab, Patreon, Cloudflare) sont strictement interdits dans les tests et doivent être mockés via des fixtures HTML ou des réponses mockées.
+Tout nouveau provider dans `plugins/<provider>/` doit obligatoirement être couvert par les 7 familles de tests suivantes :
+1. **Découverte `ProviderRegistry` & Classification** (`ADULT_PROVIDERS`, `ACCOUNT_SUPPORTED_PROVIDERS` vs `PUBLIC_NO_ACCOUNT_PROVIDERS`, `CATEGORIES`).
+2. **Scraping de Catégorie & Détails de Mod** (`scrape_category_page`, `get_mod_details`, extraction des liens et prérequis).
+3. **Téléchargement Binaire vs Rejet HTML** (`download_mod_file` : acceptation des archives `.zip`/`.package` et rejet des pages HTML/Cloudflare/login walls).
+4. **Installation Multi-Mods avec Dépendances Multiples (Même Plateforme & Inter-Plateformes)** : redirection prioritaire vers les sites officiels (`deaderpool`, `scumbumbo`, `lumpinou`, `wickedcc`, `basemental`, `sims4studio`) et déduplication concurrente via `ActiveInstallationRegistry`.
+5. **Installation d'un Même Mod entre Plusieurs Plateformes** : reconnaissance par `ModMatcher.canonical_fingerprint` et statut `INSTALLED` sans re-téléchargement ni collision.
+6. **Classification `MOD` vs `COMMENT_NOISE` & Bascule Manuelle (`MOD` $\leftrightarrow$ `COMMENT`)** via `requirements_overrides`.
+7. **Signalement & Commentaires aux Créateurs (`RequirementReporterService`)** : refus explicite avec demande d'authentification si `is_member_authenticated == False`, puis vérification anti-doublon, publication (commentaire & MP) et suppression une fois authentifié.
 
 ---
 
-## 3. Isolation Stricte de la Base de Données de Test
-- Les tests automatisés ne doivent **jamais** polluer ni modifier la base de données réelle de l'utilisateur (`sims4_mods.db`).
-- `src/core/config.py` lit la variable d'environnement `SIMS4_DB_PATH`.
-- `tests/conftest.py` configure une fixture de session `isolate_test_database` créant une base temporaire dédiée pour toute la durée des tests, garantissant une étanchéité totale avec l'environnement utilisateur.
+## 3. Règles Critiques d'Exécution & Isolation BDD
+- **Exécution par Module (`-v`)** : Ne jamais lancer `pytest` globalement en un seul bloc ni en tâche de fond silencieuse.
+- **Zéro Appel Réseau Réel** : Tous les appels HTTP doivent être mockés (`monkeypatch` sur `SessionManager.get_http_session`).
+- **Isolation SQLite** : `tests/conftest.py` isole automatiquement `SIMS4_DB_PATH` dans un dossier temporaire par session de test.

@@ -112,6 +112,9 @@ def test_catalog_state_filters(client):
 
 def test_catalog_sync_default_all_pages(client):
     """Verifies that start sync defaults to max_pages=0 (all pages detected)."""
+    from src.application.catalog.sync_tracker import SyncTracker
+
+    SyncTracker.reset()
     with patch("src.api.routes.catalog_router._run_catalog_sync") as mock_sync:
         resp = client.post("/api/catalog/sync", json={})
         assert resp.status_code == 200
@@ -119,6 +122,7 @@ def test_catalog_sync_default_all_pages(client):
         assert "is_running" in data
         assert "toutes les pages" in data["message"]
         mock_sync.assert_called_once_with(0)
+    SyncTracker.reset()
 
 
 def test_catalog_mod_details_endpoint(tmp_path, monkeypatch):

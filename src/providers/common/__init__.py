@@ -2,8 +2,8 @@
 Common abstractions, parsers, and base classes for mod source providers.
 """
 
-from src.providers.common.ips_base import BaseIPSForumProvider
+from src.providers.common.portal_base import BasePortalProvider
 
 __all__ = [
-    "BaseIPSForumProvider",
+    "BasePortalProvider",
 ]
