@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from sqlalchemy.orm import joinedload
+from sqlalchemy import func
 
 from src.infrastructure.database.manager import DatabaseManager
 from src.infrastructure.database.models import InstalledMod
@@ -38,12 +38,7 @@ class SqlAlchemyInstalledModRepository(IInstalledModRepository):
             Résultat de l'opération get_by_id.
         """
         with self.db_manager.get_session() as session:
-            model = (
-                session.query(InstalledMod)
-                .options(joinedload(InstalledMod.catalog_mod))
-                .filter(InstalledMod.id == mod_id)
-                .first()
-            )
+            model = session.query(InstalledMod).filter(InstalledMod.id == mod_id).first()
             return ModelMapper.installed_to_entity(model) if model else None
 
     def get_by_folder_name(self, folder_name: str) -> Optional[InstalledModEntity]:
@@ -56,12 +51,7 @@ class SqlAlchemyInstalledModRepository(IInstalledModRepository):
             Résultat de l'opération get_by_folder_name.
         """
         with self.db_manager.get_session() as session:
-            model = (
-                session.query(InstalledMod)
-                .options(joinedload(InstalledMod.catalog_mod))
-                .filter(InstalledMod.folder_name == folder_name)
-                .first()
-            )
+            model = session.query(InstalledMod).filter(InstalledMod.folder_name == folder_name).first()
             return ModelMapper.installed_to_entity(model) if model else None
 
     def get_by_source_and_remote_id(self, source: str, remote_id: str) -> Optional[InstalledModEntity]:
@@ -77,7 +67,6 @@ class SqlAlchemyInstalledModRepository(IInstalledModRepository):
         with self.db_manager.get_session() as session:
             model = (
                 session.query(InstalledMod)
-                .options(joinedload(InstalledMod.catalog_mod))
                 .filter(InstalledMod.source == source, InstalledMod.remote_id == remote_id)
                 .first()
             )
@@ -93,7 +82,7 @@ class SqlAlchemyInstalledModRepository(IInstalledModRepository):
             Résultat de l'opération get_all.
         """
         with self.db_manager.get_session() as session:
-            query = session.query(InstalledMod).options(joinedload(InstalledMod.catalog_mod))
+            query = session.query(InstalledMod)
             if enabled_only is not None:
                 query = query.filter(InstalledMod.is_enabled == enabled_only)
             models = query.order_by(InstalledMod.title.asc()).all()
@@ -143,28 +132,19 @@ class SqlAlchemyInstalledModRepository(IInstalledModRepository):
             return True
 
     def set_enabled(self, mod_id: int, is_enabled: bool) -> bool:
-        """Exécute l'opération set enabled.
-
-        Args:
-            mod_id: Paramètre mod_id.
-            is_enabled: Paramètre is_enabled.
-
-        Returns:
-            Résultat de l'opération set_enabled.
-        """
+        """Met à jour l'état d'activation en une seule requête UPDATE SQL directe sans SELECT préalable."""
         with self.db_manager.get_session() as session:
-            model = session.query(InstalledMod).filter(InstalledMod.id == mod_id).first()
-            if not model:
+            updated = (
+                session.query(InstalledMod)
+                .filter(InstalledMod.id == mod_id)
+                .update({InstalledMod.is_enabled: is_enabled}, synchronize_session=False)
+            )
+            if not updated:
                 return False
-            model.is_enabled = is_enabled
             session.commit()
             return True
 
     def count(self) -> int:
-        """Exécute l'opération count.
-
-        Returns:
-            Résultat de l'opération count.
-        """
+        """Retourne le nombre total de mods installés via COUNT(id) direct."""
         with self.db_manager.get_session() as session:
-            return session.query(InstalledMod).count()
+            return int(session.query(func.count(InstalledMod.id)).scalar() or 0)

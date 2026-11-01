@@ -19,6 +19,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from src.core.crypto import decrypt_to_dict, encrypt_dict
+from src.utils.mod_type_classifier import ModTypeClassifier
 from src.utils.title_normalizer import TitleNormalizer
 
 _LEADING_ARTICLE_RE = re.compile(r"^(?:the|a|an|le|la|les)\s+", re.IGNORECASE)
@@ -62,6 +63,7 @@ class CatalogMod(Base):
     title_fingerprint: Mapped[str] = mapped_column(String(150), default="", index=True)
     author: Mapped[str] = mapped_column(String(100), default="", index=True)
     category: Mapped[str] = mapped_column(String(100), default="", index=True)
+    mod_type: Mapped[str] = mapped_column(String(40), default="other", index=True)
     tags: Mapped[Any] = mapped_column(JSON, default=list)
     description: Mapped[str] = mapped_column(Text, default="")
     page_url: Mapped[str] = mapped_column(String(500), nullable=False)
@@ -87,6 +89,7 @@ class CatalogMod(Base):
         Index("idx_catalog_title_fp", "title_fingerprint"),
         Index("idx_catalog_updated_id", "updated_date", "id"),
         Index("idx_catalog_patreon_source", "patreon_status", "source"),
+        Index("idx_catalog_mod_type_updated", "mod_type", "updated_date", "id"),
     )
 
     def get_tags_list(self) -> List[str]:
@@ -214,9 +217,14 @@ class DbpfPackageCache(Base):
 @event.listens_for(CatalogMod, "before_insert")
 @event.listens_for(CatalogMod, "before_update")
 def _sync_catalog_mod_fingerprint(_mapper: Any, _connection: Any, target: CatalogMod) -> None:
-    """Maintient automatiquement title_fingerprint sur CatalogMod avant insertion ou mise à jour."""
+    """Maintient automatiquement title_fingerprint et mod_type sur CatalogMod avant insertion ou mise à jour."""
     if target.title:
         target.title_fingerprint = compute_title_fingerprint(target.title)
+    target.mod_type = ModTypeClassifier.classify_mod(
+        title=target.title or "",
+        category=target.category or "",
+        tags=target.tags,
+    )
 
 
 @event.listens_for(InstalledMod, "before_insert")

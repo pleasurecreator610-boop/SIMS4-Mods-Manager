@@ -22,7 +22,7 @@ from src.api.schemas.installed import (
 )
 from src.core.config import AppConfig
 from src.infrastructure.database.manager import DatabaseManager
-from src.infrastructure.database.models import InstalledMod
+from src.infrastructure.database.models import InstalledMod, compute_title_fingerprint
 from src.domain.interfaces.repositories.catalog_repository_interface import ICatalogRepository
 from src.domain.interfaces.repositories.mod_repository_interface import IInstalledModRepository
 from src.infrastructure.database.repositories.sqlalchemy_catalog_repository import (
@@ -99,13 +99,31 @@ class InstalledModsService:
 
         cat_ids = [m.catalog_mod_id for m in all_mods if m.catalog_mod_id is not None]
         rem_ids = [m.remote_id for m in all_mods if m.remote_id]
+        title_fps = [
+            fp
+            for m in all_mods
+            if m.catalog_mod_id is None and m.title and (fp := compute_title_fingerprint(m.title))
+        ]
         if hasattr(self.catalog_repo, "get_by_ids_or_remote_ids"):
-            all_catalog = self.catalog_repo.get_by_ids_or_remote_ids(cat_ids, rem_ids)
+            if title_fps:
+                try:
+                    all_catalog = self.catalog_repo.get_by_ids_or_remote_ids(
+                        cat_ids, rem_ids, title_fingerprints=title_fps
+                    )
+                except TypeError:
+                    all_catalog = self.catalog_repo.get_by_ids_or_remote_ids(cat_ids, rem_ids)
+            else:
+                all_catalog = self.catalog_repo.get_by_ids_or_remote_ids(cat_ids, rem_ids)
         else:
             all_catalog = self.catalog_repo.get_all()
 
         catalog_by_id = {cm.id: cm for cm in all_catalog if cm.id is not None}
         catalog_by_key = {(cm.source, cm.remote_id): cm for cm in all_catalog if cm.remote_id}
+        catalog_by_fp = {
+            fp: cm
+            for cm in all_catalog
+            if cm.title and (fp := compute_title_fingerprint(cm.title))
+        }
 
         items: list[InstalledModItem] = []
         enabled_count = 0
@@ -122,6 +140,10 @@ class InstalledModsService:
                 cat_mod = catalog_by_id[m.catalog_mod_id]
             elif m.remote_id and m.source and (m.source, m.remote_id) in catalog_by_key:
                 cat_mod = catalog_by_key[(m.source, m.remote_id)]
+            elif m.title:
+                m_fp = compute_title_fingerprint(m.title)
+                if m_fp and m_fp in catalog_by_fp:
+                    cat_mod = catalog_by_fp[m_fp]
 
             has_update = self.update_service.check_update_available(m, cat_mod)
 

@@ -52,7 +52,7 @@ class ConflictDetectorService:
         self._dirty_entries: dict[str, tuple[float, int, list[tuple[str, str, bool]]]] = {}
 
     def _hydrate_cache_from_db(self, package_files: List[Path]) -> None:
-        """Précharge les entrées d'index DBPF connues depuis SQLite en une seule requête."""
+        """Précharge les entrées d'index DBPF connues depuis SQLite par lots de 400 clés."""
         if not package_files:
             return
         try:
@@ -66,21 +66,24 @@ class ConflictDetectorService:
             if not missing_keys:
                 return
 
+            chunk_size = 400
             with db.get_session() as session:
-                rows = session.query(DbpfPackageCache).filter(DbpfPackageCache.file_path.in_(missing_keys)).all()
-                with self._cache_lock:
-                    for row in rows:
-                        try:
-                            raw_list = row.get_tgi_list()
-                            parsed_items = [(str(item[0]), str(item[1]), bool(item[2])) for item in raw_list]
-                            self._cache[row.file_path] = (float(row.mtime), int(row.file_size), parsed_items)
-                        except Exception:
-                            continue
+                for i in range(0, len(missing_keys), chunk_size):
+                    batch_keys = missing_keys[i : i + chunk_size]
+                    rows = session.query(DbpfPackageCache).filter(DbpfPackageCache.file_path.in_(batch_keys)).all()
+                    with self._cache_lock:
+                        for row in rows:
+                            try:
+                                raw_list = row.get_tgi_list()
+                                parsed_items = [(str(item[0]), str(item[1]), bool(item[2])) for item in raw_list]
+                                self._cache[row.file_path] = (float(row.mtime), int(row.file_size), parsed_items)
+                            except Exception:
+                                continue
         except Exception as e:
             logger.debug(f"Chargement du cache DBPF SQLite ignoré : {e}")
 
     def _flush_dirty_cache_to_db(self) -> None:
-        """Persiste en lot dans SQLite les nouveaux index de packages scannés."""
+        """Persiste en lot dans SQLite via UPSERT natif ON CONFLICT(file_path) DO UPDATE."""
         with self._cache_lock:
             if not self._dirty_entries:
                 return
@@ -88,39 +91,82 @@ class ConflictDetectorService:
             self._dirty_entries.clear()
 
         try:
+            from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+            from src.infrastructure.database.manager import DatabaseManager
+            from src.infrastructure.database.models import DbpfPackageCache
+
+            items_list = [
+                {
+                    "file_path": path_key,
+                    "mtime": float(mtime),
+                    "file_size": int(size),
+                    "resource_count": len(parsed_items),
+                    "tgi_json": json.dumps(parsed_items),
+                }
+                for path_key, (mtime, size, parsed_items) in to_persist.items()
+            ]
+
+            db = DatabaseManager.get_instance()
+            chunk_size = 250
+            with db.get_session() as session:
+                for i in range(0, len(items_list), chunk_size):
+                    batch = items_list[i : i + chunk_size]
+                    stmt = sqlite_insert(DbpfPackageCache).values(batch)
+                    stmt = stmt.on_conflict_do_update(
+                        index_elements=["file_path"],
+                        set_={
+                            "mtime": stmt.excluded.mtime,
+                            "file_size": stmt.excluded.file_size,
+                            "resource_count": stmt.excluded.resource_count,
+                            "tgi_json": stmt.excluded.tgi_json,
+                        },
+                    )
+                    session.execute(stmt)
+                session.commit()
+        except Exception as e:
+            logger.debug(f"Persistance du cache DBPF SQLite ignorée : {e}")
+
+    def prune_orphan_cache_entries(
+        self, active_package_files: List[Path], mods_dir: Optional[Path] = None
+    ) -> int:
+        """Purge les entrées de cache DBPF SQLite et mémoire dont les fichiers .package n'existent plus."""
+        active_keys = {str(p.resolve()) for p in active_package_files}
+        prefix = str(mods_dir.resolve()) if mods_dir is not None else None
+        purged_count = 0
+
+        with self._cache_lock:
+            stale_mem_keys = [
+                k for k in self._cache if k not in active_keys and (prefix is None or k.startswith(prefix))
+            ]
+            for k in stale_mem_keys:
+                self._cache.pop(k, None)
+
+        try:
             from src.infrastructure.database.manager import DatabaseManager
             from src.infrastructure.database.models import DbpfPackageCache
 
             db = DatabaseManager.get_instance()
             with db.get_session() as session:
-                existing_rows = (
-                    session.query(DbpfPackageCache)
-                    .filter(DbpfPackageCache.file_path.in_(list(to_persist.keys())))
-                    .all()
-                )
-                existing_map = {r.file_path: r for r in existing_rows}
-
-                for path_key, (mtime, size, parsed_items) in to_persist.items():
-                    serialized = json.dumps(parsed_items)
-                    row = existing_map.get(path_key)
-                    if row is not None:
-                        row.mtime = mtime
-                        row.file_size = size
-                        row.resource_count = len(parsed_items)
-                        row.tgi_json = serialized
-                    else:
-                        session.add(
-                            DbpfPackageCache(
-                                file_path=path_key,
-                                mtime=mtime,
-                                file_size=size,
-                                resource_count=len(parsed_items),
-                                tgi_json=serialized,
-                            )
+                q = session.query(DbpfPackageCache.file_path)
+                if prefix:
+                    q = q.filter(DbpfPackageCache.file_path.like(f"{prefix}%"))
+                cached_paths = [r[0] for r in q.all()]
+                orphan_paths = [fp for fp in cached_paths if fp not in active_keys]
+                if orphan_paths:
+                    chunk_size = 400
+                    for i in range(0, len(orphan_paths), chunk_size):
+                        batch = orphan_paths[i : i + chunk_size]
+                        purged_count += (
+                            session.query(DbpfPackageCache)
+                            .filter(DbpfPackageCache.file_path.in_(batch))
+                            .delete(synchronize_session=False)
                         )
-                session.commit()
+                    session.commit()
         except Exception as e:
-            logger.debug(f"Persistance du cache DBPF SQLite ignorée : {e}")
+            logger.debug(f"Purge des orphelins du cache DBPF SQLite ignorée : {e}")
+
+        return purged_count
 
     def _parse_package_safe(self, pkg: Path, mods_dir: Path) -> Tuple[str, List[Tuple[str, str, bool]], int]:
         """Parse un package individuel avec mise en cache mtime/taille mémoire + SQLite."""
@@ -207,8 +253,9 @@ class ConflictDetectorService:
                 futures = [executor.submit(self._parse_package_safe, pkg, mods_dir) for pkg in package_files]
                 results = [f.result() for f in futures]
 
-        # Persister les nouveaux index scannés dans SQLite
+        # Persister les nouveaux index scannés dans SQLite et purger les entrées orphelines
         self._flush_dirty_cache_to_db()
+        self.prune_orphan_cache_entries(package_files, mods_dir)
 
         for rel_path, parsed_items, res_count in results:
             total_resources += res_count

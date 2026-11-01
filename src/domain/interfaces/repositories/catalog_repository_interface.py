@@ -43,8 +43,13 @@ class ICatalogRepository(ABC):
         """Retourne la liste des mods du catalogue."""
         ...
 
-    def get_by_ids_or_remote_ids(self, mod_ids: list[int], remote_ids: list[str]) -> list[CatalogModEntity]:
-        """Récupère uniquement les mods du catalogue correspondant aux IDs ou remote_ids fournis."""
+    def get_by_ids_or_remote_ids(
+        self,
+        mod_ids: list[int],
+        remote_ids: list[str],
+        title_fingerprints: Optional[list[str]] = None,
+    ) -> list[CatalogModEntity]:
+        """Récupère uniquement les mods du catalogue correspondant aux IDs, remote_ids ou title_fingerprints fournis."""
         return self.get_all()
 
     @abstractmethod

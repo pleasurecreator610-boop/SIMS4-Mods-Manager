@@ -225,6 +225,41 @@ class ModTypeClassifier:
     }
 
     @classmethod
+    def classify_mod(cls, title: Optional[str] = "", category: Optional[str] = "", tags: Any = None) -> str:
+        """
+        Détermine le type canonique d'un mod ('animation', 'clothing', 'hair', etc.)
+        à partir de sa catégorie, de son titre et de ses tags pour l'indexation SQLite en O(log N).
+        """
+        cat_low = (category or "").lower()
+        title_low = (title or "").lower()
+        if isinstance(tags, list):
+            tags_low = " ".join(str(t) for t in tags).lower()
+        elif tags:
+            tags_low = str(tags).lower()
+        else:
+            tags_low = ""
+
+        # 1. Correspondance prioritaire sur les catégories connues
+        if cat_low:
+            for t_id, type_info in cls.TYPES_DEFINITIONS.items():
+                if t_id in ("all", "other"):
+                    continue
+                for cat in type_info.get("loverslab_categories", []):
+                    if cat.lower() in cat_low:
+                        return t_id
+
+        # 2. Correspondance sur les mots-clés (titre, tags, catégorie)
+        combined = f"{title_low} {tags_low} {cat_low}"
+        for t_id, type_info in cls.TYPES_DEFINITIONS.items():
+            if t_id in ("all", "other"):
+                continue
+            for kw in type_info.get("keywords", []):
+                if kw.lower() in combined:
+                    return t_id
+
+        return "other"
+
+    @classmethod
     def get_type_choices(cls) -> List[Tuple[str, str]]:
         """Returns list of (type_id, display_label) tuples for UI comboboxes."""
         return [
@@ -233,10 +268,10 @@ class ModTypeClassifier:
         ]
 
     @classmethod
-    def get_sql_filter(cls, mod_type: Optional[str], catalog_model):
+    def get_sql_filter(cls, mod_type: Optional[str], catalog_model: Any) -> Any:
         """
-        Builds SQLAlchemy filter condition matching the requested generic mod type
-        across LoversLab categories and tags, and Patreon tags and titles.
+        Builds SQLAlchemy filter condition matching the requested generic mod type.
+        Uses the indexed `mod_type` column in O(log N) when available on the model.
         """
         if not mod_type or mod_type.lower() in ["all", ""]:
             return None
@@ -245,6 +280,9 @@ class ModTypeClassifier:
         type_info = cls.TYPES_DEFINITIONS.get(m_type)
         if not type_info:
             return None
+
+        if hasattr(catalog_model, "mod_type"):
+            return catalog_model.mod_type == m_type
 
         conditions = []
 
