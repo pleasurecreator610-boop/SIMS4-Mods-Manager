@@ -7,7 +7,7 @@ Le fournisseur `sims4studio` intègre le forum officiel **Sims 4 Studio** (`sims
 ## 1. Caractéristiques Techniques
 
 - **Identifiant Provider** : `sims4studio`
-- **Classe d'Implémentation** : [`plugins/sims4studio/provider.py`](../../plugins/sims4studio/provider.py) (`Sims4StudioProvider`)
+- **Classe d'Implémentation** : [`plugins/sims4studio/provider.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/plugins/sims4studio/provider.py) (`Sims4StudioProvider`)
 - **URL Officielle** : `https://sims4studio.com`
 - **Contenu Adulte (`+18`)** : Non (`SFW`)
 - **Compte Utilisateur** : Optionnel (`ACCOUNT_SUPPORTED_PROVIDERS`) — utilisé pour accéder aux fils restreints du forum ProBoards et publier des commentaires ou envoyer des messages privés aux créateurs.
@@ -25,6 +25,6 @@ Le fournisseur `sims4studio` intègre le forum officiel **Sims 4 Studio** (`sims
 
 ## 3. Tests Automatisés Associés
 
-- [`tests/unit/providers/test_new_platforms_providers.py`](../../tests/unit/providers/test_new_platforms_providers.py)
-- [`tests/unit/application/test_new_platforms_reporting_and_comments.py`](../../tests/unit/application/test_new_platforms_reporting_and_comments.py)
+- [`tests/unit/providers/test_new_platforms_providers.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/tests/unit/providers/test_new_platforms_providers.py)
+- [`tests/unit/application/test_new_platforms_reporting_and_comments.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/tests/unit/application/test_new_platforms_reporting_and_comments.py)
 

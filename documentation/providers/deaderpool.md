@@ -7,7 +7,7 @@ Le fournisseur `deaderpool` assure l'indexation, la résolution prioritaire de d
 ## 1. Caractéristiques Techniques
 
 - **Identifiant Provider** : `deaderpool`
-- **Classe d'Implémentation** : [`plugins/deaderpool/provider.py`](../../plugins/deaderpool/provider.py) (`DeaderpoolProvider`, héritant de `BasePortalProvider`)
+- **Classe d'Implémentation** : [`plugins/deaderpool/provider.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/plugins/deaderpool/provider.py) (`DeaderpoolProvider`, héritant de `BasePortalProvider`)
 - **URL Officielle** : `https://deaderpool-mccc.com`
 - **Contenu Adulte (`+18`)** : Non (`SFW`)
 - **Compte Utilisateur Requis** : **Aucun** (`PUBLIC_NO_ACCOUNT_PROVIDERS`)
@@ -27,6 +27,7 @@ Le fournisseur `deaderpool` assure l'indexation, la résolution prioritaire de d
 ## 3. Interception Prioritaire des Dépendances (`SPECIAL_DEPENDENCY_CASES`)
 
 Tout mod (quelle que soit sa plateforme d'origine : LoversLab, CurseForge, ModTheSims, Patreon, F95zone, etc.) déclarant un prérequis parmi :
+
 - `MCCC`, `MC Command Center`, `Deaderpool MCCC`, `mc_cmd_center`
 - `MC WooHoo`, `MCWooHoo`, `mc_woohoo`
 
@@ -36,6 +37,6 @@ est **automatiquement redirigé** vers le provider officiel `deaderpool` (`https
 
 ## 4. Tests Automatisés Associés
 
-- [`tests/unit/providers/test_new_platforms_providers.py`](../../tests/unit/providers/test_new_platforms_providers.py) : Découverte `ProviderRegistry`, `scrape_category_page`, `get_mod_details`, `download_mod_file` (validation ZIP et rejet HTML).
-- [`tests/unit/application/test_multi_platform_dependencies_and_dedup.py`](../../tests/unit/application/test_multi_platform_dependencies_and_dedup.py) : Redirection prioritaire de CurseForge/LoversLab vers `deaderpool` et déduplication inter-plateformes.
+- [`tests/unit/providers/test_new_platforms_providers.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/tests/unit/providers/test_new_platforms_providers.py) : Découverte `ProviderRegistry`, `scrape_category_page`, `get_mod_details`, `download_mod_file` (validation ZIP et rejet HTML).
+- [`tests/unit/application/test_multi_platform_dependencies_and_dedup.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/tests/unit/application/test_multi_platform_dependencies_and_dedup.py) : Redirection prioritaire de CurseForge/LoversLab vers `deaderpool` et déduplication inter-plateformes.
 

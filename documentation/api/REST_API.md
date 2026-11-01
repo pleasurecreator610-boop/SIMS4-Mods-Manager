@@ -20,6 +20,7 @@ Ce document fournit la documentation complète de l'API REST de **SIMS 4 Mods Ma
 
 #### `GET /api/catalog`
 Retourne la liste paginée des mods du catalogue avec filtres multicritères.
+
 - **Paramètres Query** :
   - `search` *(str, optionnel)* : Recherche textuelle dans le titre, l'auteur ou les tags.
   - `source` *(str, optionnel)* : `loverslab`, `patreon`, ou `all`.
@@ -33,17 +34,20 @@ Retourne la liste paginée des mods du catalogue avec filtres multicritères.
 
 #### `GET /api/catalog/{mod_id}` & `GET /api/catalog/{mod_id}/details`
 Récupère les informations complètes d'un mod (description formatée, captures d'écran, liste résolue des dépendances).
+
 - **Paramètres Path** : `mod_id` *(int)*
 - **Paramètres Query** : `force_refresh` *(bool, optionnel)*
 - **Réponse 200** : `ModDetailsResponse`
 
 #### `POST /api/catalog/sync`
 Déclenche la synchronisation multi-sources en arrière-plan via le `ThreadPoolManager`.
+
 - **Corps JSON** : `CatalogSyncRequest` `{ max_pages: int }`
 - **Réponse 200** : `CatalogSyncStatusResponse`
 
 #### `GET /api/catalog/sync/status`
 Consulte l'état de progression en temps réel du scraping.
+
 - **Réponse 200** : `CatalogSyncStatusResponse` `{ is_running: bool, current_page: int, total_pages: int, ... }`
 
 #### `POST /api/catalog/sync/pause` | `resume` | `stop`
@@ -51,11 +55,13 @@ Met en pause, reprend ou stoppe la synchronisation en cours.
 
 #### `POST /api/catalog/check-dependencies`
 Analyse le graphe de dépendances d'un mod avant téléchargement.
+
 - **Corps JSON** : `CatalogInstallRequest` `{ catalog_mod_id?: int, source?: str, remote_id?: str, ... }`
 - **Réponse 200** : `DependenciesCheckResponse` `{ can_install: bool, is_partial: bool, dependencies: List[...] }`
 
 #### `POST /api/catalog/install`
 Télécharge et installe un mod et optionnellement ses dépendances manquantes.
+
 - **Corps JSON** : `CatalogInstallRequest`
 - **Réponse 200** : `CatalogInstallResponse` `{ success: bool, message: str, installed_folder: str }`
 
@@ -71,31 +77,37 @@ Télécharge et met en cache l'image vignette d'un mod distant.
 
 #### `GET /api/installed`
 Liste l'ensemble des mods installés dans le dossier `Mods` des Sims 4, avec statistiques d'activation et statut de mise à jour.
+
 - **Paramètres Query** : `search` *(str, optionnel)*
 - **Réponse 200** : `InstalledListResponse` `{ total: int, enabled_count: int, disabled_count: int, items: List[InstalledModItem] }`
 
 #### `POST /api/installed/{mod_id}/toggle`
 Active ou désactive un mod sans le supprimer du disque (renommage en `.disabled`).
+
 - **Paramètres Path** : `mod_id` *(int)*
 - **Corps JSON** : `InstalledToggleRequest` `{ enabled?: bool }`
 - **Réponse 200** : `InstalledToggleResponse` `{ success: bool, message: str, is_enabled: bool }`
 
 #### `DELETE /api/installed/{mod_id}`
 Supprime définitivement les fichiers du mod sur le disque et son entrée en BDD.
+
 - **Paramètres Path** : `mod_id` *(int)*
 - **Réponse 200** : `InstalledUninstallResponse` `{ success: bool, message: str }`
 
 #### `GET /api/installed/{mod_id}/dependents`
 Liste les autres mods installés qui dépendent de ce mod (pour alerte avant suppression).
+
 - **Paramètres Path** : `mod_id` *(int)*
 - **Réponse 200** : `ModDependentsResponse`
 
 #### `POST /api/installed/scan`
 Scanne le répertoire local `Mods` pour indexer les ajouts ou suppressions manuelles.
+
 - **Réponse 200** : `InstalledScanResponse`
 
 #### `POST /api/installed/open-folder`
 Ouvre le dossier racine des mods ou le dossier spécifique d'un mod dans l'explorateur de fichiers.
+
 - **Corps JSON** : `InstalledOpenFolderRequest` `{ folder_name?: str }`
 - **Réponse 200** : `InstalledOpenFolderResponse`
 
@@ -105,6 +117,7 @@ Ouvre le dossier racine des mods ou le dossier spécifique d'un mod dans l'explo
 
 #### `GET /api/accounts`
 Liste le statut des sessions de comptes pour LoversLab et Patreon.
+
 - **Réponse 200** : `AccountListResponse`
 
 #### `POST /api/accounts/{provider_name}/test`
@@ -122,6 +135,7 @@ Réinitialise et efface les cookies et le profil de navigateur associé.
 
 #### `GET /api/updates`
 Liste tous les mods installés ayant une nouvelle version disponible dans le catalogue.
+
 - **Réponse 200** : `UpdatesListResponse`
 
 #### `POST /api/updates/{installed_id}`

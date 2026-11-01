@@ -7,7 +7,7 @@ Le fournisseur `sixamcc` intègre le portail de **SixamCC** (`sixam.cc`), spéci
 ## 1. Caractéristiques Techniques
 
 - **Identifiant Provider** : `sixamcc`
-- **Classe d'Implémentation** : [`plugins/sixamcc/provider.py`](../../plugins/sixamcc/provider.py) (`SixamCcProvider`)
+- **Classe d'Implémentation** : [`plugins/sixamcc/provider.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/plugins/sixamcc/provider.py) (`SixamCcProvider`)
 - **URL Officielle** : `https://sixam.cc`
 - **Contenu Adulte (`+18`)** : Non (`SFW`)
 - **Compte Utilisateur Requis** : **Aucun** (`PUBLIC_NO_ACCOUNT_PROVIDERS`)
@@ -23,5 +23,5 @@ Le fournisseur `sixamcc` intègre le portail de **SixamCC** (`sixam.cc`), spéci
 
 ## 3. Tests Automatisés Associés
 
-- [`tests/unit/providers/test_new_platforms_providers.py`](../../tests/unit/providers/test_new_platforms_providers.py)
+- [`tests/unit/providers/test_new_platforms_providers.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/tests/unit/providers/test_new_platforms_providers.py)
 

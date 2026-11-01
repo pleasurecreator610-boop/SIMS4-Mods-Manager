@@ -7,7 +7,7 @@ Le fournisseur `wickedcc` connecte **SIMS 4 Mods Manager** au portail officiel d
 ## 1. Caractéristiques Techniques
 
 - **Identifiant Provider** : `wickedcc`
-- **Classe d'Implémentation** : [`plugins/wickedcc/provider.py`](../../plugins/wickedcc/provider.py) (`WickedCcProvider`, héritant de `BasePortalProvider`)
+- **Classe d'Implémentation** : [`plugins/wickedcc/provider.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/plugins/wickedcc/provider.py) (`WickedCcProvider`, héritant de `BasePortalProvider`)
 - **URL Officielle** : `https://wicked.cc`
 - **Contenu Adulte (`+18`)** : Oui (masqué lorsque le filtre `+18` est désactivé)
 - **Compte Utilisateur Requis** : **Aucun** (`PUBLIC_NO_ACCOUNT_PROVIDERS`) — Téléchargement public direct sans passer par le mur d'authentification de LoversLab.
@@ -30,7 +30,7 @@ Toutes les variantes (`WW`, `ww`, `WickedWhims`, `Wicked-Whims`, `Wicked_Whims`,
 
 ## 4. Tests Automatisés Associés
 
-- [`tests/unit/providers/test_new_platforms_providers.py`](../../tests/unit/providers/test_new_platforms_providers.py)
-- [`tests/unit/application/test_dependency_resolver.py`](../../tests/unit/application/test_dependency_resolver.py)
-- [`tests/unit/application/test_multi_platform_dependencies_and_dedup.py`](../../tests/unit/application/test_multi_platform_dependencies_and_dedup.py)
+- [`tests/unit/providers/test_new_platforms_providers.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/tests/unit/providers/test_new_platforms_providers.py)
+- [`tests/unit/application/test_dependency_resolver.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/tests/unit/application/test_dependency_resolver.py)
+- [`tests/unit/application/test_multi_platform_dependencies_and_dedup.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/tests/unit/application/test_multi_platform_dependencies_and_dedup.py)
 

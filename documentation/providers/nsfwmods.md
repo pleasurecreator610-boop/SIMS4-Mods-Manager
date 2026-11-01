@@ -27,6 +27,7 @@ Le fournisseur `nsfwmods` gère la synchronisation du catalogue de la plateforme
 
 Par défaut, l'option `adult_content_enabled` de l'application est désactivée.
 Lorsqu'elle est désactivée :
+
 - Les modules en provenance de **NSFWMods** et de **LoversLab** sont masqués du catalogue unifié.
 - Les cartes d'authentification associées dans l'onglet *Comptes* sont repliées.
 - Un bandeau discret permet à l'utilisateur d'activer le contenu adulte d'un simple clic.

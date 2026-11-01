@@ -7,7 +7,7 @@ Le fournisseur `f95zone` intègre les fils dédiés aux mods, scripts et compila
 ## 1. Caractéristiques Techniques
 
 - **Identifiant Provider** : `f95zone`
-- **Classe d'Implémentation** : [`plugins/f95zone/provider.py`](../../plugins/f95zone/provider.py) (`F95ZoneProvider`)
+- **Classe d'Implémentation** : [`plugins/f95zone/provider.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/plugins/f95zone/provider.py) (`F95ZoneProvider`)
 - **URL Officielle** : `https://f95zone.to`
 - **Contenu Adulte (`+18`)** : Oui (`ADULT_PROVIDERS`)
 - **Compte Utilisateur** : Supporté (`ACCOUNT_SUPPORTED_PROVIDERS`) — la connexion XenForo permet de déverrouiller les liens spoilers/téléchargements réservés aux membres et de poster des messages sur les fils de discussion ou par conversation privée (`/conversations/add?to=`).
@@ -23,6 +23,6 @@ Le fournisseur `f95zone` intègre les fils dédiés aux mods, scripts et compila
 
 ## 3. Tests Automatisés Associés
 
-- [`tests/unit/providers/test_new_platforms_providers.py`](../../tests/unit/providers/test_new_platforms_providers.py)
-- [`tests/unit/application/test_new_platforms_reporting_and_comments.py`](../../tests/unit/application/test_new_platforms_reporting_and_comments.py)
+- [`tests/unit/providers/test_new_platforms_providers.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/tests/unit/providers/test_new_platforms_providers.py)
+- [`tests/unit/application/test_new_platforms_reporting_and_comments.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/tests/unit/application/test_new_platforms_reporting_and_comments.py)
 

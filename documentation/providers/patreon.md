@@ -7,7 +7,7 @@ Le fournisseur `patreon` permet d'indexer, vérifier les droits d'abonnement et 
 ## 1. Caractéristiques Techniques
 
 - **Identifiant Provider** : `patreon`
-- **Classe d'Implémentation** : [`plugins/patreon/provider.py`](../../plugins/patreon/provider.py) (`PatreonProvider`)
+- **Classe d'Implémentation** : [`plugins/patreon/provider.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/plugins/patreon/provider.py) (`PatreonProvider`)
 - **URL Officielle** : `https://www.patreon.com`
 - **Contenu Adulte (`+18`)** : Non (`SFW` par défaut)
 - **Compte Utilisateur** : Optionnel (`ACCOUNT_SUPPORTED_PROVIDERS`) — permet de débloquer les publications réservées aux abonnés (`UNLOCKED` vs `LOCKED`) et de publier des commentaires.

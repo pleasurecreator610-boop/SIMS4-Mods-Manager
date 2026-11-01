@@ -53,6 +53,7 @@ Permet la recherche, le filtrage avancé, la synchronisation multithreadée et l
 | `GET` | `/api/catalog/thumbnail` | Sert l'image de miniature mise en cache localement | `200 OK` |
 
 ### Paramètres de Recherche (`GET /api/catalog`) :
+
 - `search` (string, optionnel) : Titre, auteur ou tag recherché.
 - `source` (string) : `loverslab`, `patreon`, ou `all`.
 - `access` (string) : `public`, `unlocked`, `locked`, ou `all`.
@@ -62,6 +63,7 @@ Permet la recherche, le filtrage avancé, la synchronisation multithreadée et l
 - `limit` (int, défaut: 50, max: 200) : Nombre d'éléments par page.
 
 ### Vérification des Dépendances (`POST /api/catalog/check-dependencies`)
+
 - **Corps de requête** (`CatalogInstallRequest`) :
   ```json
   {
@@ -72,6 +74,7 @@ Permet la recherche, le filtrage avancé, la synchronisation multithreadée et l
     "install_dependencies": true
   }
   ```
+
 - **Réponse** (`DependenciesCheckResponse`) :
   ```json
   {

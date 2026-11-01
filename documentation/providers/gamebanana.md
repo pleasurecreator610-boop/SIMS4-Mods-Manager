@@ -7,7 +7,7 @@ Le fournisseur `gamebanana` connecte **SIMS 4 Mods Manager** à la section **The
 ## 1. Caractéristiques Techniques
 
 - **Identifiant Provider** : `gamebanana`
-- **Classe d'Implémentation** : [`plugins/gamebanana/provider.py`](../../plugins/gamebanana/provider.py) (`GameBananaProvider`)
+- **Classe d'Implémentation** : [`plugins/gamebanana/provider.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/plugins/gamebanana/provider.py) (`GameBananaProvider`)
 - **URL Officielle** : `https://gamebanana.com/games/5496`
 - **API JSON** : `https://gamebanana.com/apiv11/Mod/Index?_aFilters[Generic_Game]=5496`
 - **Contenu Adulte (`+18`)** : Non (`SFW`)
@@ -26,6 +26,7 @@ Le fournisseur `gamebanana` connecte **SIMS 4 Mods Manager** à la section **The
 ## 3. Gestion des Commentaires & Signalement Créateurs
 
 Compatible avec `RequirementReporterService` :
+
 - Vérifie l'authentification via `SessionManager.is_member_authenticated("gamebanana")`.
 - Invite l'utilisateur à se connecter si nécessaire, puis permet de publier un commentaire ou d'ouvrir un message privé (`https://gamebanana.com/pm/add?recipient={creator_id}`).
 
@@ -33,6 +34,6 @@ Compatible avec `RequirementReporterService` :
 
 ## 4. Tests Automatisés Associés
 
-- [`tests/unit/providers/test_new_platforms_providers.py`](../../tests/unit/providers/test_new_platforms_providers.py)
-- [`tests/unit/application/test_new_platforms_reporting_and_comments.py`](../../tests/unit/application/test_new_platforms_reporting_and_comments.py)
+- [`tests/unit/providers/test_new_platforms_providers.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/tests/unit/providers/test_new_platforms_providers.py)
+- [`tests/unit/application/test_new_platforms_reporting_and_comments.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/tests/unit/application/test_new_platforms_reporting_and_comments.py)
 

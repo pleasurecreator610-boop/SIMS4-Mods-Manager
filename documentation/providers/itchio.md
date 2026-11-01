@@ -7,7 +7,7 @@ Le fournisseur `itchio` permet d'explorer et de télécharger les mods indépend
 ## 1. Caractéristiques Techniques
 
 - **Identifiant Provider** : `itchio`
-- **Classe d'Implémentation** : [`plugins/itchio/provider.py`](../../plugins/itchio/provider.py) (`ItchIoProvider`)
+- **Classe d'Implémentation** : [`plugins/itchio/provider.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/plugins/itchio/provider.py) (`ItchIoProvider`)
 - **URL Officielle** : `https://itch.io/games/tag-sims-4`
 - **Contenu Adulte (`+18`)** : Non (`SFW`)
 - **Compte Utilisateur** : Optionnel (`ACCOUNT_SUPPORTED_PROVIDERS`) — requis uniquement pour poster un commentaire sur la page d'un créateur ou accéder à des téléchargements membres.
@@ -29,6 +29,6 @@ Supporte la vérification d'authentification, la détection anti-doublon, la pub
 
 ## 4. Tests Automatisés Associés
 
-- [`tests/unit/providers/test_new_platforms_providers.py`](../../tests/unit/providers/test_new_platforms_providers.py)
-- [`tests/unit/application/test_new_platforms_reporting_and_comments.py`](../../tests/unit/application/test_new_platforms_reporting_and_comments.py)
+- [`tests/unit/providers/test_new_platforms_providers.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/tests/unit/providers/test_new_platforms_providers.py)
+- [`tests/unit/application/test_new_platforms_reporting_and_comments.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/tests/unit/application/test_new_platforms_reporting_and_comments.py)
 

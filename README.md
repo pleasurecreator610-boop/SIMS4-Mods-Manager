@@ -23,7 +23,7 @@ Il fédère **22 plateformes de mods** dans un catalogue unifié, résout automa
 | 🔄 **Déduplication & Filtrage du Bruit** | Empreinte canonique inter-plateformes (`title_fingerprint`), mutualisation des téléchargements concurrents et filtrage automatique `MOD` vs `COMMENT_NOISE`. | [✨ Guide des Fonctionnalités](./documentation/features.md) |
 | 📢 **Signalement aux Créateurs** | Envoi de commentaire ou MP standardisé à l'auteur en cas de prérequis manquant, avec vérification anti-doublon et authentification guidée. | [✨ Guide des Fonctionnalités](./documentation/features.md#4-signalement--interpellation-des-createurs-commentaires--mp) |
 | ⚔️ **Détecteur de Conflits DBPF (`mmap`)** | Analyse zero-copy des ressources `TGI` (`Tuning`, `SimData` vs traductions `STBL`) avec cache SQLite incrémental. | [🏛️ Architecture & DBPF](./documentation/architecture.md#4-analyse-binaire-dbpf-mmap-zero-copy--conflits) |
-| 📦 **Règle `.ts4script` & Rollback ZIP** | Aplatissement automatique des scripts `.ts4script` (profondeur $\le 1$), activation `.disabled` en 1 clic et sauvegarde ZIP avant mise à jour. | [✨ Guide des Fonctionnalités](./documentation/features.md#5-installation-securisee-regle-ts4script--rollback-de-mise-a-jour) |
+| 📦 **Règle `.ts4script` & Rollback ZIP** | Aplatissement automatique des scripts `.ts4script` (profondeur ≤ 1), activation `.disabled` en 1 clic et sauvegarde ZIP avant mise à jour. | [✨ Guide des Fonctionnalités](./documentation/features.md#5-installation-securisee-regle-ts4script--rollback-de-mise-a-jour) |
 
 ---
 
@@ -50,23 +50,27 @@ uv run python run.py
 L'ensemble de la documentation est structuré par domaine pour une lecture directe et rapide :
 
 ### 1. Découverte & Utilisation
+
 - 🌟 **[Site Vitrine & Portail Documentaire (`documentation/index.md`)](./documentation/index.md)** : Présentation visuelle aux couleurs des Sims 4 et navigation générale.
 - ✨ **[Guide Complet des Fonctionnalités (`documentation/features.md`)](./documentation/features.md)** : Explication détaillée de chaque écran et mécanisme métier.
 - 🌍 **[Internationalisation 5 Langues (`documentation/i18n.md`)](./documentation/i18n.md)** : Fonctionnement du moteur multilingue (`fr`, `en`, `es`, `zh`, `hi`).
 
 ### 2. Plateformes de Mods (`22 Providers`)
+
 - 🔌 **[Catalogue & Comparatif des 22 Plateformes (`documentation/providers/README.md`)](./documentation/providers/README.md)**
   - **Frameworks Officiels (Sans Compte)** : [Deaderpool (MCCC)](./documentation/providers/deaderpool.md) • [Scumbumbo](./documentation/providers/scumbumbo.md) • [Lumpinou](./documentation/providers/lumpinou.md) • [Wicked.cc](./documentation/providers/wickedcc.md) • [Basemental](./documentation/providers/basemental.md)
   - **Catalogues & Créateurs SFW** : [CurseForge](./documentation/providers/curseforge.md) • [The Sims Resource](./documentation/providers/thesimsresource.md) • [ModTheSims](./documentation/providers/modthesims.md) • [Nexus Mods](./documentation/providers/nexusmods.md) • [Patreon](./documentation/providers/patreon.md) • [SimsFinds](./documentation/providers/simsfinds.md) • [Maxis Match CC World](./documentation/providers/mmccworld.md) • [SimFileShare](./documentation/providers/simfileshare.md) • [Sims 4 Studio](./documentation/providers/sims4studio.md) • [GameBanana](./documentation/providers/gamebanana.md) • [The Sims Catalog](./documentation/providers/thesimscatalog.md) • [itch.io](./documentation/providers/itchio.md) • [LittleMsSam](./documentation/providers/littlemssam.md) • [SixamCC](./documentation/providers/sixamcc.md)
   - **Portails Adultes (`+18`)** : [LoversLab](./documentation/providers/loverslab.md) • [NSFWMods](./documentation/providers/nsfwmods.md) • [Synthira.ru](./documentation/providers/synthira.md) • [F95zone](./documentation/providers/f95zone.md) • [SmutBase](./documentation/providers/smutbase.md)
 
 ### 3. Architecture Technique, Base de Données & API
-- 🏛️ **[Architecture Logicielle & Optimisations BDD (`documentation/architecture.md`)](./documentation/architecture.md)** : Clean Architecture, POO 3-Tiers (`Orchestrator` $\rightarrow$ `Coordinator` $\rightarrow$ `Actions`), SQLite WAL/FTS5, `title_fingerprint`, `mod_type` et sécurité `AES-256-GCM`.
+
+- 🏛️ **[Architecture Logicielle & Optimisations BDD (`documentation/architecture.md`)](./documentation/architecture.md)** : Clean Architecture, POO 3-Tiers (`Orchestrator` → `Coordinator` → `Actions`), SQLite WAL/FTS5, `title_fingerprint`, `mod_type` et sécurité `AES-256-GCM`.
 - 📊 **[Modules, Classes & Modèle de Données (`documentation/modules_and_classes.md`)](./documentation/modules_and_classes.md)** : Diagrammes de classes UML et séquences d'exécution.
 - 📐 **[Architecture Decision Records (`documentation/adr/index.md`)](./documentation/adr/index.md)** : Historique des décisions d'architecture (ADR 0001 à 0005).
 - 🌐 **[Référence API REST (`documentation/api_reference.md`)](./documentation/api_reference.md)** & **[Spécification FastAPI (`documentation/api/REST_API.md`)](./documentation/api/REST_API.md)**.
 
 ### 4. Qualité, Tests & Contribution IA
+
 - 🤖 **[Guide Normalisé pour Agents LLM (`AGENTS.md`)](./AGENTS.md)** : Contrat d'intégration d'un provider, règles de priorité officielle et matrice des **7 familles de tests obligatoires**.
 
 ---

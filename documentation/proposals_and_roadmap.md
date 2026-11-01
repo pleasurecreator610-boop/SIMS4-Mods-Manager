@@ -7,6 +7,7 @@ Ce document formalise les axes stratégiques d'optimisation de performance, d'é
 ## ⚡ 1. Optimisations de Performance
 
 ### 1.1 Pool HTTP Asynchrone & Keep-Alive Persistant
+
 - **Constat actuel** : Les requêtes vers LoversLab et Patreon alternent entre `curl_cffi` (pour le contournement Cloudflare TLS fingerprinting) et des sessions locales. La création répétée de connexions TCP/TLS engendre une latence cumulée de 150 à 300 ms par requête lors du scraping de catalogues volumineux.
 - **Optimisation proposée** :
   - Centraliser un pool de sessions HTTP persistant à l'échelle de l'application via `SessionManager`.
@@ -14,6 +15,7 @@ Ce document formalise les axes stratégiques d'optimisation de performance, d'é
   - **Gain estimé** : Réduction de **35% à 50%** du temps de scraping complet du catalogue (14 catégories).
 
 ### 1.2 Base de Données SQLite : WAL & Indexation Composite Avancée
+
 - **Constat actuel** : La base SQLite fonctionne en mode standard avec des requêtes SQL dynamiques pouvant déclencher des lectures séquentielles (`TABLE SCAN`) sur des catalogues dépassant 5 000 entrées.
 - **Optimisations proposées** :
   1. **Activation systématique des PRAGMAs haute performance** à l'ouverture de connexion :
@@ -31,6 +33,7 @@ Ce document formalise les axes stratégiques d'optimisation de performance, d'é
   - **Gain estimé** : Temps de réponse des endpoints `/api/catalog` sous la barre des **5 ms** (vs 45 ms sur de larges catalogues).
 
 ### 1.3 Extraction Parallélisée des Archives Volumineuses
+
 - **Constat actuel** : La décompression d'archives volumineuses (ex. packs d'animations LoversLab > 1 Go) dans `ArchiveExtractor` s'exécute dans des threads Python (`threading.Thread`), ce qui peut impacter la réactivité de l'UI en raison du GIL (Global Interpreter Lock).
 - **Optimisation proposée** :
   - Déporter l'extraction vers un pool de processus (`concurrent.futures.ProcessPoolExecutor`) ou utiliser des bibliothèques C natives sans GIL (`libarchive` / `7z` direct).
@@ -42,6 +45,7 @@ Ce document formalise les axes stratégiques d'optimisation de performance, d'é
 ## 🏗️ 2. Évolutions d'Architecture & Bonnes Pratiques
 
 ### 2.1 Moteur de Détection de Conflits DBPF (Sims 4 Tuning Collisions)
+
 - **Problématique** : Le jeu Les Sims 4 utilise le format de conteneur binaire **DBPF** (`.package`). Deux mods modifiant la même ressource XML/tuning Sims 4 (même `Type`, `Group`, `Instance` - TGI) entrent en conflit silencieux : le dernier chargé écrase le premier, provoquant des bugs en jeu.
 - **Proposition technique** :
   - Implémenter un analyseur binaire DBPF léger inspectant l'index des ressources de chaque `.package` installé.
@@ -49,6 +53,7 @@ Ce document formalise les axes stratégiques d'optimisation de performance, d'é
   - Afficher une alerte visuelle claire dans l'onglet **Mes Mods** signalant les conflits d'instances identifiés avec proposition de désactivation automatique d'un des doublons.
 
 ### 2.2 Système de Plugins Modulaire pour Nouveaux Fournisseurs
+
 - **Problématique** : L'ajout de nouveaux fournisseurs (CurseForge, NexusMods, ModTheSims) nécessite actuellement d'étendre directement le code source interne.
 - **Proposition technique** :
   - Standardiser une interface abstraite `BaseSourceProvider` formalisée avec des protocoles Pydantic stricts.
@@ -56,6 +61,7 @@ Ce document formalise les axes stratégiques d'optimisation de performance, d'é
   - Permettre l'ajout de providers tiers sous forme de modules Python indépendants déposés dans un dossier `plugins/`.
 
 ### 2.3 Injection de Dépendances Découplée (DI Container)
+
 - **Proposition technique** :
   - Remplacer les singletons globaux par un conteneur d'injection de dépendances unifié (ex. `dependency-injector` ou conteneur léger interne).
   - Faciliter les tests de bout en bout et les simulations sans nécessiter de mock systématique des instances globales.
@@ -65,6 +71,7 @@ Ce document formalise les axes stratégiques d'optimisation de performance, d'é
 ## 📦 3. Packaging & Déploiement
 
 ### 3.1 Exécutable Standalone Windows Clé-en-Main
+
 - **Objectif** : Permettre aux joueurs n'ayant aucune connaissance en Python d'installer et lancer l'application en un double-clic.
 - **Solution technique** :
   - Packaging via **PyInstaller** ou **Nuitka** en mode bundle binaire autonome.
@@ -72,6 +79,7 @@ Ce document formalise les axes stratégiques d'optimisation de performance, d'é
   - Script d'installation NSIS / Inno Setup avec détection automatique du chemin d'installation du jeu.
 
 ### 3.2 Mode Serveur Headless / Docker pour Serveurs Personnels
+
 - **Objectif** : Permettre d'héberger l'application sur un serveur domestique (NAS Synology, Unraid, TrueNAS) pour gérer et synchroniser automatiquement les mods d'une famille ou d'un réseau local.
 - **Solution technique** :
   - Création d'un `Dockerfile` multi-stage allégé basé sur Debian bookworm.

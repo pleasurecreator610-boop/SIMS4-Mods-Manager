@@ -7,7 +7,7 @@ Le fournisseur `smutbase` connecte **SIMS 4 Mods Manager** à **SmutBase** (`smu
 ## 1. Caractéristiques Techniques
 
 - **Identifiant Provider** : `smutbase`
-- **Classe d'Implémentation** : [`plugins/smutbase/provider.py`](../../plugins/smutbase/provider.py) (`SmutBaseProvider`)
+- **Classe d'Implémentation** : [`plugins/smutbase/provider.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/plugins/smutbase/provider.py) (`SmutBaseProvider`)
 - **URL Officielle** : `https://smutbase.com`
 - **Contenu Adulte (`+18`)** : Oui (`ADULT_PROVIDERS`)
 - **Compte Utilisateur Requis** : **Aucun** (`PUBLIC_NO_ACCOUNT_PROVIDERS`)
@@ -23,5 +23,5 @@ Le fournisseur `smutbase` connecte **SIMS 4 Mods Manager** à **SmutBase** (`smu
 
 ## 3. Tests Automatisés Associés
 
-- [`tests/unit/providers/test_new_platforms_providers.py`](../../tests/unit/providers/test_new_platforms_providers.py)
+- [`tests/unit/providers/test_new_platforms_providers.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/tests/unit/providers/test_new_platforms_providers.py)
 

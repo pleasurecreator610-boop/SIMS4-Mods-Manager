@@ -6,7 +6,7 @@ Ces deux fournisseurs complémentaires couvrent l'écosystème Tumblr / SimFileS
 
 ## 1. Maxis Match CC World (`mmccworld`)
 
-- **Classe d'Implémentation** : [`plugins/mmccworld/provider.py`](../../plugins/mmccworld/provider.py) (`MMCCWorldProvider`)
+- **Classe d'Implémentation** : [`plugins/mmccworld/provider.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/plugins/mmccworld/provider.py) (`MMCCWorldProvider`)
 - **URL Officielle** : `https://maxismatchccworld.tumblr.com`
 - **Contenu Adulte (`+18`)** : Non (`SFW`)
 - **Compte Utilisateur** : Optionnel (`ACCOUNT_SUPPORTED_PROVIDERS` via Tumblr) — permet d'envoyer des messages/Asks aux créateurs.
@@ -16,7 +16,7 @@ Ces deux fournisseurs complémentaires couvrent l'écosystème Tumblr / SimFileS
 
 ## 2. Résolveur Universel SimFileShare (`simfileshare`)
 
-- **Classe d'Implémentation** : [`plugins/simfileshare/provider.py`](../../plugins/simfileshare/provider.py) (`SimFileShareProvider`)
+- **Classe d'Implémentation** : [`plugins/simfileshare/provider.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/plugins/simfileshare/provider.py) (`SimFileShareProvider`)
 - **URL Officielle** : `https://simfileshare.net`
 - **Compte Utilisateur** : Optionnel (`simfileshare` fonctionne sans compte pour tous les téléchargements directs `/download/{id}/` et les dossiers `/folder/{id}/`).
 

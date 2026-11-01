@@ -7,7 +7,7 @@ Le fournisseur `lumpinou` intègre le portail officiel **Lumpinou Mods** (`lumpi
 ## 1. Caractéristiques Techniques
 
 - **Identifiant Provider** : `lumpinou`
-- **Classe d'Implémentation** : [`plugins/lumpinou/provider.py`](../../plugins/lumpinou/provider.py) (`LumpinouProvider`, héritant de `BasePortalProvider`)
+- **Classe d'Implémentation** : [`plugins/lumpinou/provider.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/plugins/lumpinou/provider.py) (`LumpinouProvider`, héritant de `BasePortalProvider`)
 - **URL Officielle** : `https://www.lumpinoumods.com`
 - **Contenu Adulte (`+18`)** : Non (`SFW`)
 - **Compte Utilisateur Requis** : **Aucun** (`PUBLIC_NO_ACCOUNT_PROVIDERS`)
@@ -32,6 +32,6 @@ Les dépendances nommées `RPO`, `Relationship & Pregnancy Overhaul`, `WooHoo We
 
 ## 4. Tests Automatisés Associés
 
-- [`tests/unit/providers/test_new_platforms_providers.py`](../../tests/unit/providers/test_new_platforms_providers.py)
-- [`tests/unit/application/test_multi_platform_dependencies_and_dedup.py`](../../tests/unit/application/test_multi_platform_dependencies_and_dedup.py)
+- [`tests/unit/providers/test_new_platforms_providers.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/tests/unit/providers/test_new_platforms_providers.py)
+- [`tests/unit/application/test_multi_platform_dependencies_and_dedup.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/tests/unit/application/test_multi_platform_dependencies_and_dedup.py)
 

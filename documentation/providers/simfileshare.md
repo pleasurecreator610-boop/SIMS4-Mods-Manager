@@ -7,7 +7,7 @@ Le fournisseur `simfileshare` agit à la fois comme catalogue de dossiers partag
 ## 1. Caractéristiques Techniques
 
 - **Identifiant Provider** : `simfileshare`
-- **Classe d'Implémentation** : [`plugins/simfileshare/provider.py`](../../plugins/simfileshare/provider.py) (`SimFileShareProvider`)
+- **Classe d'Implémentation** : [`plugins/simfileshare/provider.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/plugins/simfileshare/provider.py) (`SimFileShareProvider`)
 - **URL Officielle** : `https://simfileshare.net`
 - **Contenu Adulte (`+18`)** : Non (`SFW`)
 - **Compte Utilisateur** : Non requis pour le téléchargement direct (session optionnelle supportée).

@@ -25,6 +25,7 @@ Le fournisseur `curseforge` permet l'indexation, la recherche, l'analyse des dé
 ## 2. Extraction des Dépendances
 
 Le fournisseur interroge les métadonnées officielles via la sous-page `/relations/dependencies` ou le DOM de description :
+
 - Détection des dépendances strictes (`type: "MOD"`).
 - Détection des bibliothèques fondamentales connues : XML Injector, Lot 51 Core Library, Smart Core Script, Sims 4 Community Library.
 
