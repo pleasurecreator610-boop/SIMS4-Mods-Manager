@@ -1,5 +1,8 @@
-site_name: SIMS 4 Mods Manager - Documentation Technique
-site_description: Documentation technique et architecture logicielle de SIMS 4 Mods Manager
+site_name: "💎 SIMS 4 Mods Manager"
+site_description: "Gestionnaire de Mods Unifié pour Les Sims 4 — 22 Plateformes, Priorité Sites Officiels, Déduplication & Analyse Binaire DBPF"
+site_url: "https://pleasurecreator610-boop.github.io/SIMS4-Mods-Manager/"
+repo_url: "https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager"
+repo_name: "pleasurecreator610-boop/SIMS4-Mods-Manager"
 docs_dir: documentation
 site_dir: site
 
@@ -7,18 +10,18 @@ theme:
   name: material
   language: fr
   palette:
-    - scheme: default
-      primary: indigo
-      accent: indigo
-      toggle:
-        icon: material/brightness-7
-        name: Passer au mode sombre
     - scheme: slate
-      primary: indigo
-      accent: indigo
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-4
         name: Passer au mode clair
+    - scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-7
+        name: Passer au mode sombre
   features:
     - navigation.tabs
     - navigation.sections
@@ -27,6 +30,12 @@ theme:
     - search.suggest
     - search.highlight
     - content.code.copy
+
+extra_css:
+  - stylesheets/sims4_theme.css
+
+extra_javascript:
+  - javascripts/sims4_showcase.js
 
 plugins:
   - search
@@ -40,24 +49,15 @@ plugins:
             show_source: true
 
 nav:
-  - Accueil: index.md
-  - Architecture:
-      - Architecture Unifiée (Clean & 3-Tiers): architecture.md
-      - Architecture Decision Records (ADR):
-          - Index: adr/index.md
-          - ADR 0001 - Clean Architecture: adr/0001-clean-architecture-boundaries.md
-          - ADR 0002 - SQLite WAL & Upsert: adr/0002-sqlite-wal-and-bulk-upserts.md
-          - ADR 0003 - AES-256-GCM Chiffrement: adr/0003-multiplatform-aes-gcm-credentials.md
-          - ADR 0004 - Défense Décompression & SSRF: adr/0004-decompression-bomb-defense.md
-          - ADR 0005 - Forums IPS Mutualisés: adr/0005-unified-ips-forum-scrapers.md
-      - APIs Internes: architecture/INTERNAL_APIS.md
-      - Modules & Classes: modules_and_classes.md
-  - Cas d'Usage Métier:
+  - "💎 Vitrine Sims 4": index.md
+  - "✨ Fonctionnalités":
+      - Guide Complet des Fonctionnalités: features.md
+      - Résolution & Classification des Dépendances: dependency_classification_and_noise.md
       - Services & Vue d'Ensemble Providers: services_and_providers.md
-      - Classification & Résolution Dépendances: dependency_classification_and_noise.md
-      - Internationalisation (i18n): i18n.md
-  - Fournisseurs (22 Plateformes):
-      - Frameworks Officiels:
+      - Internationalisation (5 Langues): i18n.md
+  - "🔌 22 Plateformes":
+      - Catalogue & Comparatif des 22 Plateformes: providers/README.md
+      - Frameworks Officiels Prioritaires:
           - Deaderpool (MCCC): providers/deaderpool.md
           - Scumbumbo (XML Injector): providers/scumbumbo.md
           - Lumpinou (RPO & Mood Pack): providers/lumpinou.md
@@ -84,15 +84,25 @@ nav:
           - Synthira.ru: providers/synthira.md
           - F95zone: providers/f95zone.md
           - SmutBase: providers/smutbase.md
-  - API REST:
-      - Spécification REST: api/REST_API.md
+  - "🏛️ Architecture & BDD":
+      - Architecture Unifiée (Clean, 3-Tiers & SQLite): architecture.md
+      - Modules, Classes & Séquences: modules_and_classes.md
+      - APIs Internes & Contrats: architecture/INTERNAL_APIS.md
+      - Architecture Decision Records (ADR):
+          - Index: adr/index.md
+          - ADR 0001 - Clean Architecture: adr/0001-clean-architecture-boundaries.md
+          - ADR 0002 - SQLite WAL & Upsert: adr/0002-sqlite-wal-and-bulk-upserts.md
+          - ADR 0003 - AES-256-GCM Chiffrement: adr/0003-multiplatform-aes-gcm-credentials.md
+          - ADR 0004 - Défense Décompression & SSRF: adr/0004-decompression-bomb-defense.md
+          - ADR 0005 - Forums IPS Mutualisés: adr/0005-unified-ips-forum-scrapers.md
+  - "🌐 API REST":
       - Référence des Endpoints: api_reference.md
-  - Évolutions & Performance:
-      - Roadmap & Optimisations: proposals_and_roadmap.md
-  - Référence Code Python:
+      - Spécification REST Complète: api/REST_API.md
+  - "🐍 Référence Code":
       - Application - Catalog: reference/application_catalog.md
       - Application - Mods: reference/application_mods.md
       - Application - Dépendances: reference/application_dependencies.md
       - Application - Jeu Sims 4: reference/application_game.md
       - Infrastructure: reference/infrastructure.md
       - API REST & Client: reference/api.md
+  - "🚀 Roadmap": proposals_and_roadmap.md

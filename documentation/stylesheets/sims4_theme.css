@@ -1,0 +1,359 @@
+/* ==========================================================================
+   SIMS 4 Mods Manager — Thème Officiel "Plumbob Emerald & Sapphire"
+   ========================================================================== */
+
+:root {
+  --s4-plumbob-green: #00e676;
+  --s4-plumbob-dark: #00c853;
+  --s4-plumbob-glow: rgba(0, 230, 118, 0.35);
+  --s4-sims-blue: #00b0ff;
+  --s4-sims-navy: #0a192f;
+  --s4-card-bg: rgba(17, 34, 64, 0.78);
+  --s4-card-border: rgba(0, 230, 118, 0.25);
+  --s4-text-light: #e6f1ff;
+  --s4-text-muted: #94a3b8;
+}
+
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: #00a152;
+  --md-primary-fg-color--light: #00e676;
+  --md-primary-fg-color--dark: #00703a;
+  --md-accent-fg-color: #00b0ff;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #0d2137;
+  --md-primary-fg-color--light: #00e676;
+  --md-primary-fg-color--dark: #071320;
+  --md-accent-fg-color: #00e676;
+  --md-default-bg-color: #091326;
+}
+
+/* Hero Banner Sims 4 */
+.s4-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  padding: 2.8rem 2.4rem;
+  margin-bottom: 2.2rem;
+  background: radial-gradient(circle at 85% 20%, rgba(0, 230, 118, 0.22), transparent 45%),
+              radial-gradient(circle at 15% 80%, rgba(0, 176, 255, 0.22), transparent 50%),
+              linear-gradient(135deg, #071426 0%, #0f2547 55%, #0b3142 100%);
+  border: 1px solid rgba(0, 230, 118, 0.35);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35), 0 0 35px rgba(0, 230, 118, 0.12);
+  color: #ffffff;
+}
+
+.s4-hero-grid {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.s4-hero-content {
+  flex: 1 1 480px;
+}
+
+.s4-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.32rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: rgba(0, 230, 118, 0.16);
+  color: #69f0ae;
+  border: 1px solid rgba(0, 230, 118, 0.45);
+  margin-bottom: 0.9rem;
+}
+
+.s4-hero h1 {
+  margin: 0 0 0.75rem 0 !important;
+  font-size: 2.35rem !important;
+  font-weight: 800 !important;
+  line-height: 1.18 !important;
+  color: #ffffff !important;
+  letter-spacing: -0.02em;
+}
+
+.s4-hero h1 span {
+  background: linear-gradient(90deg, #00e676 0%, #00e5ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.s4-hero p {
+  font-size: 1.02rem;
+  line-height: 1.65;
+  color: #cbd5e1;
+  margin-bottom: 1.4rem;
+}
+
+.s4-cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  margin-top: 1.1rem;
+}
+
+.s4-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.68rem 1.35rem;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-decoration: none !important;
+  transition: all 0.22s ease;
+}
+
+.s4-btn-primary {
+  background: linear-gradient(135deg, #00e676 0%, #00c853 100%);
+  color: #04121f !important;
+  box-shadow: 0 6px 20px rgba(0, 230, 118, 0.38);
+}
+
+.s4-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 26px rgba(0, 230, 118, 0.55);
+}
+
+.s4-btn-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e2e8f0 !important;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.s4-btn-secondary:hover {
+  background: rgba(0, 176, 255, 0.18);
+  border-color: #00b0ff;
+  transform: translateY(-2px);
+}
+
+/* Plumbob 3D SVG Animation */
+.s4-plumbob-wrap {
+  flex: 0 0 175px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.s4-plumbob-svg {
+  width: 145px;
+  height: 210px;
+  filter: drop-shadow(0 0 24px rgba(0, 230, 118, 0.65));
+  animation: s4-plumbob-float 3.6s ease-in-out infinite;
+}
+
+@keyframes s4-plumbob-float {
+  0%, 100% {
+    transform: translateY(0px) scale(1);
+    filter: drop-shadow(0 0 22px rgba(0, 230, 118, 0.6));
+  }
+  50% {
+    transform: translateY(-12px) scale(1.04);
+    filter: drop-shadow(0 0 34px rgba(0, 230, 118, 0.92));
+  }
+}
+
+/* Statistiques Clés (KPI Strip) */
+.s4-stats-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin: 1.6rem 0 2.4rem 0;
+}
+
+.s4-stat-box {
+  background: linear-gradient(145deg, rgba(15, 35, 66, 0.9), rgba(10, 25, 47, 0.92));
+  border: 1px solid rgba(0, 230, 118, 0.28);
+  border-radius: 14px;
+  padding: 1.1rem 1rem;
+  text-align: center;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+}
+
+.s4-stat-number {
+  display: block;
+  font-size: 1.85rem;
+  font-weight: 800;
+  background: linear-gradient(90deg, #00e676, #00e5ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.s4-stat-label {
+  font-size: 0.8rem;
+  color: #cbd5e1;
+  font-weight: 600;
+  margin-top: 0.2rem;
+}
+
+/* Grille des 6 Piliers Fonctionnels */
+.s4-features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.25rem;
+  margin: 1.5rem 0 2.5rem 0;
+}
+
+.s4-feature-card {
+  background: linear-gradient(160deg, rgba(16, 36, 68, 0.92), rgba(11, 24, 46, 0.95));
+  border: 1px solid rgba(0, 176, 255, 0.24);
+  border-radius: 16px;
+  padding: 1.35rem 1.3rem;
+  color: #e2e8f0;
+  transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+}
+
+.s4-feature-card:hover {
+  transform: translateY(-4px);
+  border-color: #00e676;
+  box-shadow: 0 14px 30px rgba(0, 230, 118, 0.16);
+}
+
+.s4-feature-icon {
+  font-size: 1.75rem;
+  margin-bottom: 0.55rem;
+  display: inline-block;
+}
+
+.s4-feature-card h3 {
+  margin: 0 0 0.5rem 0 !important;
+  font-size: 1.08rem !important;
+  color: #69f0ae !important;
+}
+
+.s4-feature-card p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: #cbd5e1;
+}
+
+/* Explorateur Interactif des 22 Plateformes */
+.s4-filter-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+  margin: 1.2rem 0;
+}
+
+.s4-filter-btn {
+  padding: 0.42rem 0.95rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 230, 118, 0.35);
+  background: rgba(15, 35, 66, 0.85);
+  color: #e2e8f0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.s4-filter-btn:hover,
+.s4-filter-btn.active {
+  background: linear-gradient(135deg, #00e676, #00c853);
+  color: #04121f;
+  border-color: #00e676;
+  box-shadow: 0 4px 14px rgba(0, 230, 118, 0.35);
+}
+
+.s4-search-input {
+  flex: 1 1 210px;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 176, 255, 0.4);
+  background: rgba(10, 25, 47, 0.9);
+  color: #ffffff;
+  font-size: 0.84rem;
+}
+
+.s4-providers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(255px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0 2.2rem 0;
+}
+
+.s4-provider-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: linear-gradient(155deg, rgba(15, 33, 62, 0.92), rgba(9, 20, 38, 0.96));
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 14px;
+  padding: 1.05rem 1.1rem;
+  text-decoration: none !important;
+  color: #e2e8f0 !important;
+  transition: all 0.2s ease;
+}
+
+.s4-provider-card:hover {
+  transform: translateY(-3px);
+  border-color: #00e676;
+  box-shadow: 0 10px 24px rgba(0, 230, 118, 0.18);
+}
+
+.s4-provider-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+}
+
+.s4-provider-title {
+  font-weight: 800;
+  font-size: 0.96rem;
+  color: #ffffff;
+}
+
+.s4-tag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.16rem 0.55rem;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+
+.s4-tag-official {
+  background: rgba(0, 230, 118, 0.2);
+  color: #69f0ae;
+  border: 1px solid rgba(0, 230, 118, 0.5);
+}
+
+.s4-tag-sfw {
+  background: rgba(0, 176, 255, 0.2);
+  color: #80d8ff;
+  border: 1px solid rgba(0, 176, 255, 0.5);
+}
+
+.s4-tag-adult {
+  background: rgba(255, 82, 82, 0.2);
+  color: #ff8a80;
+  border: 1px solid rgba(255, 82, 82, 0.5);
+}
+
+.s4-provider-desc {
+  font-size: 0.81rem;
+  color: #cbd5e1;
+  line-height: 1.45;
+  margin-bottom: 0.7rem;
+}
+
+.s4-provider-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
