@@ -1,5 +1,5 @@
-site_name: "💎 SIMS 4 Mods Manager"
-site_description: "Gestionnaire de Mods Unifié pour Les Sims 4 — 22 Plateformes, Priorité Sites Officiels, Déduplication & Analyse Binaire DBPF"
+site_name: "SIMS 4 Mods Manager"
+site_description: "Le Compagnon Tout-en-Un pour gérer, installer et protéger tous vos Mods et Custom Content Les Sims 4"
 site_url: "https://pleasurecreator610-boop.github.io/SIMS4-Mods-Manager/"
 repo_url: "https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager"
 repo_name: "pleasurecreator610-boop/SIMS4-Mods-Manager"
@@ -9,19 +9,21 @@ site_dir: site
 theme:
   name: material
   language: fr
+  logo: assets/plumbob.svg
+  favicon: assets/plumbob.svg
   palette:
-    - scheme: slate
-      primary: custom
-      accent: custom
-      toggle:
-        icon: material/brightness-4
-        name: Passer au mode clair
     - scheme: default
       primary: custom
       accent: custom
       toggle:
         icon: material/brightness-7
         name: Passer au mode sombre
+    - scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-4
+        name: Passer au mode clair
   features:
     - navigation.tabs
     - navigation.sections
@@ -64,21 +66,19 @@ plugins:
             show_source: true
 
 nav:
-  - "💎 Vitrine Sims 4": index.md
+  - "💎 Accueil Sims 4": index.md
   - "✨ Fonctionnalités":
       - Guide Complet des Fonctionnalités: features.md
-      - Résolution & Classification des Dépendances: dependency_classification_and_noise.md
-      - Services & Vue d'Ensemble Providers: services_and_providers.md
-      - Internationalisation (5 Langues): i18n.md
-  - "🔌 22 Plateformes":
-      - Catalogue & Comparatif des 22 Plateformes: providers/README.md
-      - Frameworks Officiels Prioritaires:
+      - Langues & Internationalisation: i18n.md
+  - "🔌 Plateformes & Sites":
+      - Catalogue des Plateformes Supportées: providers/README.md
+      - Sites Officiels de Prérequis:
           - Deaderpool (MCCC): providers/deaderpool.md
           - Scumbumbo (XML Injector): providers/scumbumbo.md
           - Lumpinou (RPO & Mood Pack): providers/lumpinou.md
           - Wicked.cc (WickedWhims): providers/wickedcc.md
           - Basemental (Drugs & Venue List): providers/basemental.md
-      - Catalogues & Créateurs SFW:
+      - Catalogues & Créateurs:
           - CurseForge: providers/curseforge.md
           - The Sims Resource (TSR): providers/thesimsresource.md
           - ModTheSims (MTS): providers/modthesims.md
@@ -99,8 +99,10 @@ nav:
           - Synthira.ru: providers/synthira.md
           - F95zone: providers/f95zone.md
           - SmutBase: providers/smutbase.md
-  - "🏛️ Architecture & BDD":
-      - Architecture Unifiée (Clean, 3-Tiers & SQLite): architecture.md
+  - "🛠️ Espace Technique (Dev)":
+      - Architecture & Base de Données: architecture.md
+      - Résolution & Classification des Dépendances: dependency_classification_and_noise.md
+      - Services & Architecture Providers: services_and_providers.md
       - Modules, Classes & Séquences: modules_and_classes.md
       - APIs Internes & Contrats: architecture/INTERNAL_APIS.md
       - Architecture Decision Records (ADR):

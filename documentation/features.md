@@ -1,106 +1,96 @@
 # ✨ Guide Complet des Fonctionnalités — SIMS 4 Mods Manager
 
-Ce document présente en détail l'ensemble des fonctionnalités de **SIMS 4 Mods Manager**, de l'exploration unifiée des **22 plateformes** jusqu'au diagnostic binaire des conflits `.package` (`DBPF`).
+Ce guide présente en détail comment **SIMS 4 Mods Manager** vous aide au quotidien à trouver de nouveaux contenus, installer vos mods sans erreur et garder votre jeu **Les Sims 4** fluide et stable.
 
 ---
 
-## 1. 🌐 Catalogue Unifié Multi-Plateformes & Recherche Temps Réel (`FTS5`)
+## 1. 🌐 Catalogue Tout-en-Un & Recherche Instantanée
 
-L'onglet **Catalogue Unifié** agrège en une seule interface fluide les mods issus de **22 plateformes** :
+L'onglet **Catalogue** réunit au même endroit tous vos sites de mods et de Custom Content (CC) :
 
-- **5 Portails Officiels de Frameworks** : `Deaderpool`, `Scumbumbo`, `Lumpinou`, `Wicked.cc`, `Basemental`.
-- **12 Catalogues Communautaires & Créateurs SFW** : `CurseForge`, `The Sims Resource`, `ModTheSims`, `Nexus Mods`, `Patreon`, `SimsFinds`, `Maxis Match CC World`, `SimFileShare`, `Sims 4 Studio`, `GameBanana`, `The Sims Catalog`, `itch.io`, `LittleMsSam`, `SixamCC`.
-- **5 Portails Adultes (`+18`)** : `LoversLab`, `NSFWMods`, `Synthira.ru`, `F95zone`, `SmutBase` (**masqués par défaut** et activables à la demande dans les Paramètres).
+- **Sites Officiels de Mods Socles** : Accès direct aux grands mods utilitaires et frameworks indispensables.
+- **Catalogues Communautaires & Créateurs** : Coiffures, vêtements, maquillage, meubles, maisons, mods de gameplay, carrières et traits de caractère.
+- **Portails Adultes (`+18`)** : Masqués par défaut pour une utilisation tout public, et activables à la demande dans les **Paramètres**.
 
 ```mermaid
 flowchart LR
-    UI["🔍 Barre de Recherche & Filtres (PySide6)"]
-    API["⚡ API FastAPI (/api/catalog)"]
-    FTS["📇 Index Inversé SQLite FTS5 (rowid = id)"]
-    IDX["🌲 Index B-Tree (mod_type, updated_date, id)"]
-    GRID["🃏 Grille Responsive & Cartes Recyclées"]
-
-    UI --> API
-    API --> FTS
-    API --> IDX
-    FTS --> GRID
-    IDX --> GRID
+    Search["🔍 Barre de Recherche & Filtres"] --> Catalog["📚 Catalogue Unifié"]
+    Catalog --> TypeFilter["👗 Tri par Catégorie (Vêtements, Meubles, Gameplay...)"]
+    TypeFilter --> Install["⚡ Installation en 1 Clic"]
 ```
 
-### Points clés du Catalogue :
+### Ce que vous pouvez faire dans le Catalogue :
 
-- **Recherche Plein Texte Instantanée (`SQLite FTS5`)** : Recherche simultanée dans le titre, l'auteur, les tags et la description en quelques millisecondes.
-- **Classification Automatique par Type (`mod_type` indexé)** : Filtrez en un clic par *Animations & Poses*, *Vêtements & Tenues*, *Coiffures*, *Peaux & Presets*, *Accessoires & Maquillage*, *Gameplay & Scripts*, *Objets & Terrains* ou *Traductions* en `O(log N)`.
-- **Filtres Croisés** : Filtrage par source, statut d'installation (*Installé*, *Non installé*, *Mise à jour disponible*) et niveau d'accès (*Accès Direct*, *Compte Requis*, *Abonnement Patreon*).
-- **Tiroir Latéral de Synchronisation (`ProviderDrawer`)** : Visualisez la progression de scraping en temps réel (pages, articles, barre de progression) et mettez en pause ou relancez individuellement chaque plateforme.
-
----
-
-## 2. 🛡️ Priorité Absolue aux Sites Officiels des Frameworks
-
-Dans l'écosystème **Les Sims 4**, de nombreux créateurs référencent leurs prérequis via des liens tiers (ex. une fiche *LoversLab*, *CurseForge* ou *Patreon* pointant vers *MC Command Center* ou *XML Injector*).
-
-**SIMS 4 Mods Manager** intercepte automatiquement ces dépendances en **`O(1)`** via `dependency_special_cases.py` pour **toujours les télécharger depuis le site officiel public du créateur**, sans nécessiter de compte tiers :
-
-| Framework / Mod Majeur | Créateur | Redirection Officielle Automatique | Accès & Téléchargement |
-| :--- | :--- | :--- | :--- |
-| **MC Command Center (MCCC) & MC WooHoo** | Deaderpool | [deaderpool-mccc.com](https://deaderpool-mccc.com) (`deaderpool`) | ✅ **100% Public (Sans compte)** |
-| **XML Injector & Teleport Any Sim** | Scumbumbo | [scumbumbomods.com](https://scumbumbomods.com) (`scumbumbo`) | ✅ **100% Public (Sans compte)** |
-| **RPO (WooHoo Wellness), Mood Pack, Toolbox, LGBTQIA+** | Lumpinou | [lumpinoumods.com](https://www.lumpinoumods.com) (`lumpinou`) | ✅ **100% Public (Sans compte)** |
-| **WickedWhims & WonderfulWhims** | TURBODRIVER | [wicked.cc](https://wicked.cc) / [wonderfulwhims.com](https://wonderfulwhims.com) (`wickedcc`) | ✅ **100% Public (Sans compte)** |
-| **Basemental Drugs, Gangs & Universal Venue List** | Basemental | [basementalcc.com](https://basementalcc.com) (`basemental`) | ✅ **100% Public (Sans compte)** |
-| **Andrew's Pose Player** | Andrew | [sims4studio.com](https://sims4studio.com/thread/2617/andrews-studio) (`sims4studio`) | ✅ **100% Public (Direct SFS)** |
+- **Recherche Instantanée** : Tapez le nom d'un mod, d'un créateur ou un mot-clé pour afficher immédiatement les résultats correspondants parmi des milliers de créations.
+- **Tri par Catégorie de Contenu** : Filtrez en un clic par *Animations & Poses*, *Vêtements & Tenues*, *Coiffures*, *Peaux & Presets*, *Accessoires & Maquillage*, *Gameplay & Scripts*, *Objets & Terrains* ou *Traductions*.
+- **Filtres Pratiques** : Affichez uniquement les mods déjà installés, ceux qui ont une mise à jour disponible, ou les sites accessibles sans aucun compte requis.
+- **Suivi en Temps Réel** : Un volet latéral vous permet de suivre l'actualisation de chaque site et de mettre en pause ou relancer une plateforme quand vous le souhaitez.
 
 ---
 
-## 3. 🧩 Résolution de Dépendances en Cascade, Déduplication & Filtrage du Bruit
+## 2. 🛡️ Téléchargement Automatique des Prérequis depuis les Sites Officiels
 
-Lors de l'inspection ou de l'installation d'un mod (ou d'une sélection multiple de mods) :
+Dans la communauté **Les Sims 4**, de nombreux mods ont besoin d'un mod socle ou d'un injecteur pour fonctionner en jeu. Souvent, la page du mod renvoie vers un lien secondaire ou un forum demandant un compte.
 
-- **1. Déduplication Inter-Plateformes (`ModMatcher` + `title_fingerprint`)** :
-  Si un mod requis a déjà été installé depuis une autre plateforme (ex. *XML Injector* installé depuis `scumbumbo` alors qu'un mod CurseForge le demande), l'empreinte canonique `title_fingerprint` le reconnaît immédiatement comme **`INSTALLED`** en `O(log N)` sans le re-télécharger.
+**SIMS 4 Mods Manager** reconnaît automatiquement ces prérequis et **va toujours les chercher directement sur le site officiel de leur créateur**, gratuitement et sans vous demander de compte :
 
-- **2. Mutualisation des Téléchargements Concurrents (`ActiveInstallationRegistry`)** :
-  Si vous lancez l'installation simultanée de 5 mods partageant tous une même dépendance (*Lumpinou's Toolbox* ou *WickedWhims*), la dépendance n'est téléchargée et extraite **qu'une seule fois**.
-
-- **3. Séparation Intelligente `MOD` vs `COMMENT_NOISE` & Surcharge Manuelle** :
-  Les consignes d'installation laissées par les auteurs dans leurs sections *Requirements* (*"Enable Script Mods in Game Options"*, *"Do not reupload"*, *"Extract in your Mods folder"*) sont automatiquement filtrées en **`COMMENT_NOISE`**. Un bouton sur chaque ligne permet à l'utilisateur de basculer à tout moment un élément entre *Mod Requis* et *Note / Commentaire*, avec mémorisation persistante dans SQLite.
-
----
-
-## 4. 📢 Signalement & Interpellation des Créateurs (Commentaires & MP)
-
-Lorsqu'un mod mentionne des prérequis ambigus ou un lien cassé :
-
-- **Vérification d'Authentification Préalable** : L'application vérifie si une session active existe pour la plateforme cible (`SessionManager.is_member_authenticated`) et invite l'utilisateur à se connecter si nécessaire.
-- **Anti-Doublon Automatique** : Avant tout envoi, l'application inspecte les commentaires existants de la fiche pour éviter tout message en double.
-- **Message Standardisé en Anglais & Révocation** : Génère un message courtois et structuré listant les dépendances non résolues, le publie en commentaire public ou en message privé (MP), et permet de le supprimer directement depuis l'interface.
+| Type de Prérequis | Bénéfice pour votre Jeu | Accès & Téléchargement |
+| :--- | :--- | :--- |
+| **Grands Mods de Contrôle & Gameplay** | Télécharge toujours la dernière version officielle compatible avec votre patch EA | ✅ **100% Public (Sans compte)** |
+| **Injecteurs de Scripts & Utilitaires** | Évite les menus invisibles en jeu lorsqu'un mod dépend d'un injecteur commun | ✅ **100% Public (Sans compte)** |
+| **Bibliothèques d'Animations & Poses** | Installe automatiquement le lecteur d'animations requis par vos packs | ✅ **100% Public (Sans compte)** |
+| **Packs d'Objets & Lieux Communautaires** | Récupère les listes de terrains et ressources partagées directement à la source | ✅ **100% Public (Sans compte)** |
 
 ---
 
-## 5. 📦 Installation Sécurisée, Règle `.ts4script` & Rollback de Mise à Jour
+## 3. 🧩 Fin des Doublons & Tri Automatique des Notes d'Auteurs
 
-Le moteur d'exécution des **Sims 4** impose une contrainte stricte : **les fichiers `.ts4script` ne sont chargés par le jeu que s'ils se trouvent à la racine de `Mods/` ou à 1 seul sous-dossier de profondeur (`Mods/<NomDuMod>/script.ts4script`)**.
+Lorsque vous installez un ou plusieurs mods en même temps :
 
-- **Aplatissement Automatique `.ts4script` (Profondeur `≤ 1`)** : Lors de l'extraction d'une archive `.zip`, `.7z` ou `.rar`, tout fichier `.ts4script` niché dans des sous-dossiers profonds est automatiquement remonté dans `Mods/<NomDuMod>/`, tandis que les fichiers `.package` conservent leur structure jusqu'à 5 niveaux.
-- **Activation / Désactivation Réversible (`.disabled`)** : Activez ou désactivez n'importe quel mod en un clic (renommage atomique `.package` ↔ `.package.disabled` et mise à jour SQL directe).
-- **Sauvegarde ZIP & Restauration en 1 Clic** : Avant chaque mise à jour d'un mod, une archive de sauvegarde est créée dans `.sims4_mod_manager/backups/`. En cas d'incompatibilité avec votre partie, le bouton **Restaurer la version précédente** rétablit instantanément la version antérieure.
-- **Protection de vos Fichiers de Configuration** : Les fichiers de réglages utilisateur (`mc_settings.cfg`, `.ini`, `.json`, `.log`) sont préservés lors des mises à jour.
+- **1. Aucun Mod Installé en Double** :
+  Si un prérequis est déjà présent dans votre dossier `Mods` (même s'il a été téléchargé depuis un autre site), l'application le reconnaît immédiatement comme **Déjà installé** et ne le télécharge pas une seconde fois.
 
----
+- **2. Téléchargement Groupé Intelligent** :
+  Si vous lancez l'installation simultanée de plusieurs mods qui ont tous besoin du même prérequis, celui-ci n'est téléchargé et installé **qu'une seule fois**.
 
-## 6. ⚔️ Détecteur de Conflits Binaires DBPF (`mmap` Zero-Copy)
-
-L'outil de diagnostic inspecte l'ensemble des fichiers `.package` actifs de votre dossier `Mods` :
-
-- **Lecture Binaire `mmap` Sans Copie RAM** : Analyse l'en-tête `DBPF` et la table d'index binaire pour extraire les triplets **`TGI` (`Type-Group-Instance`)** de chaque ressource.
-- **Cache SQLite Persistant (`DbpfPackageCache`)** : Indexé par `(file_path, mtime, file_size) avec upsert natif `ON CONFLICT DO UPDATE` et purge automatique des fichiers supprimés. Seuls les fichiers `.package` modifiés depuis le dernier scan sont ré-analysés.
-- **Distinction Conflits Critiques vs Traductions (`STBL`)** : Sépare clairement les collisions de gameplay (`Tuning`, `SimData`, `ObjectCatalog`) des remplacements légitimes de tables de traduction (`STBL 0x220557DA`), et permet de désactiver le package en conflit directement depuis le rapport.
+- **3. Séparation entre Vrais Prérequis et Simples Consignes** :
+  Les auteurs écrivent souvent des rappels dans la liste des prérequis (*« Activer les mods de script dans les options du jeu »*, *« Ne pas repartager »*). L'application écarte automatiquement ces notes pour ne télécharger que les vrais mods, tout en vous permettant de basculer manuellement un élément en un clic.
 
 ---
 
-## 7. 🌍 Internationalisation (5 Langues) & Sécurité
+## 4. 📢 Contacter les Créateurs en 1 Clic (Commentaires & Messages)
 
-- **5 Langues Intégrées avec Changement à Chaud** : Français (`fr`), Anglais (`en`), Espagnol (`es`), Chinois simplifié (`zh`) et Hindi (`hi`) avec parité complète des clés.
-- **Chiffrement `AES-256-GCM` au Repos** : Tous les cookies de session et jetons API (`AccountSession`) sont chiffrés localement.
-- **Bouclier Anti-SSRF & Anti-Zip-Bomb** : Validation stricte des domaines et IPs avant téléchargement, contrôle des ratios de compression et blocage des exécutables malveillants (`.exe`, `.bat`, `.ps1`, `.dll`) dans les archives de mods.
+Lorsqu'une fiche de mod mentionne un prérequis introuvable ou un lien cassé :
+
+- **Invitation Guidée à se Connecter** : L'application vérifie si vous êtes connecté au site concerné et vous propose de vous identifier si nécessaire.
+- **Zéro Message en Double** : Avant d'envoyer quoi que ce soit, l'application vérifie automatiquement si un signalement similaire n'a pas déjà été posté sur la page du mod.
+- **Message Clair & Annulation Facile** : Publie un commentaire courtois ou un message privé au créateur pour lui signaler le prérequis manquant, avec possibilité de supprimer votre message en un clic depuis l'application.
+
+---
+
+## 5. 📦 Installation Propre, Scripts `.ts4script` & Retour en Arrière
+
+Le jeu **Les Sims 4** impose une règle stricte : **les fichiers `.ts4script` ne fonctionnent que s'ils sont placés à la racine du dossier `Mods` ou dans un seul sous-dossier** (`Mods/<NomDuMod>/fichier.ts4script`). S'ils sont rangés trop profondément, le jeu les ignore.
+
+- **Placement Automatique des Scripts `.ts4script`** : Lors de l'installation d'une archive (`.zip`, `.7z`, `.rar`), tout fichier `.ts4script` caché dans des sous-dossiers est automatiquement remonté au bon niveau pour fonctionner immédiatement en jeu.
+- **Activer / Désactiver un Mod sans le Supprimer** : Vous voulez tester votre partie sans un mod ? Désactivez-le en un clic dans l'application, puis réactivez-le quand vous voulez sans perdre ses fichiers.
+- **Sauvegarde Automatique avant Mise à Jour** : Avant chaque mise à jour d'un mod, l'application garde une copie de votre ancienne version. Si la nouvelle version pose problème dans votre partie, le bouton **Restaurer la version précédente** vous ramène en arrière en un clic.
+- **Conservation de vos Réglages Personnels** : Vos fichiers de configuration et préférences en jeu sont automatiquement conservés lors des mises à jour.
+
+---
+
+## 6. ⚔️ Détecteur de Mods Incompatibles (Ultra-Rapide, Sans Ralentir votre PC)
+
+Lorsque deux mods modifient exactement le même élément du jeu, ils entrent en conflit : cela provoque des bugs visuels, des actions bloquées ou des fermetures soudaines du jeu.
+
+- **Analyse Instantanée Sans Bloquer l'Ordinateur** : L'outil inspecte directement vos fichiers `.package` sans copier des gigaoctets en mémoire vive. Même si votre dossier `Mods` contient des milliers de fichiers, l'analyse est quasi instantanée après le premier scan.
+- **Ne Confond Pas les Traductions avec les Vrais Conflits** : Une traduction française modifie volontairement les textes d'un mod original. L'application distingue clairement les **vrais conflits de gameplay** des simples **traductions** pour éviter les fausses alertes.
+- **Résolution en 1 Clic** : Désactivez directement le fichier qui pose problème depuis le rapport de conflits sans chercher manuellement dans vos dossiers Windows.
+
+---
+
+## 7. 🌍 Multilingue (5 Langues) & Protection de votre Ordinateur
+
+- **5 Langues Disponibles Immédiatement** : Interface entièrement traduite en Français, Anglais, Espagnol, Chinois simplifié et Hindi, modifiable à chaud sans redémarrer l'application.
+- **Protection de vos Comptes** : Vos sessions de connexion aux plateformes sont chiffrées et stockées uniquement sur votre propre ordinateur.
+- **Sécurité des Téléchargements** : Chaque archive téléchargée est contrôlée avant extraction pour bloquer tout fichier exécutable suspect (`.exe`, `.bat`, `.dll`) et protéger votre PC.
