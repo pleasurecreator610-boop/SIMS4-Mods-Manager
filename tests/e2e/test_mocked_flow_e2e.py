@@ -587,8 +587,14 @@ def test_ambiguous_dependencies_comment_and_forum_interpellation_e2e(e2e_env, mo
                 "Game Options -> Script Mods Enabled",
                 "Bad decisions. Better stories",
             ],
+            "expected_extracted_mods": [
+                "Lumpinou",
+                "Relationship & Pregnancy Overhaul",
+            ],
             "expected_unfound_mods": [
                 "Lumpinou",
+            ],
+            "expected_missing_mods": [
                 "Relationship & Pregnancy Overhaul",
             ],
         },
@@ -606,9 +612,15 @@ def test_ambiguous_dependencies_comment_and_forum_interpellation_e2e(e2e_env, mo
             "expected_comments": [
                 "Script-only mod - no .package file required",
             ],
+            "expected_extracted_mods": [
+                "Scumbumbo",
+                "XML Injector",
+            ],
             "expected_unfound_mods": [
                 "Scumbumbo",
-                "XML Injector v4",
+            ],
+            "expected_missing_mods": [
+                "XML Injector",
             ],
         },
         {
@@ -625,10 +637,15 @@ def test_ambiguous_dependencies_comment_and_forum_interpellation_e2e(e2e_env, mo
             "expected_comments": [
                 "Make sure you have the latest patch and restart the game",
             ],
+            "expected_extracted_mods": [
+                "Kuttoe",
+                "Mini Mod Framework",
+            ],
             "expected_unfound_mods": [
                 "Kuttoe",
                 "Mini Mod Framework",
             ],
+            "expected_missing_mods": [],
         },
     ]
 
@@ -640,7 +657,7 @@ def test_ambiguous_dependencies_comment_and_forum_interpellation_e2e(e2e_env, mo
         # 1. Verify delimiter splitting and extraction accuracy
         for exp_c in case["expected_comments"]:
             assert exp_c in extracted_titles, f"Expected comment '{exp_c}' not in extracted {extracted_titles}"
-        for exp_m in case["expected_unfound_mods"]:
+        for exp_m in case["expected_extracted_mods"]:
             assert exp_m in extracted_titles, f"Expected split mod '{exp_m}' not in extracted {extracted_titles}"
 
         # 2. Seed mod in catalog DB
@@ -661,7 +678,7 @@ def test_ambiguous_dependencies_comment_and_forum_interpellation_e2e(e2e_env, mo
 
         # 3. Apply explicit user qualification overrides via API (/api/catalog/requirements-override)
         overrides_map = {c: "COMMENT" for c in case["expected_comments"]}
-        overrides_map.update({m: "MOD" for m in case["expected_unfound_mods"]})
+        overrides_map.update({m: "MOD" for m in case["expected_extracted_mods"]})
 
         ov_resp = client.post(
             "/api/catalog/requirements-override",
@@ -686,9 +703,11 @@ def test_ambiguous_dependencies_comment_and_forum_interpellation_e2e(e2e_env, mo
 
         comment_titles = [d["title"] for d in chk_data["comment_dependencies"]]
         unfound_titles = [d["title"] for d in chk_data["unfound_dependencies"]]
+        missing_titles = [d["title"] for d in chk_data["missing_dependencies"]]
 
         assert set(comment_titles) == set(case["expected_comments"])
         assert set(unfound_titles) == set(case["expected_unfound_mods"])
+        assert set(missing_titles) == set(case["expected_missing_mods"])
 
         # 5. Check missing report & verify formatted forum message separation
         rep_chk1 = client.post(
@@ -899,8 +918,9 @@ def test_multi_mods_shared_dependencies_non_reinstallation_e2e(e2e_env, monkeypa
     mock_provider.provider_name = "loverslab"
 
     def mock_get_details(url):
+        url_str = str(url)
         for rid, d in all_defs_by_id.items():
-            if rid in str(url):
+            if rid in url_str or (rid == "99901" and "xml-injector" in url_str):
                 is_dep = rid in ("3169", "99901")
                 return {
                     "download_urls": [{"name": f"{rid}.zip", "url": d["dl_url"]}],
@@ -913,7 +933,11 @@ def test_multi_mods_shared_dependencies_non_reinstallation_e2e(e2e_env, monkeypa
 
     def mock_download(url, dest_path, progress_callback=None):
         dest_path = Path(dest_path)
-        matched_rid = next((rid for rid in all_defs_by_id if rid in str(url)), None)
+        url_str = str(url)
+        matched_rid = next(
+            (rid for rid in all_defs_by_id if rid in url_str or (rid == "99901" and "xml-injector" in url_str)),
+            None,
+        )
         assert matched_rid is not None, f"Unexpected download URL: {url}"
         download_call_counts[matched_rid] += 1
 
@@ -1486,7 +1510,9 @@ def test_cross_platform_shared_dependencies_and_non_collision_e2e(e2e_env, monke
         s.commit()
 
     entries_by_url = {e["page_url"]: e for e in catalog_entries}
+    entries_by_url["https://scumbumbomods.com/xml-injector"] = catalog_entries[0]
     entries_by_dl = {e["dl_url"]: e for e in catalog_entries}
+    entries_by_dl["https://scumbumbomods.com/xml-injector"] = catalog_entries[0]
     download_lock = threading.Lock()
     download_counts = {
         "xml_injector": 0,
@@ -1545,6 +1571,7 @@ def test_cross_platform_shared_dependencies_and_non_collision_e2e(e2e_env, monke
         "nsfwmods": _make_provider("nsfwmods"),
         "curseforge": _make_provider("curseforge"),
         "thesimsresource": _make_provider("thesimsresource"),
+        "scumbumbo": _make_provider("scumbumbo"),
     }
     monkeypatch.setattr(ProviderRegistry, "get_provider", classmethod(lambda cls, name: providers.get(name)))
 
@@ -2749,7 +2776,9 @@ def test_eight_platforms_cross_deduplication_and_shared_deps_e2e(e2e_env, monkey
         s.commit()
 
     entries_by_url = {e["page_url"]: e for e in catalog_entries}
+    entries_by_url["https://scumbumbomods.com/xml-injector"] = catalog_entries[0]
     entries_by_dl = {e["dl_url"]: e for e in catalog_entries}
+    entries_by_dl["https://scumbumbomods.com/xml-injector"] = catalog_entries[0]
 
     def _make_provider(source_name: str):
         mock_prov = MagicMock()

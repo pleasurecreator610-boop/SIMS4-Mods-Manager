@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Signal, Qt
 
 from src.api.client import get_api_client
-from src.core.config import AppConfig
+from src.core.config import ADULT_PROVIDERS, PUBLIC_NO_ACCOUNT_PROVIDERS, AppConfig
 from src.ui.components.progress_dialog import ProgressDialog
 from src.ui.components.account_card import AccountCardWidget, LoginWorker
 from src.ui.workers.generic_runnable import run_async_ui_task
@@ -210,6 +210,66 @@ class AccountsView(QWidget):
         self.mmccworld_card.login_requested.connect(self.open_login_window)
         self.cards_layout.addWidget(self.mmccworld_card)
 
+        # 11. Sims 4 Studio Card
+        self.sims4studio_card = AccountCardWidget(
+            provider_name="sims4studio",
+            title_key="accounts.sims4studio_title",
+            desc_key="accounts.sims4studio_desc",
+            parent=self,
+        )
+        self.sims4studio_card.clear_requested.connect(self._on_clear_clicked)
+        self.sims4studio_card.test_requested.connect(self._on_test_clicked)
+        self.sims4studio_card.login_requested.connect(self.open_login_window)
+        self.cards_layout.addWidget(self.sims4studio_card)
+
+        # 12. itch.io Card
+        self.itchio_card = AccountCardWidget(
+            provider_name="itchio",
+            title_key="accounts.itchio_title",
+            desc_key="accounts.itchio_desc",
+            parent=self,
+        )
+        self.itchio_card.clear_requested.connect(self._on_clear_clicked)
+        self.itchio_card.test_requested.connect(self._on_test_clicked)
+        self.itchio_card.login_requested.connect(self.open_login_window)
+        self.cards_layout.addWidget(self.itchio_card)
+
+        # 13. GameBanana Card
+        self.gamebanana_card = AccountCardWidget(
+            provider_name="gamebanana",
+            title_key="accounts.gamebanana_title",
+            desc_key="accounts.gamebanana_desc",
+            parent=self,
+        )
+        self.gamebanana_card.clear_requested.connect(self._on_clear_clicked)
+        self.gamebanana_card.test_requested.connect(self._on_test_clicked)
+        self.gamebanana_card.login_requested.connect(self.open_login_window)
+        self.cards_layout.addWidget(self.gamebanana_card)
+
+        # 14. Synthira (+18) Card
+        self.synthira_card = AccountCardWidget(
+            provider_name="synthira",
+            title_key="accounts.synthira_title",
+            desc_key="accounts.synthira_desc",
+            parent=self,
+        )
+        self.synthira_card.clear_requested.connect(self._on_clear_clicked)
+        self.synthira_card.test_requested.connect(self._on_test_clicked)
+        self.synthira_card.login_requested.connect(self.open_login_window)
+        self.cards_layout.addWidget(self.synthira_card)
+
+        # 15. F95zone (+18) Card
+        self.f95zone_card = AccountCardWidget(
+            provider_name="f95zone",
+            title_key="accounts.f95zone_title",
+            desc_key="accounts.f95zone_desc",
+            parent=self,
+        )
+        self.f95zone_card.clear_requested.connect(self._on_clear_clicked)
+        self.f95zone_card.test_requested.connect(self._on_test_clicked)
+        self.f95zone_card.login_requested.connect(self.open_login_window)
+        self.cards_layout.addWidget(self.f95zone_card)
+
         self.cards_by_provider: dict[str, AccountCardWidget] = {
             "loverslab": self.loverslab_card,
             "nsfwmods": self.nsfwmods_card,
@@ -221,6 +281,11 @@ class AccountsView(QWidget):
             "nexusmods": self.nexusmods_card,
             "simfileshare": self.simfileshare_card,
             "mmccworld": self.mmccworld_card,
+            "sims4studio": self.sims4studio_card,
+            "itchio": self.itchio_card,
+            "gamebanana": self.gamebanana_card,
+            "synthira": self.synthira_card,
+            "f95zone": self.f95zone_card,
         }
 
         layout.addLayout(self.cards_layout)
@@ -270,18 +335,7 @@ class AccountsView(QWidget):
         layout.addStretch()
 
         # Backward compatibility dictionary for card_widgets
-        for card in [
-            self.loverslab_card,
-            self.nsfwmods_card,
-            self.curseforge_card,
-            self.tsr_card,
-            self.modthesims_card,
-            self.simsfinds_card,
-            self.patreon_card,
-            self.nexusmods_card,
-            self.simfileshare_card,
-            self.mmccworld_card,
-        ]:
+        for card in self.cards_by_provider.values():
             self.card_widgets[card.provider_name] = {
                 "title_lbl": card.title_lbl,
                 "title_key": card.title_key,
@@ -301,10 +355,12 @@ class AccountsView(QWidget):
         self.adult_content_toggled.emit(enabled)
 
     def set_adult_content_enabled(self, enabled: bool):
-        """Shows or hides LoversLab and NSFWMods credential cards based on adult content setting."""
+        """Shows or hides adult (+18) credential cards based on adult content setting."""
         self._adult_enabled = bool(enabled)
         self.loverslab_card.setVisible(self._adult_enabled)
         self.nsfwmods_card.setVisible(self._adult_enabled)
+        self.synthira_card.setVisible(self._adult_enabled)
+        self.f95zone_card.setVisible(self._adult_enabled)
         if hasattr(self, "adult_banner"):
             self.adult_banner.setVisible(not self._adult_enabled)
 
@@ -329,6 +385,8 @@ class AccountsView(QWidget):
         def _on_accounts_fetched(accounts):
             for acc in accounts:
                 p_name = acc.get("provider_name", "").lower()
+                if p_name in PUBLIC_NO_ACCOUNT_PROVIDERS:
+                    continue
                 is_member = acc.get("is_member", False)
                 is_ready = acc.get("is_ready", False)
                 display = acc.get("user_display_name", "")
@@ -355,6 +413,8 @@ class AccountsView(QWidget):
                         "login_btn": card.login_btn,
                     }
                     self.cards_layout.addWidget(card)
+                    if p_name in ADULT_PROVIDERS:
+                        card.setVisible(self._adult_enabled)
 
                 if card:
                     card.update_badge(is_member, is_ready, display)

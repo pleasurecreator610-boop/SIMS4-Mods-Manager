@@ -67,7 +67,7 @@ Le code source est strictement structuré selon le principe de responsabilité u
 
 ### 3.1 Table de Correspondance & Détection Découplée
 - **Table `SPECIAL_DEPENDENCY_CASES`** : Dans `src/services/dependency_resolver.py`, aucune valeur n'est codée en dur dans les branches du code. Une table de correspondance regroupe les cas spécifiques.
-- **WickedWhims (ID `3169`)** : Actuellement le seul cas spécifique de la table, défini avec son URL canonique (`https://www.loverslab.com/files/file/3169-wickedwhims/`) et sa liste d'alias exhaustifs (`WW`, `ww`, avec/sans `-` ou `_` : `Wicked-Whims`, `wicked_whims`, `Wicked Whims`...).
+- **Priorité Officielle (`SPECIAL_DEPENDENCY_CASES`)** : Dans `src/application/dependencies/dependency_special_cases.py`, les frameworks officiels (**WickedWhims / WonderfulWhims** sur `wickedcc`, **MCCC / MC WooHoo** sur `deaderpool`, **XML Injector / Teleport Any Sim** sur `scumbumbo`, **RPO / Mood Pack / Toolbox** sur `lumpinou`, **Basemental** sur `basemental`, **Andrew's Pose Player** sur `sims4studio`) sont systématiquement résolus depuis leurs sites officiels publics sans compte requis. Voir [`AGENTS.md`](./AGENTS.md) pour le guide normalisé des 22 providers et les 7 familles de tests obligatoires.
 - **Traitement standardisé** : Nisa's Wicked Perversions et tous les autres mods sont traités de la même manière que les autres dépendances (recherche automatique dans le catalogue BDD ou via `ModMatcher`).
 
 ### 3.2 Extraction HTML & Filtrage DLC EA

@@ -263,7 +263,17 @@
     "simfileshare_title": "Resolvedor SimFileShare",
     "simfileshare_desc": "Motor universal de descarga directa para enlaces de SimFileShare (no requiere cuenta).",
     "mmccworld_title": "Cuenta Maxis Match CC World (Tumblr)",
-    "mmccworld_desc": "Permite conectarse mediante Tumblr, enviar mensajes a creadores y publicar comentarios."
+    "mmccworld_desc": "Permite conectarse mediante Tumblr, enviar mensajes a creadores y publicar comentarios.",
+    "sims4studio_title": "Cuenta de Sims 4 Studio (Creator Studios y Foro)",
+    "sims4studio_desc": "Permite acceder a hilos restringidos, descargas de Creator Studios y comentarios en Sims4Studio.com.",
+    "itchio_title": "Cuenta de itch.io",
+    "itchio_desc": "Permite acceder a mods de Los Sims 4 en itch.io, descargas de miembros y comentarios a creadores.",
+    "gamebanana_title": "Cuenta de GameBanana",
+    "gamebanana_desc": "Permite gestionar tu sesión de GameBanana Los Sims 4 y enviar comentarios a los creadores.",
+    "synthira_title": "Cuenta de Synthira.ru (+18)",
+    "synthira_desc": "Permite descargas de miembros y comentarios en el portal de Los Sims 4 de Synthira.ru.",
+    "f95zone_title": "Cuenta de F95zone (+18 - Foro XenForo)",
+    "f95zone_desc": "Requerida para desbloquear enlaces de descarga y publicar mensajes en hilos de Los Sims 4 en F95zone.to."
   },
   "logs": {
     "title": "📋 Registros de Ejecución y Logs",

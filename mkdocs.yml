@@ -42,8 +42,7 @@ plugins:
 nav:
   - Accueil: index.md
   - Architecture:
-      - Vue d'Ensemble: architecture.md
-      - Architecture Détaillée: architecture/ARCHITECTURE.md
+      - Architecture Unifiée (Clean & 3-Tiers): architecture.md
       - Architecture Decision Records (ADR):
           - Index: adr/index.md
           - ADR 0001 - Clean Architecture: adr/0001-clean-architecture-boundaries.md
@@ -54,12 +53,37 @@ nav:
       - APIs Internes: architecture/INTERNAL_APIS.md
       - Modules & Classes: modules_and_classes.md
   - Cas d'Usage Métier:
-      - Services & Providers: services_and_providers.md
-      - Provider CurseForge: providers/curseforge.md
-      - Provider The Sims Resource: providers/thesimsresource.md
-      - Provider NSFWMods: providers/nsfwmods.md
+      - Services & Vue d'Ensemble Providers: services_and_providers.md
+      - Classification & Résolution Dépendances: dependency_classification_and_noise.md
       - Internationalisation (i18n): i18n.md
-      - Classification Dépendances: dependency_classification_and_noise.md
+  - Fournisseurs (22 Plateformes):
+      - Frameworks Officiels:
+          - Deaderpool (MCCC): providers/deaderpool.md
+          - Scumbumbo (XML Injector): providers/scumbumbo.md
+          - Lumpinou (RPO & Mood Pack): providers/lumpinou.md
+          - Wicked.cc (WickedWhims): providers/wickedcc.md
+          - Basemental (Drugs & Venue List): providers/basemental.md
+      - Catalogues & Créateurs SFW:
+          - CurseForge: providers/curseforge.md
+          - The Sims Resource (TSR): providers/thesimsresource.md
+          - ModTheSims (MTS): providers/modthesims.md
+          - Nexus Mods: providers/nexusmods.md
+          - Patreon: providers/patreon.md
+          - SimsFinds: providers/simsfinds.md
+          - Maxis Match CC World: providers/mmccworld.md
+          - SimFileShare: providers/simfileshare.md
+          - Sims 4 Studio: providers/sims4studio.md
+          - GameBanana: providers/gamebanana.md
+          - The Sims Catalog: providers/thesimscatalog.md
+          - itch.io: providers/itchio.md
+          - LittleMsSam: providers/littlemssam.md
+          - SixamCC: providers/sixamcc.md
+      - Portails Adultes (+18):
+          - LoversLab: providers/loverslab.md
+          - NSFWMods: providers/nsfwmods.md
+          - Synthira.ru: providers/synthira.md
+          - F95zone: providers/f95zone.md
+          - SmutBase: providers/smutbase.md
   - API REST:
       - Spécification REST: api/REST_API.md
       - Référence des Endpoints: api_reference.md
@@ -72,4 +96,3 @@ nav:
       - Application - Jeu Sims 4: reference/application_game.md
       - Infrastructure: reference/infrastructure.md
       - API REST & Client: reference/api.md
-

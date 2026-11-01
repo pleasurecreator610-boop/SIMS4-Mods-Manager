@@ -31,6 +31,20 @@ from src.ui.components.provider_drawer.provider_scraper_card import (
     SIMSFINDS_SUBCATS,
     NEXUSMODS_SUBCATS,
     MMCCWORLD_SUBCATS,
+    DEADERPOOL_SUBCATS,
+    SCUMBUMBO_SUBCATS,
+    LUMPINOU_SUBCATS,
+    WICKEDCC_SUBCATS,
+    BASEMENTAL_SUBCATS,
+    GAMEBANANA_SUBCATS,
+    THESIMSCATALOG_SUBCATS,
+    ITCHIO_SUBCATS,
+    SIMS4STUDIO_SUBCATS,
+    LITTLEMSSAM_SUBCATS,
+    SIXAMCC_SUBCATS,
+    SYNTHIRA_SUBCATS,
+    F95ZONE_SUBCATS,
+    SMUTBASE_SUBCATS,
 )
 
 
@@ -136,8 +150,50 @@ class ProviderDrawer(QWidget):
         )
         edge_container_layout.addWidget(self.tab_mmccworld_pill)
 
+        self.tab_deaderpool_pill = self._create_edge_pill("Deaderpool 🟢", "Statut Deaderpool (MCCC)")
+        edge_container_layout.addWidget(self.tab_deaderpool_pill)
+
+        self.tab_scumbumbo_pill = self._create_edge_pill("Scumbumbo 🟢", "Statut Scumbumbo (XML Injector)")
+        edge_container_layout.addWidget(self.tab_scumbumbo_pill)
+
+        self.tab_lumpinou_pill = self._create_edge_pill("Lumpinou 🟢", "Statut Lumpinou (RPO / Mood Pack)")
+        edge_container_layout.addWidget(self.tab_lumpinou_pill)
+
+        self.tab_gamebanana_pill = self._create_edge_pill("GameBanana 🟢", "Statut GameBanana Sims 4")
+        edge_container_layout.addWidget(self.tab_gamebanana_pill)
+
+        self.tab_thesimscatalog_pill = self._create_edge_pill("SimsCatalog 🟢", "Statut The Sims Catalog")
+        edge_container_layout.addWidget(self.tab_thesimscatalog_pill)
+
+        self.tab_itchio_pill = self._create_edge_pill("Itch.io 🟢", "Statut Itch.io Sims 4")
+        edge_container_layout.addWidget(self.tab_itchio_pill)
+
+        self.tab_sims4studio_pill = self._create_edge_pill("Sims4Studio 🟢", "Statut Sims 4 Studio")
+        edge_container_layout.addWidget(self.tab_sims4studio_pill)
+
+        self.tab_littlemssam_pill = self._create_edge_pill("LittleMsSam 🟢", "Statut LittleMsSam Mods")
+        edge_container_layout.addWidget(self.tab_littlemssam_pill)
+
+        self.tab_sixamcc_pill = self._create_edge_pill("SixamCC 🟢", "Statut Sixam CC")
+        edge_container_layout.addWidget(self.tab_sixamcc_pill)
+
         self.tab_patreon_pill = self._create_edge_pill("Patreon 🟢", tr("drawer.pill_tip_patreon"))
         edge_container_layout.addWidget(self.tab_patreon_pill)
+
+        self.tab_wickedcc_pill = self._create_edge_pill("Wicked.cc 🟢", "Statut Wicked.cc (Official WW)")
+        edge_container_layout.addWidget(self.tab_wickedcc_pill)
+
+        self.tab_basemental_pill = self._create_edge_pill("Basemental 🟢", "Statut Basemental CC")
+        edge_container_layout.addWidget(self.tab_basemental_pill)
+
+        self.tab_synthira_pill = self._create_edge_pill("Synthira 🟢", "Statut Synthira (+18)")
+        edge_container_layout.addWidget(self.tab_synthira_pill)
+
+        self.tab_f95zone_pill = self._create_edge_pill("F95zone 🟢", "Statut F95zone (+18)")
+        edge_container_layout.addWidget(self.tab_f95zone_pill)
+
+        self.tab_smutbase_pill = self._create_edge_pill("SmutBase 🟢", "Statut SmutBase (+18)")
+        edge_container_layout.addWidget(self.tab_smutbase_pill)
 
         self.tab_loverslab_pill = self._create_edge_pill("LoversLab 🟢", tr("drawer.pill_tip_ll"))
         edge_container_layout.addWidget(self.tab_loverslab_pill)
@@ -258,7 +314,107 @@ class ProviderDrawer(QWidget):
             parent=self,
         )
 
-        # --- 7. LoversLab Provider Card (+18) ---
+        # --- 6b. Official Frameworks & New SFW Providers ---
+        self.deaderpool_card = ProviderScraperDrawerCard(
+            provider_name="deaderpool",
+            display_name="Deaderpool (MCCC)",
+            subcategories_meta=DEADERPOOL_SUBCATS,
+            expanded_by_default=False,
+            parent=self,
+        )
+        self.scumbumbo_card = ProviderScraperDrawerCard(
+            provider_name="scumbumbo",
+            display_name="Scumbumbo Mods",
+            subcategories_meta=SCUMBUMBO_SUBCATS,
+            expanded_by_default=False,
+            parent=self,
+        )
+        self.lumpinou_card = ProviderScraperDrawerCard(
+            provider_name="lumpinou",
+            display_name="Lumpinou Mods",
+            subcategories_meta=LUMPINOU_SUBCATS,
+            expanded_by_default=False,
+            parent=self,
+        )
+        self.gamebanana_card = ProviderScraperDrawerCard(
+            provider_name="gamebanana",
+            display_name="GameBanana",
+            subcategories_meta=GAMEBANANA_SUBCATS,
+            expanded_by_default=False,
+            parent=self,
+        )
+        self.thesimscatalog_card = ProviderScraperDrawerCard(
+            provider_name="thesimscatalog",
+            display_name="The Sims Catalog",
+            subcategories_meta=THESIMSCATALOG_SUBCATS,
+            expanded_by_default=False,
+            parent=self,
+        )
+        self.itchio_card = ProviderScraperDrawerCard(
+            provider_name="itchio",
+            display_name="Itch.io (Sims 4)",
+            subcategories_meta=ITCHIO_SUBCATS,
+            expanded_by_default=False,
+            parent=self,
+        )
+        self.sims4studio_card = ProviderScraperDrawerCard(
+            provider_name="sims4studio",
+            display_name="Sims 4 Studio",
+            subcategories_meta=SIMS4STUDIO_SUBCATS,
+            expanded_by_default=False,
+            parent=self,
+        )
+        self.littlemssam_card = ProviderScraperDrawerCard(
+            provider_name="littlemssam",
+            display_name="LittleMsSam Mods",
+            subcategories_meta=LITTLEMSSAM_SUBCATS,
+            expanded_by_default=False,
+            parent=self,
+        )
+        self.sixamcc_card = ProviderScraperDrawerCard(
+            provider_name="sixamcc",
+            display_name="Sixam CC",
+            subcategories_meta=SIXAMCC_SUBCATS,
+            expanded_by_default=False,
+            parent=self,
+        )
+
+        # --- 7. Adult (+18) Provider Cards ---
+        self.wickedcc_card = ProviderScraperDrawerCard(
+            provider_name="wickedcc",
+            display_name="Wicked.cc (Official WW)",
+            subcategories_meta=WICKEDCC_SUBCATS,
+            expanded_by_default=False,
+            parent=self,
+        )
+        self.basemental_card = ProviderScraperDrawerCard(
+            provider_name="basemental",
+            display_name="Basemental CC",
+            subcategories_meta=BASEMENTAL_SUBCATS,
+            expanded_by_default=False,
+            parent=self,
+        )
+        self.synthira_card = ProviderScraperDrawerCard(
+            provider_name="synthira",
+            display_name="Synthira",
+            subcategories_meta=SYNTHIRA_SUBCATS,
+            expanded_by_default=False,
+            parent=self,
+        )
+        self.f95zone_card = ProviderScraperDrawerCard(
+            provider_name="f95zone",
+            display_name="F95zone",
+            subcategories_meta=F95ZONE_SUBCATS,
+            expanded_by_default=False,
+            parent=self,
+        )
+        self.smutbase_card = ProviderScraperDrawerCard(
+            provider_name="smutbase",
+            display_name="SmutBase",
+            subcategories_meta=SMUTBASE_SUBCATS,
+            expanded_by_default=False,
+            parent=self,
+        )
         self.ll_card = ProviderScraperDrawerCard(
             provider_name="loverslab",
             display_name="LoversLab",
@@ -286,6 +442,20 @@ class ProviderDrawer(QWidget):
             self.sf_card,
             self.nexus_card,
             self.mmccw_card,
+            self.deaderpool_card,
+            self.scumbumbo_card,
+            self.lumpinou_card,
+            self.gamebanana_card,
+            self.thesimscatalog_card,
+            self.itchio_card,
+            self.sims4studio_card,
+            self.littlemssam_card,
+            self.sixamcc_card,
+            self.wickedcc_card,
+            self.basemental_card,
+            self.synthira_card,
+            self.f95zone_card,
+            self.smutbase_card,
             self.ll_card,
             self.nm_card,
         ]
@@ -306,12 +476,28 @@ class ProviderDrawer(QWidget):
         main_layout.addWidget(self.drawer_panel)
 
     def set_adult_content_enabled(self, enabled: bool):
-        """Shows or hides LoversLab and NSFWMods pills and cards based on adult content setting."""
+        """Shows or hides adult (+18) pills and cards based on adult content setting."""
         self._adult_enabled = bool(enabled)
-        self.tab_loverslab_pill.setVisible(self._adult_enabled)
-        self.tab_nsfwmods_pill.setVisible(self._adult_enabled)
-        self.ll_card.setVisible(self._adult_enabled)
-        self.nm_card.setVisible(self._adult_enabled)
+        for pill in (
+            self.tab_wickedcc_pill,
+            self.tab_basemental_pill,
+            self.tab_synthira_pill,
+            self.tab_f95zone_pill,
+            self.tab_smutbase_pill,
+            self.tab_loverslab_pill,
+            self.tab_nsfwmods_pill,
+        ):
+            pill.setVisible(self._adult_enabled)
+        for card in (
+            self.wickedcc_card,
+            self.basemental_card,
+            self.synthira_card,
+            self.f95zone_card,
+            self.smutbase_card,
+            self.ll_card,
+            self.nm_card,
+        ):
+            card.setVisible(self._adult_enabled)
 
     # Backward compatible attributes delegated to LoversLab card
     @property
@@ -399,6 +585,20 @@ class ProviderDrawer(QWidget):
         self._update_single_edge_pill(self.tab_simsfinds_pill, "SimsFinds", self.sf_card)
         self._update_single_edge_pill(self.tab_nexusmods_pill, "NexusMods", self.nexus_card)
         self._update_single_edge_pill(self.tab_mmccworld_pill, "MMCCWorld", self.mmccw_card)
+        self._update_single_edge_pill(self.tab_deaderpool_pill, "Deaderpool", self.deaderpool_card)
+        self._update_single_edge_pill(self.tab_scumbumbo_pill, "Scumbumbo", self.scumbumbo_card)
+        self._update_single_edge_pill(self.tab_lumpinou_pill, "Lumpinou", self.lumpinou_card)
+        self._update_single_edge_pill(self.tab_gamebanana_pill, "GameBanana", self.gamebanana_card)
+        self._update_single_edge_pill(self.tab_thesimscatalog_pill, "SimsCatalog", self.thesimscatalog_card)
+        self._update_single_edge_pill(self.tab_itchio_pill, "Itch.io", self.itchio_card)
+        self._update_single_edge_pill(self.tab_sims4studio_pill, "Sims4Studio", self.sims4studio_card)
+        self._update_single_edge_pill(self.tab_littlemssam_pill, "LittleMsSam", self.littlemssam_card)
+        self._update_single_edge_pill(self.tab_sixamcc_pill, "SixamCC", self.sixamcc_card)
+        self._update_single_edge_pill(self.tab_wickedcc_pill, "Wicked.cc", self.wickedcc_card)
+        self._update_single_edge_pill(self.tab_basemental_pill, "Basemental", self.basemental_card)
+        self._update_single_edge_pill(self.tab_synthira_pill, "Synthira", self.synthira_card)
+        self._update_single_edge_pill(self.tab_f95zone_pill, "F95zone", self.f95zone_card)
+        self._update_single_edge_pill(self.tab_smutbase_pill, "SmutBase", self.smutbase_card)
         self._update_single_edge_pill(self.tab_loverslab_pill, "LoversLab", self.ll_card)
         self._update_single_edge_pill(self.tab_nsfwmods_pill, "NSFWMods", self.nm_card)
 

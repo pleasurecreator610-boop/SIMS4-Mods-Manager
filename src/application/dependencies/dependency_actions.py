@@ -70,9 +70,9 @@ class DependencyActions:
         in_game = GameDlcMatcher.is_dlc_installed_in_game(dlc_code)
         return bool(in_game) if in_game is not None else False
 
-    def find_special_case(self, title: str) -> Optional[Dict[str, Any]]:
-        """Looks up configured special dependency cases (e.g. WickedWhims)."""
-        return find_special_dependency_case(title)
+    def find_special_case(self, title: str, url: str = "", remote_id: str = "") -> Optional[Dict[str, Any]]:
+        """Looks up configured special dependency cases (Deaderpool, Scumbumbo, Lumpinou, Wicked.cc, Basemental)."""
+        return find_special_dependency_case(title, url=url, remote_id=remote_id)
 
     def match_catalog_mod(
         self, title: str, session: Session, source: str = "loverslab"
@@ -121,8 +121,13 @@ class DependencyActions:
         installed_by_title: Dict[str, Any],
     ) -> bool:
         """Checks whether a mod is currently installed in the user's Sims 4 directory."""
-        if remote_id and (source, remote_id) in installed_by_remote:
-            return True
+        if remote_id:
+            if (source, remote_id) in installed_by_remote:
+                return True
+            if remote_id in SPECIAL_DEPENDENCY_REMOTE_IDS:
+                for _inst_src, inst_rid in installed_by_remote:
+                    if inst_rid == remote_id:
+                        return True
         if title.lower() in installed_by_title:
             return True
 

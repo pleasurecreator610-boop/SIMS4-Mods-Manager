@@ -389,6 +389,41 @@ class SessionManager:
                 if resp.status_code in [403, 503]:
                     return False, f"Protection Cloudflare active sur Nexus Mods (Code {resp.status_code})."
 
+            elif provider_name.lower() == "sims4studio":
+                url = "https://sims4studio.com/"
+                resp = session.get(url, timeout=12)
+                logger.info(f"Test de session Sims 4 Studio ({url}) -> Code HTTP {resp.status_code}")
+                if resp.status_code == 200:
+                    return True, "Session Sims 4 Studio vérifiée avec succès."
+
+            elif provider_name.lower() == "f95zone":
+                url = "https://f95zone.to/"
+                resp = session.get(url, timeout=12)
+                logger.info(f"Test de session F95zone ({url}) -> Code HTTP {resp.status_code}")
+                if resp.status_code == 200:
+                    return True, "Session F95zone vérifiée avec succès."
+
+            elif provider_name.lower() == "itchio":
+                url = "https://itch.io/"
+                resp = session.get(url, timeout=12)
+                logger.info(f"Test de session itch.io ({url}) -> Code HTTP {resp.status_code}")
+                if resp.status_code == 200:
+                    return True, "Session itch.io vérifiée avec succès."
+
+            elif provider_name.lower() == "gamebanana":
+                url = "https://gamebanana.com/games/5496"
+                resp = session.get(url, timeout=12)
+                logger.info(f"Test de session GameBanana ({url}) -> Code HTTP {resp.status_code}")
+                if resp.status_code == 200:
+                    return True, "Session GameBanana vérifiée avec succès."
+
+            elif provider_name.lower() == "synthira":
+                url = "https://synthira.ru/load/12"
+                resp = session.get(url, timeout=12)
+                logger.info(f"Test de session Synthira ({url}) -> Code HTTP {resp.status_code}")
+                if resp.status_code == 200:
+                    return True, "Session Synthira vérifiée avec succès."
+
             return False, f"Réponse inattendue pour le fournisseur '{provider_name}'."
         except Exception as e:
             logger.error(f"Erreur lors de la vérification de session pour {provider_name}: {e}")

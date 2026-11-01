@@ -132,6 +132,82 @@ MMCCWORLD_SUBCATS: List[Tuple[str, str, str]] = [
     ("mmccw_miscellaneous", "Recent Finds", "📦"),
 ]
 
+DEADERPOOL_SUBCATS: List[Tuple[str, str, str]] = [
+    ("dp_mccc_core", "MC Command Center", "⚙️"),
+    ("dp_mc_woohoo", "MC WooHoo", "💞"),
+]
+
+SCUMBUMBO_SUBCATS: List[Tuple[str, str, str]] = [
+    ("scumbumbo_core", "XML Injector & Core", "🧬"),
+    ("scumbumbo_gameplay", "Gameplay Mods", "🎮"),
+]
+
+LUMPINOU_SUBCATS: List[Tuple[str, str, str]] = [
+    ("lumpinou_core", "Mood Pack & Toolbox", "🧰"),
+    ("lumpinou_overhauls", "RPO & Overhauls", "🤰"),
+]
+
+WICKEDCC_SUBCATS: List[Tuple[str, str, str]] = [
+    ("wickedcc_core", "WickedWhims & Wonderful", "🔞"),
+    ("wickedcc_animations", "Official Animations", "💃"),
+    ("wickedcc_body_skins", "Skins & Anatomy", "✨"),
+]
+
+BASEMENTAL_SUBCATS: List[Tuple[str, str, str]] = [
+    ("basemental_adult", "Drugs & Gangs (+18)", "🔞"),
+    ("basemental_utilities", "Universal Venue List", "🏢"),
+]
+
+GAMEBANANA_SUBCATS: List[Tuple[str, str, str]] = [
+    ("gb_mods_gameplay", "Gameplay & Scripts", "🎮"),
+    ("gb_skins_cas", "Skins & CAS", "👗"),
+    ("gb_ui_sounds", "UI & Sounds", "🎵"),
+]
+
+THESIMSCATALOG_SUBCATS: List[Tuple[str, str, str]] = [
+    ("tsc_hairstyles", "Hairstyles", "💇"),
+    ("tsc_clothing", "Clothing", "👗"),
+    ("tsc_furniture", "Furniture", "🛋️"),
+    ("tsc_mods", "Game Mods", "🎮"),
+]
+
+ITCHIO_SUBCATS: List[Tuple[str, str, str]] = [
+    ("itchio_game_mods", "Game Mods", "🎮"),
+    ("itchio_cc_packs", "Stuff Packs & CC", "📦"),
+]
+
+SIMS4STUDIO_SUBCATS: List[Tuple[str, str, str]] = [
+    ("s4s_andrews_studio", "Andrew's Studio (Pose Player)", "🎬"),
+    ("s4s_creator_studios", "Creator Studios", "🎨"),
+    ("s4s_poses_animations", "Poses & Animations", "💃"),
+]
+
+LITTLEMSSAM_SUBCATS: List[Tuple[str, str, str]] = [
+    ("lms_gameplay_mods", "Big Gameplay Mods", "🎮"),
+    ("lms_random_small_mods", "Random Small Mods", "🧩"),
+]
+
+SIXAMCC_SUBCATS: List[Tuple[str, str, str]] = [
+    ("sixam_furniture_packs", "Furniture Packs", "🛋️"),
+    ("sixam_build_decor", "Build & Clutter", "🧱"),
+]
+
+SYNTHIRA_SUBCATS: List[Tuple[str, str, str]] = [
+    ("synthira_adult_mods", "Adult Mods +18", "🔞"),
+    ("synthira_gameplay_mods", "Gameplay Mods", "🎮"),
+    ("synthira_clothing_cas", "Clothing & CAS", "👗"),
+]
+
+F95ZONE_SUBCATS: List[Tuple[str, str, str]] = [
+    ("f95_sims4_mods", "Sims 4 Adult Mods", "🔞"),
+    ("f95_sims4_animations", "WW Megapacks", "💃"),
+]
+
+SMUTBASE_SUBCATS: List[Tuple[str, str, str]] = [
+    ("smutbase_rigs_meshes", "Meshes & Anatomy Rigs", "✨"),
+    ("smutbase_props_furniture", "Interactive Props", "🛋️"),
+]
+
 
 class ProviderScraperDrawerCard(QFrame):
     """Encapsulates the detailed scraping controls, subcategories, and progress for a mod provider."""

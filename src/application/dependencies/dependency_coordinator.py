@@ -97,21 +97,20 @@ class DependencyCoordinator:
                 is_comment=False,
             )
 
-        # 3. If remote_id is missing, search catalog by title or alias
-        if not r_id and title:
-            special_case = self.actions.find_special_case(title)
-            if special_case:
-                r_id = special_case["remote_id"]
-                url = special_case["url"]
-                title = special_case["title"]
-                source = special_case.get("source", source)
-            else:
-                m_rid, m_url, m_title, m_source = self.actions.match_catalog_mod(title, session, source)
-                if m_rid:
-                    r_id = m_rid
-                    url = m_url
-                    title = m_title
-                    source = m_source
+        # 3. Prioritize official creator websites (Deaderpool, Scumbumbo, Lumpinou, Wicked.cc, Basemental, S4S)
+        special_case = self.actions.find_special_case(title, url=url, remote_id=r_id)
+        if special_case:
+            r_id = special_case["remote_id"]
+            url = special_case["url"]
+            title = special_case["title"]
+            source = special_case.get("source", source)
+        elif not r_id and title:
+            m_rid, m_url, m_title, m_source = self.actions.match_catalog_mod(title, session, source)
+            if m_rid:
+                r_id = m_rid
+                url = m_url
+                title = m_title
+                source = m_source
 
         # 4. Check installed status
         is_installed = self.actions.check_installed(

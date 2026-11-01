@@ -10,24 +10,28 @@ from typing import Dict, List, Any, Tuple, Optional
 from bs4 import BeautifulSoup
 
 from .matchers import is_wickedwhims_name, is_nisa_name
+from src.application.dependencies.dependency_special_cases import find_special_dependency_case
 from src.utils.game_dlc_matcher import GameDlcMatcher
 from src.utils.mod_matcher import ModMatcher
 
 KNOWN_MOD_ALIASES: Dict[str, Dict[str, str]] = {
     "wickedwhims": {
+        "source": "wickedcc",
         "remote_id": "3169",
         "title": "WickedWhims",
-        "url": "https://www.loverslab.com/files/file/3169-wickedwhims/",
+        "url": "https://wicked.cc/download/3169-wickedwhims/",
     },
     "wicked whims": {
+        "source": "wickedcc",
         "remote_id": "3169",
         "title": "WickedWhims",
-        "url": "https://www.loverslab.com/files/file/3169-wickedwhims/",
+        "url": "https://wicked.cc/download/3169-wickedwhims/",
     },
     "ww": {
+        "source": "wickedcc",
         "remote_id": "3169",
         "title": "WickedWhims",
-        "url": "https://www.loverslab.com/files/file/3169-wickedwhims/",
+        "url": "https://wicked.cc/download/3169-wickedwhims/",
     },
     "nisa's wicked perversion": {
         "remote_id": "9443",
@@ -361,19 +365,21 @@ def extract_loverslab_requirements(
 
         if is_wickedwhims_name(candidate):
             alias_info = {
+                "source": "wickedcc",
                 "remote_id": "3169",
                 "title": "WickedWhims",
-                "url": "https://www.loverslab.com/files/file/3169-wickedwhims/",
+                "url": "https://wicked.cc/download/3169-wickedwhims/",
             }
         elif is_nisa_name(candidate):
             alias_info = {
+                "source": "loverslab",
                 "remote_id": "9443",
                 "title": "Nisa's Wicked Perversions",
                 "url": "https://www.loverslab.com/files/file/9443-nisas-wicked-perversions/",
             }
         else:
             c_cleaned = ModMatcher.clean_mod_title(candidate)
-            alias_info = aliases.get(c_lower) or aliases.get(c_cleaned)
+            alias_info = aliases.get(c_lower) or aliases.get(c_cleaned) or find_special_dependency_case(candidate)
 
         if alias_info:
             r_id = alias_info["remote_id"]
@@ -382,7 +388,7 @@ def extract_loverslab_requirements(
                 seen_titles.add(alias_info["title"].lower())
                 req_mods.append(
                     {
-                        "source": "loverslab",
+                        "source": alias_info.get("source", "loverslab"),
                         "remote_id": r_id,
                         "title": alias_info["title"],
                         "url": alias_info["url"],

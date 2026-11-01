@@ -6,7 +6,43 @@ from dataclasses import dataclass, fields
 from typing import Optional, ClassVar, Tuple
 
 APP_DIR_NAME = ".sims4_mod_manager"
-ADULT_PROVIDERS: Tuple[str, ...] = ("loverslab", "nsfwmods")
+ADULT_PROVIDERS: Tuple[str, ...] = (
+    "loverslab",
+    "nsfwmods",
+    "wickedcc",
+    "basemental",
+    "synthira",
+    "f95zone",
+    "smutbase",
+)
+ACCOUNT_SUPPORTED_PROVIDERS: Tuple[str, ...] = (
+    "loverslab",
+    "nsfwmods",
+    "curseforge",
+    "thesimsresource",
+    "modthesims",
+    "simsfinds",
+    "patreon",
+    "nexusmods",
+    "simfileshare",
+    "mmccworld",
+    "sims4studio",
+    "f95zone",
+    "itchio",
+    "gamebanana",
+    "synthira",
+)
+PUBLIC_NO_ACCOUNT_PROVIDERS: Tuple[str, ...] = (
+    "deaderpool",
+    "scumbumbo",
+    "lumpinou",
+    "wickedcc",
+    "basemental",
+    "thesimscatalog",
+    "littlemssam",
+    "sixamcc",
+    "smutbase",
+)
 
 
 @dataclass

@@ -11,6 +11,7 @@ from src.api.schemas.accounts import (
     AccountLoginResponse,
     AccountStatusItem,
 )
+from src.core.config import ACCOUNT_SUPPORTED_PROVIDERS, PUBLIC_NO_ACCOUNT_PROVIDERS
 from src.core.session_manager import SessionManager
 from src.infrastructure.database.repositories.sqlalchemy_account_repository import (
     SqlAlchemyAccountRepository,
@@ -33,13 +34,20 @@ PROVIDERS_LOGIN_URLS = {
     "simfileshare": "https://simfileshare.net/",
     "mmccworld": "https://www.tumblr.com/login?redirect_to=https%3A%2F%2Fmaxismatchccworld.tumblr.com%2F",
     "maxismatchccworld": "https://www.tumblr.com/login?redirect_to=https%3A%2F%2Fmaxismatchccworld.tumblr.com%2F",
+    "sims4studio": "https://sims4studio.com/login",
+    "f95zone": "https://f95zone.to/login/",
+    "itchio": "https://itch.io/login",
+    "gamebanana": "https://gamebanana.com/members/account/login",
+    "synthira": "https://synthira.ru/index/1",
 }
 
 
 def _get_registered_provider_names() -> list[str]:
-    names = ["loverslab", "nsfwmods", "curseforge", "thesimsresource", "patreon"]
+    names = list(ACCOUNT_SUPPORTED_PROVIDERS)
     for prov in ProviderRegistry.list_providers():
         pname = prov.provider_name.lower()
+        if pname in PUBLIC_NO_ACCOUNT_PROVIDERS:
+            continue
         if pname not in names:
             names.append(pname)
     return names

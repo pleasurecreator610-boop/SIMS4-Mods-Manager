@@ -1,32 +1,23 @@
-# Fournisseurs de Mods & Intégrations de Scraping
+# Fournisseurs de Mods (22 Plateformes) & Intégrations de Scraping
 
-## 1. LoversLab : Authentification & Session Cloudflare
-- L'authentification passe par un navigateur Playwright afin de résoudre les défis Cloudflare et d'extraire les cookies de session (`cf_clearance`, `ips4_IPSSessionFront`, `ips4_member_id`, `ips4_hasAcceptedAge`).
-- Toutes les requêtes HTTP suivantes doivent impérativement réutiliser ces cookies ainsi que le `User-Agent` du navigateur via `SessionManager.get_http_session("loverslab")` sous peine de blocage HTTP 403 / 503.
-
----
-
-## 2. Scraping Incrémental du Catalogue
-- Le scraping s'exécute en tâche de fond de manière non bloquante.
-- **Affichage instantané** : La première page doit être analysée, persistée en base de données et émise immédiatement pour un rendu fluide dès le lancement.
-- **Backoff exponentiel** : En cas d'erreur de requête sur les pages suivantes, appliquer un délai d'attente exponentiel avant nouvel essai pour éviter le bannissement d'IP.
-- **Nettoyage des titres** : Nettoyer systématiquement les caractères invisibles (`\u200b`, `\ufeff`). Si le titre extrait est vide (`""`), extraire et reformater le titre à partir du slug de l'URL (`urllib.parse.unquote`).
-- **Purge des mods fantômes** : Purger automatiquement de la base les références supprimées de la plateforme (ex. *"We could not locate the item you are trying to view"*).
+## 1. Architecture à 2 Socles Mutualisés (`src/providers/common/`)
+Tous les plugins dans `plugins/<provider>/` sont découverts automatiquement par `ProviderRegistry` via `@register_provider` et s'appuient sur :
+1. **`BaseIPSForumProvider` (`src/providers/common/ips_base.py`)** :
+   - Mutualise les forums Invision Community (IPS4) : `loverslab` et `nsfwmods`.
+2. **`BasePortalProvider` (`src/providers/common/portal_base.py`)** :
+   - Mutualise les **5 portails officiels de frameworks** (`deaderpool`, `scumbumbo`, `lumpinou`, `wickedcc`, `basemental`), les **6 catalogues & portails créateurs SFW** (`gamebanana`, `thesimscatalog`, `itchio`, `sims4studio`, `littlemssam`, `sixamcc`) et les **3 portails adultes `+18`** (`synthira`, `f95zone`, `smutbase`).
+3. **Providers Spécialisés** : `curseforge`, `thesimsresource`, `modthesims`, `nexusmods`, `patreon`, `simsfinds`, `mmccworld`, `simfileshare`.
 
 ---
 
-## 3. Parallélisation par Sous-Catégorie & Concurrence
-- Le scraping LoversLab est organisé par sous-catégories (174: WickedWhims, 201: Animations, 203: Clothing, etc.).
-- **Worker ThreadPoolExecutor indépendant par sous-catégorie** : Permet de paralléliser le scraping tout en maintenant le backoff exponentiel par catégorie.
-- **Arrêt propre** : Lors de l'arrêt de l'application (`ShutdownManager.trigger_shutdown()`), les workers d'arrière-plan doivent vérifier `ShutdownManager.is_shutting_down()` et s'interrompre proprement pour éviter l'erreur *"cannot schedule new futures after interpreter shutdown"*.
+## 2. Séparation Comptes Requis vs Sites Publics Sans Compte
+- **`PUBLIC_NO_ACCOUNT_PROVIDERS`** (`deaderpool`, `scumbumbo`, `lumpinou`, `wickedcc`, `basemental`, `thesimscatalog`, `littlemssam`, `sixamcc`, `smutbase`) :
+  - Sites 100% publics en téléchargement direct. Ils ne doivent **jamais** afficher de carte de connexion inutile dans `AccountsView`.
+- **`ACCOUNT_SUPPORTED_PROVIDERS`** (`loverslab`, `nsfwmods`, `curseforge`, `thesimsresource`, `patreon`, `modthesims`, `simsfinds`, `nexusmods`, `simfileshare`, `mmccworld`, `sims4studio`, `f95zone`, `itchio`, `gamebanana`, `synthira`) :
+  - Disposent d'une carte dans `AccountsView` (avec masquage automatique des cartes `+18` lorsque `adult_content_enabled` est désactivé).
 
 ---
 
-## 4. Téléchargement & Validation des Fichiers
-- LoversLab propose soit des fichiers hébergés en direct, soit des liens externes (Gofile, Mega, etc.). Le résolveur inspecte les en-têtes et le corps de la réponse.
-- **Validation impérative de l'archive** : Toujours tester l'intégrité du fichier (`zipfile.is_zipfile(path)`) avant tentative d'extraction. Si le fichier téléchargé est une page web d'erreur ou de login (HTML), lever une exception claire et explicite.
-
----
-
-## 5. Provider Patreon
-- Architecture modulaire calquée sur LoversLab : `client.py` (requêtes HTTP / API Patreon), `parser.py` (posts et pièces jointes), `provider.py` (façade métier implémentant le contrat de synchronisation et téléchargement de `BaseSourceProvider`).
+## 3. Téléchargement & Rejet Strict des Pages HTML
+- Tout appel à `download_mod_file` doit vérifier l'en-tête `Content-Type` et les premiers octets du flux binaire.
+- Si le serveur renvoie `text/html`, `<!doctype html` ou `<html` (page de connexion ou défi Cloudflare), le téléchargement doit retourner `(False, message_explicite)` sans jamais écrire un fichier `.zip` ou `.package` corrompu.
