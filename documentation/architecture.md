@@ -150,13 +150,28 @@ classDiagram
   - Utilise `mmap.mmap(..., access=mmap.ACCESS_READ)` pour inspecter les fichiers `.package` sans copier l'intégralité du fichier en RAM.
   - Vérifie la signature `DBPF` (octets `0..4`), lit le nombre d'entrées d'index et la position de la table d'index (octets `36..68`), puis extrait en une passe vectorisée les triplets `(Type, Group, Instance)` (`TGI`).
 - **Cache Incrémental SQLite (`dbpf_package_cache`)** :
-  - Stocke les ressources TGI indexées par `(file_path, mtime_ns, file_size)` pour éviter de re-parser les fichiers `.package` inchangés lors des diagnostics successifs.
-- **`ConflictDetector` (`src/domain/services/conflict_detector.py`)** :
+  - Stocke les ressources TGI indexées par `(file_path, mtime, file_size)` pour éviter de re-parser les fichiers `.package` inchangés lors des diagnostics successifs.
+  - Utilise l'instruction native SQLite `INSERT ... ON CONFLICT(file_path) DO UPDATE` par lots de 250, découpe les requêtes `IN` par lots de 400 clés et purge automatiquement les entrées de cache orphelines lorsque des fichiers `.package` sont supprimés.
+- **`ConflictDetector` (`src/application/mods/conflict_detector_service.py`)** :
   - Identifie et distingue les collisions critiques de **Tuning / SimData** des simples remplacements de traductions **STBL** (`0x220557DA`).
 
 ---
 
-## 5. Concurrence, Sessions HTTP & Sécurité
+## 5. Optimisations Base de Données (SQLite WAL, FTS5 & SQLAlchemy 2.0)
+
+- **Empreinte Canonique Indexée (`title_fingerprint` — Migration `005`)** :
+  - Persistée et indexée sur `CatalogMod` (`idx_catalog_title_fp`) et `InstalledMod` (`idx_installed_title_fp`), maintenue automatiquement via les événements SQLAlchemy `before_insert` / `before_update`.
+  - Permet la résolution inter-plateformes (`ModMatcher`) et l'enrichissement automatique des mods installés manuellement (`InstalledModsService`) en **$O(\log N)$**.
+- **Classification Pré-Calculée (`mod_type` — Migration `006`)** :
+  - Colonne `mod_type` auto-calculée via `ModTypeClassifier.classify_mod()` et couverte par l'index composite `idx_catalog_mod_type_updated (mod_type, updated_date, id)`, remplaçant les 25+ clauses `ILIKE '%keyword%'` par une recherche B-Tree en **$O(\log N)$**.
+- **Alignement FTS5 (`rowid = catalog_mods.id`) & Triggers Sélectifs** :
+  - La table virtuelle `catalog_mods_fts` aligne son `rowid` interne sur `catalog_mods.id` et ne déclenche sa mise à jour que sur `AFTER UPDATE OF title, author, tags, description`.
+- **Tuning SQLite WAL & Pragmas** :
+  - `PRAGMA journal_mode=WAL`, `PRAGMA foreign_keys=ON`, `PRAGMA wal_autocheckpoint=1000`, `PRAGMA journal_size_limit=67108864` (64 Mo), `PRAGMA mmap_size=268435456` (256 Mo) et `PRAGMA optimize`.
+
+---
+
+## 6. Concurrence, Sessions HTTP & Sécurité
 
 - **`ThreadPoolManager` (`src/core/thread_pool.py`)** : Pools bornés séparés pour les opérations I/O réseau et les calculs CPU (extraction d'archives, hachage).
 - **Isolation Thread-Safe `curl_cffi` (`SessionManager`)** : Les sessions HTTP d'impersonation Chrome sont isolées par clé `(provider_name, thread_id)` pour garantir le réemploi Keep-Alive sans corruption de descripteurs libcurl entre threads.

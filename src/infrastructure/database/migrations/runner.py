@@ -12,6 +12,7 @@ from sqlalchemy.engine import Engine
 
 from src.infrastructure.database.models import Base, compute_title_fingerprint
 from src.utils.logger import logger
+from src.utils.mod_type_classifier import ModTypeClassifier
 
 
 @dataclass
@@ -114,12 +115,41 @@ def _migration_005_title_fingerprint_and_covering_indexes(engine: Engine) -> Non
         conn.commit()
 
 
+def _migration_006_mod_type_column_and_index(engine: Engine) -> None:
+    """Ajoute la colonne mod_type pré-calculée et l'index composite idx_catalog_mod_type_updated avec backfill."""
+    with engine.connect() as conn:
+        cat_cols = {r[1] for r in conn.execute(text("PRAGMA table_info(catalog_mods)")).fetchall()}
+        if "mod_type" not in cat_cols:
+            conn.execute(text("ALTER TABLE catalog_mods ADD COLUMN mod_type VARCHAR(40) DEFAULT 'other'"))
+
+        conn.execute(
+            text("CREATE INDEX IF NOT EXISTS idx_catalog_mod_type_updated ON catalog_mods (mod_type, updated_date, id)")
+        )
+
+        rows = conn.execute(
+            text("SELECT id, title, category, tags FROM catalog_mods WHERE mod_type IS NULL OR mod_type = '' OR mod_type = 'other'")
+        ).fetchall()
+        if rows:
+            conn.execute(
+                text("UPDATE catalog_mods SET mod_type = :mt WHERE id = :id"),
+                [
+                    {
+                        "id": r[0],
+                        "mt": ModTypeClassifier.classify_mod(r[1], r[2], r[3]),
+                    }
+                    for r in rows
+                ],
+            )
+        conn.commit()
+
+
 REGISTRY: List[Migration] = [
     Migration(1, "initial_schema", _migration_001_initial_schema),
     Migration(2, "add_requirements_columns", _migration_002_add_requirements_columns),
     Migration(3, "fts_and_performance_indices", _migration_003_fts_and_performance_indices),
     Migration(4, "add_dbpf_package_cache", _migration_004_add_dbpf_package_cache),
     Migration(5, "title_fingerprint_and_covering_indexes", _migration_005_title_fingerprint_and_covering_indexes),
+    Migration(6, "mod_type_column_and_index", _migration_006_mod_type_column_and_index),
 ]
 
 

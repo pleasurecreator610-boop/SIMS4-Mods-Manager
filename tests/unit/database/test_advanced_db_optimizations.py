@@ -183,3 +183,242 @@ def test_save_batch_eliminates_n_plus_1_queries(tmp_path):
         event.remove(db.engine, "before_cursor_execute", _count_selects)
 
     assert repo.count() == 30
+
+
+def test_migration_006_mod_type_column_and_index_plan(tmp_path):
+    """Vérifie la migration 006, le calcul automatique de mod_type et l'utilisation de idx_catalog_mod_type_updated."""
+    from src.infrastructure.database.catalog_queries import build_catalog_query
+    from src.infrastructure.database.migrations import MigrationRunner
+
+    db_file = tmp_path / "test_mod_type.db"
+    db = DatabaseManager(str(db_file))
+
+    runner = MigrationRunner(db.engine)
+    assert 6 in runner.get_applied_versions()
+
+    with db.get_session() as s:
+        m_anim = CatalogMod(
+            source="loverslab",
+            remote_id="ll_anim_1",
+            title="GreyNaya Animations Pack",
+            category="Animations - WickedWhims",
+            page_url="https://www.loverslab.com/files/file/1-anim/",
+        )
+        m_cloth = CatalogMod(
+            source="patreon",
+            remote_id="pat_cloth_1",
+            title="Summer Silk Dress Collection",
+            category="Patreon",
+            tags=["clothing", "dress"],
+            page_url="https://www.patreon.com/posts/1",
+        )
+        m_script = CatalogMod(
+            source="deaderpool",
+            remote_id="deaderpool_mccc",
+            title="MC Command Center Gameplay Overhaul",
+            category="Gameplay",
+            page_url="https://deaderpool-mccc.com",
+        )
+        s.add_all([m_anim, m_cloth, m_script])
+        s.commit()
+
+        assert m_anim.mod_type == "animation"
+        assert m_cloth.mod_type == "clothing"
+        assert m_script.mod_type == "gameplay_script"
+
+        # Vérifie que build_catalog_query filtre par mod_type via la colonne indexée
+        q = build_catalog_query(s, mod_type="clothing")
+        results = q.all()
+        assert len(results) == 1
+        assert results[0].remote_id == "pat_cloth_1"
+
+        # Vérifie dans EXPLAIN QUERY PLAN que idx_catalog_mod_type_updated est utilisé
+        plan_rows = s.execute(
+            text(
+                "EXPLAIN QUERY PLAN SELECT id FROM catalog_mods "
+                "WHERE mod_type = 'animation' ORDER BY updated_date DESC, id DESC LIMIT 20"
+            )
+        ).fetchall()
+        plan_str = " ".join(str(r) for r in plan_rows)
+        assert "idx_catalog_mod_type_updated" in plan_str
+
+
+def test_installed_mods_service_fingerprint_enrichment_and_direct_update(tmp_path):
+    """Vérifie l'enrichissement O(log N) des mods manuels via title_fingerprint et l'UPDATE direct de set_enabled."""
+    from src.application.mods.installed_mods_service import InstalledModsService
+    from src.infrastructure.database.repositories.sqlalchemy_installed_mod_repository import (
+        SqlAlchemyInstalledModRepository,
+    )
+
+    db_file = tmp_path / "test_installed_opt.db"
+    db = DatabaseManager(str(db_file))
+    cat_repo = SqlAlchemyCatalogRepository(db)
+    inst_repo = SqlAlchemyInstalledModRepository(db)
+
+    with db.get_session() as s:
+        cm = CatalogMod(
+            source="lumpinou",
+            remote_id="lumpinou_rpo",
+            title="The Relationship & Pregnancy Overhaul v3.0",
+            author="Lumpinou",
+            thumbnail_url="https://www.lumpinoumods.com/rpo.png",
+            page_url="https://www.lumpinoumods.com/rpo",
+            version_str="3.0",
+        )
+        # Mod installé manuellement sans catalog_mod_id ni remote_id
+        im = InstalledMod(
+            source="manual",
+            remote_id="",
+            catalog_mod_id=None,
+            title="Relationship & Pregnancy Overhaul v2.5",
+            folder_name="Lumpinou_RPO",
+            version_str="2.5",
+            is_enabled=True,
+        )
+        s.add_all([cm, im])
+        s.commit()
+        im_id = im.id
+
+    service = InstalledModsService(installed_repo=inst_repo, catalog_repo=cat_repo)
+    resp = service.list_installed_mods()
+    assert resp.total == 1
+    item = resp.items[0]
+    assert item.author == "Lumpinou"
+    assert item.thumbnail_url == "https://www.lumpinoumods.com/rpo.png"
+    assert item.has_update is True
+
+    # Vérifie que set_enabled exécute un UPDATE direct sans SELECT
+    statements: list[str] = []
+
+    def _capture_sql(_conn, _cursor, statement, _parameters, _context, _executemany):
+        statements.append(statement.strip().upper())
+
+    event.listen(db.engine, "before_cursor_execute", _capture_sql)
+    try:
+        ok = inst_repo.set_enabled(im_id, False)
+        assert ok is True
+        selects = [st for st in statements if st.startswith("SELECT")]
+        updates = [st for st in statements if st.startswith("UPDATE")]
+        assert len(selects) == 0
+        assert len(updates) == 1
+    finally:
+        event.remove(db.engine, "before_cursor_execute", _capture_sql)
+
+    assert inst_repo.count() == 1
+
+
+def test_conflict_detector_chunked_hydration_upsert_and_orphan_purge(tmp_path, monkeypatch):
+    """Vérifie l'UPSERT natif ON CONFLICT DO UPDATE, le chunking > 400 clés et la purge d'orphelins DBPF."""
+    from src.application.mods.conflict_detector_service import ConflictDetectorService
+    from src.infrastructure.database.models import DbpfPackageCache
+
+    db_file = tmp_path / "test_dbpf_opt.db"
+    db = DatabaseManager(str(db_file))
+    monkeypatch.setattr(DatabaseManager, "_instance", db)
+
+    mods_dir = tmp_path / "Mods"
+    mods_dir.mkdir(parents=True, exist_ok=True)
+    pkg1 = mods_dir / "mod_a.package"
+    pkg2 = mods_dir / "mod_b.package"
+    pkg1.write_bytes(b"DBPF_DUMMY_A")
+    pkg2.write_bytes(b"DBPF_DUMMY_B")
+
+    detector = ConflictDetectorService()
+    with detector._cache_lock:
+        detector._cache.clear()
+
+    key1 = str(pkg1.resolve())
+    key2 = str(pkg2.resolve())
+    detector._dirty_entries[key1] = (1000.0, 12, [("0x1:0x2:0x3", "Tuning", False)])
+    detector._dirty_entries[key2] = (1000.0, 12, [("0x4:0x5:0x6", "SimData", False)])
+    detector._flush_dirty_cache_to_db()
+
+    # Mise à jour via UPSERT ON CONFLICT(file_path) DO UPDATE
+    detector._dirty_entries[key1] = (2000.0, 24, [("0x1:0x2:0x3", "Tuning", False), ("0x7:0x8:0x9", "STBL", True)])
+    detector._flush_dirty_cache_to_db()
+
+    with db.get_session() as s:
+        row1 = s.query(DbpfPackageCache).filter_by(file_path=key1).first()
+        assert row1 is not None
+        assert row1.file_size == 24
+        assert row1.resource_count == 2
+
+    # Test hydratation par lots (> 450 chemins simulés)
+    with detector._cache_lock:
+        detector._cache.clear()
+    fake_paths = [pkg1, pkg2] + [mods_dir / f"fake_{i}.package" for i in range(450)]
+    detector._hydrate_cache_from_db(fake_paths)
+    assert key1 in detector._cache
+    assert detector._cache[key1][1] == 24
+
+    # Suppression de pkg2 -> purge automatique des orphelins
+    pkg2.unlink()
+    purged = detector.prune_orphan_cache_entries([pkg1], mods_dir=mods_dir)
+    assert purged == 1
+    with db.get_session() as s:
+        assert s.query(DbpfPackageCache).filter_by(file_path=key2).first() is None
+        assert s.query(DbpfPackageCache).filter_by(file_path=key1).first() is not None
+
+
+def test_save_batch_and_upsert_mods_batch_intra_batch_dedup(tmp_path):
+    """Vérifie que les doublons intra-lot (source, remote_id) sont fusionnés sans IntegrityError."""
+    from src.application.catalog.catalog_sync_actions import CatalogSyncActions
+
+    db_file = tmp_path / "test_dedup_batch.db"
+    db = DatabaseManager(str(db_file))
+    repo = SqlAlchemyCatalogRepository(db)
+    actions = CatalogSyncActions(db)
+
+    # 1. Doublon intra-lot dans CatalogSyncActions.upsert_mods_batch
+    with db.get_session() as s:
+        new_c, upd_c = actions.upsert_mods_batch(
+            s,
+            [
+                {
+                    "source": "curseforge",
+                    "remote_id": "dup_100",
+                    "title": "Duplicate Mod Initial",
+                    "author": "AuthorA",
+                    "page_url": "https://www.curseforge.com/sims4/mods/dup-100",
+                },
+                {
+                    "source": "curseforge",
+                    "remote_id": "dup_100",
+                    "title": "Duplicate Mod Enriched",
+                    "author": "AuthorA",
+                    "thumbnail_url": "https://www.curseforge.com/thumb.png",
+                    "page_url": "https://www.curseforge.com/sims4/mods/dup-100",
+                },
+            ],
+            default_category="Gameplay",
+        )
+        assert new_c == 1
+        assert upd_c == 0
+
+    found = repo.get_by_source_and_remote_id("curseforge", "dup_100")
+    assert found is not None
+    assert found.title == "Duplicate Mod Enriched"
+    assert found.thumbnail_url == "https://www.curseforge.com/thumb.png"
+
+    # 2. Doublon intra-lot dans SqlAlchemyCatalogRepository.save_batch
+    saved = repo.save_batch(
+        [
+            CatalogModEntity(
+                source="modthesims",
+                remote_id="mts_dup_1",
+                title="MTS Mod v1",
+                page_url="https://modthesims.info/d/1",
+            ),
+            CatalogModEntity(
+                source="modthesims",
+                remote_id="mts_dup_1",
+                title="MTS Mod v2",
+                page_url="https://modthesims.info/d/1",
+            ),
+        ]
+    )
+    assert saved == 2
+    mts_mod = repo.get_by_source_and_remote_id("modthesims", "mts_dup_1")
+    assert mts_mod is not None
+    assert mts_mod.title == "MTS Mod v2"
+

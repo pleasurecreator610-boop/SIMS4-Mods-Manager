@@ -51,27 +51,48 @@ class CatalogSyncActions:
         if not mods_data:
             return 0, 0
 
-        remote_ids = [m["remote_id"] for m in mods_data if m.get("remote_id")]
-        sources = {str(m.get("source", "loverslab")) for m in mods_data}
+        # Déduplication intra-lot par (source, remote_id) pour prévenir toute IntegrityError
+        deduped_map: Dict[Tuple[str, str], Dict[str, Any]] = {}
+        for item in mods_data:
+            src = str(item.get("source", "loverslab"))
+            rid = str(item.get("remote_id", ""))
+            if not rid:
+                continue
+            key = (src, rid)
+            if key not in deduped_map:
+                deduped_map[key] = dict(item)
+            else:
+                merged = deduped_map[key]
+                for k, v in item.items():
+                    if v not in (None, "", [], {}):
+                        merged[k] = v
+
+        unique_mods_data = list(deduped_map.values())
+        remote_ids = [str(m["remote_id"]) for m in unique_mods_data if m.get("remote_id")]
+        sources = {str(m.get("source", "loverslab")) for m in unique_mods_data}
         existing_map: Dict[Tuple[str, str], CatalogMod] = {}
+        chunk_size = 400
         if remote_ids:
-            found = (
-                session.query(CatalogMod)
-                .options(defer(CatalogMod.description), defer(CatalogMod.requirements_text))
-                .filter(
-                    CatalogMod.source.in_(sources),
-                    CatalogMod.remote_id.in_(remote_ids),
+            for i in range(0, len(remote_ids), chunk_size):
+                batch_rids = remote_ids[i : i + chunk_size]
+                found = (
+                    session.query(CatalogMod)
+                    .options(defer(CatalogMod.description), defer(CatalogMod.requirements_text))
+                    .filter(
+                        CatalogMod.source.in_(sources),
+                        CatalogMod.remote_id.in_(batch_rids),
+                    )
+                    .all()
                 )
-                .all()
-            )
-            existing_map = {(str(m.source or ""), str(m.remote_id or "")): m for m in found}
+                for m in found:
+                    existing_map[(str(m.source or ""), str(m.remote_id or ""))] = m
 
         new_count = 0
         updated_count = 0
 
-        for m_data in mods_data:
-            source = m_data.get("source", "loverslab")
-            r_id = m_data.get("remote_id", "")
+        for m_data in unique_mods_data:
+            source = str(m_data.get("source", "loverslab"))
+            r_id = str(m_data.get("remote_id", ""))
             existing = existing_map.get((source, r_id))
 
             if not existing:
@@ -92,6 +113,7 @@ class CatalogSyncActions:
                 if m_data.get("external_links"):
                     mod_record.set_external_links_list(m_data["external_links"])
                 session.add(mod_record)
+                existing_map[(source, r_id)] = mod_record
                 new_count += 1
             else:
                 changed = False

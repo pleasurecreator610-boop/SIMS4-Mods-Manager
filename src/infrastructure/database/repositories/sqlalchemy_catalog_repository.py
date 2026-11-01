@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from sqlalchemy import distinct, func, or_, tuple_
+from sqlalchemy import distinct, func, tuple_
 from sqlalchemy.orm import defer
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -130,22 +130,53 @@ class SqlAlchemyCatalogRepository(ICatalogRepository):
             models = q.all()
             return [ModelMapper.catalog_to_entity(m) for m in models]
 
-    def get_by_ids_or_remote_ids(self, mod_ids: list[int], remote_ids: list[str]) -> list[CatalogModEntity]:
-        """Récupère uniquement les entrées du catalogue correspondant aux IDs ou remote_ids fournis (sans description HTML)."""
-        clean_ids = [int(i) for i in mod_ids if i is not None]
-        clean_rids = [str(r) for r in remote_ids if r]
-        if not clean_ids and not clean_rids:
+    def get_by_ids_or_remote_ids(
+        self,
+        mod_ids: list[int],
+        remote_ids: list[str],
+        title_fingerprints: Optional[list[str]] = None,
+    ) -> list[CatalogModEntity]:
+        """Récupère uniquement les entrées du catalogue correspondant aux IDs, remote_ids ou empreintes fournis (avec chunking <= 400 et sans description HTML)."""
+        clean_ids = list(dict.fromkeys(int(i) for i in mod_ids if i is not None))
+        clean_rids = list(dict.fromkeys(str(r) for r in remote_ids if r))
+        clean_fps = list(dict.fromkeys(str(fp) for fp in (title_fingerprints or []) if fp))
+        if not clean_ids and not clean_rids and not clean_fps:
             return []
 
-        conditions = []
-        if clean_ids:
-            conditions.append(CatalogMod.id.in_(clean_ids))
-        if clean_rids:
-            conditions.append(CatalogMod.remote_id.in_(clean_rids))
-
+        found_by_id: dict[int, CatalogMod] = {}
+        chunk_size = 400
         with self.db_manager.get_session() as session:
-            models = session.query(CatalogMod).options(defer(CatalogMod.description)).filter(or_(*conditions)).all()
-            return [ModelMapper.catalog_to_entity(m) for m in models]
+            for i in range(0, len(clean_ids), chunk_size):
+                batch = clean_ids[i : i + chunk_size]
+                for m in (
+                    session.query(CatalogMod)
+                    .options(defer(CatalogMod.description))
+                    .filter(CatalogMod.id.in_(batch))
+                    .all()
+                ):
+                    found_by_id[m.id] = m
+
+            for i in range(0, len(clean_rids), chunk_size):
+                batch_rids = clean_rids[i : i + chunk_size]
+                for m in (
+                    session.query(CatalogMod)
+                    .options(defer(CatalogMod.description))
+                    .filter(CatalogMod.remote_id.in_(batch_rids))
+                    .all()
+                ):
+                    found_by_id[m.id] = m
+
+            for i in range(0, len(clean_fps), chunk_size):
+                batch_fps = clean_fps[i : i + chunk_size]
+                for m in (
+                    session.query(CatalogMod)
+                    .options(defer(CatalogMod.description))
+                    .filter(CatalogMod.title_fingerprint.in_(batch_fps))
+                    .all()
+                ):
+                    found_by_id[m.id] = m
+
+            return [ModelMapper.catalog_to_entity(m) for m in found_by_id.values()]
 
     def save(self, entity: CatalogModEntity) -> CatalogModEntity:
         """Exécute l'opération save.
@@ -183,7 +214,7 @@ class SqlAlchemyCatalogRepository(ICatalogRepository):
             return 0
         saved_count = 0
         with self.db_manager.get_session() as session:
-            keys = [(ent.source, ent.remote_id) for ent in entities if ent.source and ent.remote_id]
+            keys = list(dict.fromkeys((ent.source, ent.remote_id) for ent in entities if ent.source and ent.remote_id))
             existing_map: dict[tuple[str, str], CatalogMod] = {}
             if keys:
                 for i in range(0, len(keys), 250):
