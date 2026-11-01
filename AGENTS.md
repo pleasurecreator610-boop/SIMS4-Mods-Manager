@@ -13,19 +13,16 @@ Tout provider est un plugin auto-découvert dans `plugins/<provider_name>/` déc
    - Définir `provider_name`, `display_name`, `base_url`, `CATEGORIES` (`List[Dict[str, Any]]`).
    - Implémenter `scrape_category_page(category, page, limit)`, `get_mod_details(mod_url)`, `download_mod_file(download_url, dest_path, progress_callback)`, `check_access(mod_data)`.
    - Si la plateforme supporte les commentaires/MP, implémenter `get_creator_info`, `check_user_already_commented`, `post_mod_comment`, `delete_mod_comment` et `send_private_message`.
-2. **Configuration & Classification (`src/core/config.py`)** :
-   - Ajouter dans `ADULT_PROVIDERS` si le site est `+18`.
-   - Ajouter dans `ACCOUNT_SUPPORTED_PROVIDERS` (si compte/session utile) ou dans `PUBLIC_NO_ACCOUNT_PROVIDERS` (si site 100% public sans compte).
+2. **Configuration & Classification (`src/core/provider_metadata.py` & `src/core/config.py`)** :
+   - Déclarer l'entrée `ProviderSpec` dans `src/core/provider_metadata.py` (source unique de vérité pour `is_adult`, `account_mode`, `login_url`, `badge_label`, `badge_bg`, `badge_fg`, `badge_border`).
 3. **Suivi & API (`src/application/catalog/sync_tracker.py` & `src/api/routes/accounts_router.py`)** :
-   - Déclarer l'état initial dans `SyncTracker.providers_status` et `SyncTracker.reset()`.
-   - Ajouter l'URL de login dans `accounts_router.py` et la vérification live dans `SessionManager.verify_session()` si le site supporte les comptes.
+   - Vérifier la synchronisation automatique depuis `PROVIDER_SPECS` et ajouter la vérification live dans `SessionManager.verify_session()` si le site supporte les comptes.
 4. **Interface Utilisateur (`src/ui/`)** :
    - `filter_bar.py` & `filter_adapter.py` (filtre par source et masquage `+18`).
-   - `status_badge.py` (badge visuel distinct).
-   - `provider_drawer/provider_scraper_card.py` & `drawer.py` (pilule latérale et carte de progression).
-   - `accounts_view.py` & `src/i18n/locales/{fr,en}.json` (uniquement si le provider est dans `ACCOUNT_SUPPORTED_PROVIDERS`).
-5. **Documentation (`documentation/providers/<provider>.md` & `mkdocs.yml`)** :
-   - Créer la fiche technique complète du provider et l'indexer dans `mkdocs.yml`.
+   - `status_badge.py`, `provider_drawer/` & `accounts_view.py` + `src/i18n/locales/{fr,en,es,zh,hi}.json`.
+5. **Documentation & GitHub Page (`documentation/` & `mkdocs.yml`)** :
+   - Créer la fiche technique complète `documentation/providers/<provider>.md`.
+   - Mettre à jour `documentation/providers/README.md`, `documentation/index.md` (carte interactive `.s4-provider-card` et compteurs de la GitHub Page), `README.md` et `mkdocs.yml`.
 
 ---
 
@@ -58,7 +55,29 @@ Tout ajout ou modification d'un provider par un agent LLM **DOIT** être accompa
 
 ---
 
-## 4. Protocole d'Exécution des Tests & Conformité Statique
+## 4. Règle Impérative : Mise à Jour Systématique de la GitHub Page & de la Documentation
+
+**Toute nouvelle fonctionnalité (feature), évolution d'architecture ou intégration de plateforme DOIT obligatoirement inclure la mise à jour de la GitHub Page et de la documentation modulaire** en respectant les contraintes existantes :
+
+1. **Page Vitrine GitHub Pages "Les Sims 4" (`documentation/index.md`, `documentation/stylesheets/sims4_theme.css`, `documentation/javascripts/sims4_showcase.js`)** :
+   - Conserver l'identité visuelle **Les Sims 4** (Plumbob SVG animé, thème Émeraude `#00E676` / Bleu Saphir `#00B0FF`, cartes glassmorphism `.s4-feature-card` et `.s4-provider-card`).
+   - Mettre à jour les cartes de fonctionnalités (`.s4-features-grid`), les compteurs KPI (`.s4-stats-strip`) et l'explorateur filtrable des plateformes (`.s4-providers-grid` avec attributs `data-category` et `data-tags`).
+2. **Documentation Modulaire & Index (`README.md` & `documentation/`)** :
+   - Maintenir le [`README.md`](./README.md) racine concis et centré sur son rôle d'index.
+   - Mettre à jour les guides spécialisés impactés :
+     - [`documentation/features.md`](./documentation/features.md) (pour toute nouvelle fonctionnalité utilisateur ou métier).
+     - [`documentation/architecture.md`](./documentation/architecture.md) (pour toute évolution d'architecture, de schéma/index SQLite ou de sécurité).
+     - [`documentation/providers/README.md`](./documentation/providers/README.md) & `documentation/providers/<provider>.md` (pour tout ajout ou modification de provider).
+     - [`mkdocs.yml`](./mkdocs.yml) (navigation et liens).
+3. **Validation Obligatoire du Build MkDocs** :
+   - Toujours vérifier que la génération statique de la GitHub Page compile sans aucune erreur avant de créer une Pull Request :
+     ```powershell
+     .\.venv\Scripts\python.exe -m mkdocs build --clean
+     ```
+
+---
+
+## 5. Protocole d'Exécution des Tests & Conformité Statique
 
 1. **Exécution par Module en Terminal Visible (`-v`)** :
    Ne jamais lancer `pytest` sur tout le dépôt en une seule commande bloquante. Toujours exécuter module par module :
@@ -75,7 +94,11 @@ Tout ajout ou modification d'un provider par un agent LLM **DOIT** être accompa
    .\.venv\Scripts\python.exe -m pytest tests/unit/ui -v
    .\.venv\Scripts\python.exe -m pytest tests/e2e -v
    ```
-2. **Audit Statique (`02_compliance_code/python`)** :
+2. **Build de la GitHub Page (`MkDocs`)** :
+   ```powershell
+   .\.venv\Scripts\python.exe -m mkdocs build --clean
+   ```
+3. **Audit Statique (`02_compliance_code/python`)** :
    ```powershell
    python D:\Workspace\Gitlab\workspace\02_compliance_code\python\analyze.py --target . --skip-update
    ```
