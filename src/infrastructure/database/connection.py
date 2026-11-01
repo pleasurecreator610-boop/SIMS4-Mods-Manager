@@ -23,14 +23,17 @@ def create_db_engine(db_path: Optional[str] = None) -> Engine:
 
     @event.listens_for(engine, "connect")
     def set_sqlite_pragma(dbapi_connection, _connection_record):
-        """Active le mode WAL et les pragmas SQLite optimaux."""
+        """Active le mode WAL, les clés étrangères et les pragmas SQLite optimaux."""
         cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
         cursor.execute("PRAGMA journal_mode=WAL")
         cursor.execute("PRAGMA synchronous=NORMAL")
         cursor.execute("PRAGMA busy_timeout=15000")
         cursor.execute("PRAGMA cache_size=-64000")
         cursor.execute("PRAGMA temp_store=MEMORY")
         cursor.execute("PRAGMA mmap_size=268435456")
+        cursor.execute("PRAGMA wal_autocheckpoint=1000")
+        cursor.execute("PRAGMA journal_size_limit=67108864")
         cursor.close()
 
     return engine

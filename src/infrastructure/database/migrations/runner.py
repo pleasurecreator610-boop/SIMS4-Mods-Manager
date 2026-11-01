@@ -10,7 +10,7 @@ from typing import Callable, List
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
-from src.infrastructure.database.models import Base
+from src.infrastructure.database.models import Base, compute_title_fingerprint
 from src.utils.logger import logger
 
 
@@ -74,11 +74,52 @@ def _migration_004_add_dbpf_package_cache(engine: Engine) -> None:
         conn.commit()
 
 
+def _migration_005_title_fingerprint_and_covering_indexes(engine: Engine) -> None:
+    """Ajoute title_fingerprint indexé et les index composites couvrants avec backfill automatique."""
+    with engine.connect() as conn:
+        cat_cols = {r[1] for r in conn.execute(text("PRAGMA table_info(catalog_mods)")).fetchall()}
+        if "title_fingerprint" not in cat_cols:
+            conn.execute(text("ALTER TABLE catalog_mods ADD COLUMN title_fingerprint VARCHAR(150) DEFAULT ''"))
+
+        inst_cols = {r[1] for r in conn.execute(text("PRAGMA table_info(installed_mods)")).fetchall()}
+        if "title_fingerprint" not in inst_cols:
+            conn.execute(text("ALTER TABLE installed_mods ADD COLUMN title_fingerprint VARCHAR(150) DEFAULT ''"))
+
+        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_catalog_title_fp ON catalog_mods (title_fingerprint)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_installed_title_fp ON installed_mods (title_fingerprint)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_catalog_updated_id ON catalog_mods (updated_date, id)"))
+        conn.execute(
+            text("CREATE INDEX IF NOT EXISTS idx_catalog_patreon_source ON catalog_mods (patreon_status, source)")
+        )
+
+        # Backfill automatique des empreintes manquantes
+        cat_rows = conn.execute(
+            text("SELECT id, title FROM catalog_mods WHERE title_fingerprint IS NULL OR title_fingerprint = ''")
+        ).fetchall()
+        if cat_rows:
+            conn.execute(
+                text("UPDATE catalog_mods SET title_fingerprint = :fp WHERE id = :id"),
+                [{"id": r[0], "fp": compute_title_fingerprint(r[1])} for r in cat_rows],
+            )
+
+        inst_rows = conn.execute(
+            text("SELECT id, title FROM installed_mods WHERE title_fingerprint IS NULL OR title_fingerprint = ''")
+        ).fetchall()
+        if inst_rows:
+            conn.execute(
+                text("UPDATE installed_mods SET title_fingerprint = :fp WHERE id = :id"),
+                [{"id": r[0], "fp": compute_title_fingerprint(r[1])} for r in inst_rows],
+            )
+
+        conn.commit()
+
+
 REGISTRY: List[Migration] = [
     Migration(1, "initial_schema", _migration_001_initial_schema),
     Migration(2, "add_requirements_columns", _migration_002_add_requirements_columns),
     Migration(3, "fts_and_performance_indices", _migration_003_fts_and_performance_indices),
     Migration(4, "add_dbpf_package_cache", _migration_004_add_dbpf_package_cache),
+    Migration(5, "title_fingerprint_and_covering_indexes", _migration_005_title_fingerprint_and_covering_indexes),
 ]
 
 
