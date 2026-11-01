@@ -7,7 +7,7 @@ Le fournisseur `synthira` connecte **SIMS 4 Mods Manager** à la section **The S
 ## 1. Caractéristiques Techniques
 
 - **Identifiant Provider** : `synthira`
-- **Classe d'Implémentation** : [`plugins/synthira/provider.py`](../../plugins/synthira/provider.py) (`SynthiraProvider`)
+- **Classe d'Implémentation** : [`plugins/synthira/provider.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/plugins/synthira/provider.py) (`SynthiraProvider`)
 - **URL Officielle** : `https://synthira.ru/load/12`
 - **Contenu Adulte (`+18`)** : Oui (`ADULT_PROVIDERS` — masqué par défaut, affiché lorsque le filtre `+18` est activé)
 - **Compte Utilisateur** : Optionnel (`ACCOUNT_SUPPORTED_PROVIDERS`) — utilisé pour poster des commentaires et envoyer des messages aux auteurs.
@@ -24,6 +24,6 @@ Le fournisseur `synthira` connecte **SIMS 4 Mods Manager** à la section **The S
 
 ## 3. Tests Automatisés Associés
 
-- [`tests/unit/providers/test_new_platforms_providers.py`](../../tests/unit/providers/test_new_platforms_providers.py)
-- [`tests/unit/application/test_new_platforms_reporting_and_comments.py`](../../tests/unit/application/test_new_platforms_reporting_and_comments.py)
+- [`tests/unit/providers/test_new_platforms_providers.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/tests/unit/providers/test_new_platforms_providers.py)
+- [`tests/unit/application/test_new_platforms_reporting_and_comments.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/tests/unit/application/test_new_platforms_reporting_and_comments.py)
 

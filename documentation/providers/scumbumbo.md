@@ -7,7 +7,7 @@ Le fournisseur `scumbumbo` connecte **SIMS 4 Mods Manager** au portail commémor
 ## 1. Caractéristiques Techniques
 
 - **Identifiant Provider** : `scumbumbo`
-- **Classe d'Implémentation** : [`plugins/scumbumbo/provider.py`](../../plugins/scumbumbo/provider.py) (`ScumbumboProvider`, héritant de `BasePortalProvider`)
+- **Classe d'Implémentation** : [`plugins/scumbumbo/provider.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/plugins/scumbumbo/provider.py) (`ScumbumboProvider`, héritant de `BasePortalProvider`)
 - **URL Officielle** : `https://scumbumbomods.com`
 - **Contenu Adulte (`+18`)** : Non (`SFW`)
 - **Compte Utilisateur Requis** : **Aucun** (`PUBLIC_NO_ACCOUNT_PROVIDERS`)
@@ -31,6 +31,6 @@ Toute mention de `XML Injector`, `Scumbumbo's XML Injector`, `xmlinjector` ou `T
 
 ## 4. Tests Automatisés Associés
 
-- [`tests/unit/providers/test_new_platforms_providers.py`](../../tests/unit/providers/test_new_platforms_providers.py)
-- [`tests/unit/application/test_multi_platform_dependencies_and_dedup.py`](../../tests/unit/application/test_multi_platform_dependencies_and_dedup.py)
+- [`tests/unit/providers/test_new_platforms_providers.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/tests/unit/providers/test_new_platforms_providers.py)
+- [`tests/unit/application/test_multi_platform_dependencies_and_dedup.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/tests/unit/application/test_multi_platform_dependencies_and_dedup.py)
 

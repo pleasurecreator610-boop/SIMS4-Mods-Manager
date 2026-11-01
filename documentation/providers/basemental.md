@@ -7,7 +7,7 @@ Le fournisseur `basemental` intègre le site officiel **Basemental CC** (`baseme
 ## 1. Caractéristiques Techniques
 
 - **Identifiant Provider** : `basemental`
-- **Classe d'Implémentation** : [`plugins/basemental/provider.py`](../../plugins/basemental/provider.py) (`BasementalProvider`, héritant de `BasePortalProvider`)
+- **Classe d'Implémentation** : [`plugins/basemental/provider.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/plugins/basemental/provider.py) (`BasementalProvider`, héritant de `BasePortalProvider`)
 - **URL Officielle** : `https://basementalcc.com`
 - **Contenu Adulte (`+18`)** : Oui (`ADULT_PROVIDERS`)
 - **Compte Utilisateur Requis** : **Aucun** (`PUBLIC_NO_ACCOUNT_PROVIDERS`)
@@ -31,6 +31,6 @@ Toute dépendance nommée `Basemental Drugs`, `Basemental Drug`, `Basemental Gan
 
 ## 4. Tests Automatisés Associés
 
-- [`tests/unit/providers/test_new_platforms_providers.py`](../../tests/unit/providers/test_new_platforms_providers.py)
-- [`tests/unit/application/test_multi_platform_dependencies_and_dedup.py`](../../tests/unit/application/test_multi_platform_dependencies_and_dedup.py)
+- [`tests/unit/providers/test_new_platforms_providers.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/tests/unit/providers/test_new_platforms_providers.py)
+- [`tests/unit/application/test_multi_platform_dependencies_and_dedup.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/tests/unit/application/test_multi_platform_dependencies_and_dedup.py)
 

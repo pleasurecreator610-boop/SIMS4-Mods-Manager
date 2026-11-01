@@ -7,7 +7,7 @@ Le fournisseur `thesimscatalog` indexe et télécharge les mods de gameplay, tra
 ## 1. Caractéristiques Techniques
 
 - **Identifiant Provider** : `thesimscatalog`
-- **Classe d'Implémentation** : [`plugins/thesimscatalog/provider.py`](../../plugins/thesimscatalog/provider.py) (`TheSimsCatalogProvider`)
+- **Classe d'Implémentation** : [`plugins/thesimscatalog/provider.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/plugins/thesimscatalog/provider.py) (`TheSimsCatalogProvider`)
 - **URL Officielle** : `https://thesimscatalog.com/sims4/`
 - **Contenu Adulte (`+18`)** : Non (`SFW`)
 - **Compte Utilisateur Requis** : **Aucun** (`PUBLIC_NO_ACCOUNT_PROVIDERS`)
@@ -31,6 +31,6 @@ Les mods indexés sur The Sims Catalog qui référencent ou dupliquent des créa
 
 ## 4. Tests Automatisés Associés
 
-- [`tests/unit/providers/test_new_platforms_providers.py`](../../tests/unit/providers/test_new_platforms_providers.py)
-- [`tests/unit/application/test_multi_platform_dependencies_and_dedup.py`](../../tests/unit/application/test_multi_platform_dependencies_and_dedup.py)
+- [`tests/unit/providers/test_new_platforms_providers.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/tests/unit/providers/test_new_platforms_providers.py)
+- [`tests/unit/application/test_multi_platform_dependencies_and_dedup.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/tests/unit/application/test_multi_platform_dependencies_and_dedup.py)
 

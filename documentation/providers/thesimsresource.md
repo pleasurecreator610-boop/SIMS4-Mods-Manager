@@ -26,6 +26,7 @@ Le fournisseur `thesimsresource` assure l'indexation de la plateforme **The Sims
 ## 2. Protocole de Téléchargement par Ticket AJAX
 
 TSR utilise un mécanisme de temporisation et de validation de ticket pour les téléchargements :
+
 1. **Initialisation** : Appel à `/ajax.php?c=downloads&a=initDownload&itemid={id}&format=zip` pour générer un jeton `ticket`.
 2. **Attente & Session** : Initialisation du cookie de session `tsrdlsession`.
 3. **Sondage** : Requêtes successives à `/ajax.php?c=downloads&a=getdownloadurl` jusqu'à validation du délai (configurable via `ticket_poll_interval`).

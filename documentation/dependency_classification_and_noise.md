@@ -1,4 +1,4 @@
-# Résolution des Dépendances, Priorité Officielle, Filtrage du Bruit & Signalement Créateurs
+# 🧩 Résolution des Dépendances, Priorité Officielle, Filtrage du Bruit & Signalement Créateurs
 
 Ce document décrit le pipeline complet d'extraction, de redirection officielle, de déduplication inter-plateformes, de filtrage du bruit et de signalement aux créateurs de **SIMS 4 Mods Manager**.
 
@@ -6,7 +6,7 @@ Ce document décrit le pipeline complet d'extraction, de redirection officielle,
 
 ## 1. Priorité Absolue aux Sites Officiels des Frameworks (`SPECIAL_DEPENDENCY_CASES`)
 
-De nombreux mods publiés sur LoversLab, CurseForge, ModTheSims, Patreon, F95zone ou Synthira dépendent de grands frameworks communautaires. Afin d'éviter les miroirs obsolètes et les blocages d'authentification, [`src/application/dependencies/dependency_special_cases.py`](../src/application/dependencies/dependency_special_cases.py) intercepte en priorité absolue ces dépendances et les redirige vers leur **site officiel public** (aucun compte requis) :
+De nombreux mods publiés sur LoversLab, CurseForge, ModTheSims, Patreon, F95zone ou Synthira dépendent de grands frameworks communautaires. Afin d'éviter les miroirs obsolètes et les blocages d'authentification, `src/application/dependencies/dependency_special_cases.py` intercepte en priorité absolue (`O(1)`) ces dépendances et les redirige vers leur **site officiel public** (aucun compte requis) :
 
 | Framework / Mod | Provider Officiel | ID Canonique | URL Officielle Prioritaire | Principaux Alias Reconnus |
 | :--- | :--- | :--- | :--- | :--- |
@@ -29,26 +29,28 @@ De nombreux mods publiés sur LoversLab, CurseForge, ModTheSims, Patreon, F95zon
 
 ## 2. Déduplication Inter-Plateformes & Installations Multiples
 
-1. **Empreinte Canonique Inter-Plateformes (`ModMatcher.canonical_fingerprint`)** :
-   - Nettoie les préfixes (`The Sims 4`, `[TS4]`), les numéros de version (`v1.4`, `2026.2.0`) et la ponctuation.
-   - Si un mod a été installé depuis `scumbumbo`, `littlemssam` ou `wickedcc`, et qu'un mod téléchargé depuis `f95zone`, `thesimscatalog` ou `loverslab` le réclame via un lien `curseforge` ou `modthesims`, le résolveur le détecte immédiatement comme **`INSTALLED`** sans le re-télécharger.
-2. **Registre d'Installations Actives (`ActiveInstallationRegistry`)** :
-   - Lors de l'installation simultanée de plusieurs mods partageant une ou plusieurs dépendances (de la même plateforme ou de plateformes différentes), `ActiveInstallationRegistry` verrouille chaque dépendance par `(source, remote_id)` et par empreinte canonique de titre.
+- **1. Empreinte Canonique Inter-Plateformes (`ModMatcher.canonical_fingerprint`)** :
+  Nettoie les préfixes (`The Sims 4`, `[TS4]`), les numéros de version (`v1.4`, `2026.2.0`) et la ponctuation. Si un mod a été installé depuis `scumbumbo`, `littlemssam` ou `wickedcc`, et qu'un mod téléchargé depuis `f95zone`, `thesimscatalog` ou `loverslab` le réclame via un lien `curseforge` ou `modthesims`, le résolveur le détecte immédiatement comme **`INSTALLED`** en `O(log N)` sans le re-télécharger.
+
+- **2. Registre d'Installations Actives (`ActiveInstallationRegistry`)** :
+  Lors de l'installation simultanée de plusieurs mods partageant une ou plusieurs dépendances (de la même plateforme ou de plateformes différentes), `ActiveInstallationRegistry` verrouille chaque dépendance par `(source, remote_id)` et par empreinte canonique de titre.
 
 ---
 
-## 3. Filtrage du Bruit (`COMMENT_NOISE`) & Surcharge Utilisateur (`MOD` $\leftrightarrow$ `COMMENT`)
+## 3. Filtrage du Bruit (`COMMENT_NOISE`) & Surcharge Utilisateur (`MOD` ↔ `COMMENT`)
 
 - **Détection Heuristique (`src/utils/dependency_noise_rules.py`)** :
-  - Identifie automatiquement les consignes de jeu (*"Script Mods Enabled in Game Options"*), les notes de compatibilité (*"Compatible with patch 1.110+"*) et les mentions d'auteurs (*"Please do not reupload"*) en tant que **`COMMENT_NOISE`**.
+  Identifie automatiquement les consignes de jeu (*"Script Mods Enabled in Game Options"*), les notes de compatibilité (*"Compatible with patch 1.110+"*) et les mentions d'auteurs (*"Please do not reupload"*) en tant que **`COMMENT_NOISE`**.
+
 - **Surcharge Manuelle (`requirements_overrides`)** :
-  - Dans l'interface ou via l'API, l'utilisateur peut basculer tout élément entre **`MOD`** (vrai mod requis) et **`COMMENT`** (simple note ignorée).
+  Dans l'interface ou via l'API, l'utilisateur peut basculer tout élément entre **`MOD`** (vrai mod requis) et **`COMMENT`** (simple note ignorée).
 
 ---
 
 ## 4. Signalement & Commentaires aux Créateurs (`RequirementReporterService`)
 
 Lorsqu'un prérequis est introuvable ou qu'une note pollue la section *Requirements*, l'utilisateur peut contacter l'auteur sur les plateformes compatibles (`loverslab`, `nsfwmods`, `curseforge`, `thesimsresource`, `modthesims`, `simsfinds`, `nexusmods`, `mmccworld`, `sims4studio`, `f95zone`, `gamebanana`, `itchio`, `synthira`) :
-1. **Vérification d'Authentification** : Si `SessionManager.is_member_authenticated(source)` vaut `False`, l'application invite l'utilisateur à se connecter dans l'onglet **Comptes & Anti-Bot**.
-2. **Anti-Doublon en Direct** : `check_report_status` inspecte la page du mod en direct pour vérifier si l'utilisateur a déjà signalé ce prérequis.
-3. **Publication & Suppression** : `submit_report` publie le message en anglais standardisé (en commentaire ou en MP) et `delete_report` permet de supprimer le commentaire publié.
+
+- **1. Vérification d'Authentification** : Si `SessionManager.is_member_authenticated(source)` vaut `False`, l'application invite l'utilisateur à se connecter dans l'onglet **Comptes & Anti-Bot**.
+- **2. Anti-Doublon en Direct** : `check_report_status` inspecte la page du mod en direct pour vérifier si l'utilisateur a déjà signalé ce prérequis.
+- **3. Publication & Suppression** : `submit_report` publie le message en anglais standardisé (en commentaire ou en MP) et `delete_report` permet de supprimer le commentaire publié.

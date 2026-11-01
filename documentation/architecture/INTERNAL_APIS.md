@@ -11,6 +11,7 @@ Dans une architecture Clean/Hexagonale, les services métier ne doivent jamais m
 Chaque ressource d'infrastructure expose une **API Interne** sous forme d'interface abstraite (`Protocol` ou `ABC`).
 
 ### Règles d'Échéance & Sécurité :
+
 1. **Inaccessibilité depuis le Front-End** : Les interfaces et classes de repositories ne sont jamais importées dans `src/ui/`.
 2. **Indépendance Vis-à-Vis des Frameworks** : Les entités renvoyées par les méthodes de ces API sont des entités de domaine pures (`InstalledModEntity`, `CatalogModEntity`, `AccountSessionEntity`), détachées de l'ORM SQLAlchemy.
 3. **Mappage Automatisé** : La classe `ModelMapper` se charge de la sérialisation / désérialisation bidirectionnelle entre l'ORM et le Domaine.
@@ -71,6 +72,7 @@ Implémentation concrète : `SqlAlchemyAccountRepository`
 Emplacement : `src/infrastructure/filesystem/archive_extractor.py`
 
 L'infrastructure de manipulation des fichiers d'archives est unifiée derrière le pattern Strategy :
+
 - `ZipArchiveHandler`
 - `SevenZipArchiveHandler`
 - `RarArchiveHandler`

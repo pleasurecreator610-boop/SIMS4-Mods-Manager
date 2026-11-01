@@ -8,6 +8,7 @@
 Le projet combine une interface graphique de bureau (PySide6), une API REST locale asynchrone (FastAPI), un moteur de base de données relationnelle (SQLAlchemy/SQLite) et des connecteurs de scraping pour de multiples plateformes externes (CurseForge, The Sims Resource, LoversLab, NSFWMods, Patreon). Auparavant, certains shims et imports circulaires existaient entre les composants.
 
 ## Décision
+
 1. **Frontières de couches unidirectionnelles** :
    - `src/domain/` : Entités pures et interfaces (DTOs, entités métier). Aucune dépendance externe (FastAPI, SQLAlchemy, PySide6 interdits).
    - `src/application/` : Cas d'utilisation, orchestrateurs et coordinateurs métier.
@@ -18,5 +19,6 @@ Le projet combine une interface graphique de bureau (PySide6), une API REST loca
 2. **Règle Zéro-Shim** : Élimination de tous les fichiers de redirection obsolètes au profit de chemins canoniques.
 
 ## Conséquences
+
 - Typage strict Mypy à 100% sans exception.
 - Tests unitaires isolés et exécutables en microsecondes.

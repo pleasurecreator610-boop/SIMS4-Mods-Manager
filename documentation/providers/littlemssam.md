@@ -7,7 +7,7 @@ Le fournisseur `littlemssam` indexe le portail officiel de **LittleMsSam** (`lms
 ## 1. Caractéristiques Techniques
 
 - **Identifiant Provider** : `littlemssam`
-- **Classe d'Implémentation** : [`plugins/littlemssam/provider.py`](../../plugins/littlemssam/provider.py) (`LittleMsSamProvider`)
+- **Classe d'Implémentation** : [`plugins/littlemssam/provider.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/plugins/littlemssam/provider.py) (`LittleMsSamProvider`)
 - **URL Officielle** : `https://lms-mods.com`
 - **Contenu Adulte (`+18`)** : Non (`SFW`)
 - **Compte Utilisateur Requis** : **Aucun** (`PUBLIC_NO_ACCOUNT_PROVIDERS`)
@@ -29,6 +29,6 @@ LittleMsSam distribuant également ses mods sur CurseForge, `ModMatcher.canonica
 
 ## 4. Tests Automatisés Associés
 
-- [`tests/unit/providers/test_new_platforms_providers.py`](../../tests/unit/providers/test_new_platforms_providers.py)
-- [`tests/unit/application/test_multi_platform_dependencies_and_dedup.py`](../../tests/unit/application/test_multi_platform_dependencies_and_dedup.py)
+- [`tests/unit/providers/test_new_platforms_providers.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/tests/unit/providers/test_new_platforms_providers.py)
+- [`tests/unit/application/test_multi_platform_dependencies_and_dedup.py`](https://github.com/pleasurecreator610-boop/SIMS4-Mods-Manager/blob/main/tests/unit/application/test_multi_platform_dependencies_and_dedup.py)
 
