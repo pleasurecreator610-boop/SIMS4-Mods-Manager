@@ -142,6 +142,7 @@
 }
 
 @media screen and (min-width: 76.25em) {
+
   .md-sidebar--primary,
   .md-sidebar--secondary {
     width: 11rem;
@@ -149,7 +150,7 @@
 }
 
 /* Masquer le titre H1 redondant au-dessus de la bannière Hero sur l'accueil */
-.md-content__inner:has(.s4-hero) > h1:first-of-type {
+.md-content__inner:has(.s4-hero)>h1:first-of-type {
   display: none;
 }
 
@@ -325,11 +326,13 @@
 }
 
 @keyframes s4-plumbob-float {
+
   0%,
   100% {
     transform: translateY(0px) scale(1);
     filter: drop-shadow(0 10px 20px rgba(0, 190, 90, 0.38));
   }
+
   50% {
     transform: translateY(-10px) scale(1.04);
     filter: drop-shadow(0 16px 30px rgba(0, 210, 100, 0.62));
