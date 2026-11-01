@@ -112,38 +112,21 @@ class DependencyActions:
 
         return res
 
-    def check_installed(
-        self,
-        source: str,
-        remote_id: str,
-        title: str,
+    @staticmethod
+    def build_installed_index(
         installed_by_remote: Dict[Tuple[str, str], Any],
         installed_by_title: Dict[str, Any],
-    ) -> bool:
-        """Checks whether a mod is currently installed in the user's Sims 4 directory."""
-        if remote_id:
-            if (source, remote_id) in installed_by_remote:
-                return True
-            if remote_id in SPECIAL_DEPENDENCY_REMOTE_IDS:
-                for _inst_src, inst_rid in installed_by_remote:
-                    if inst_rid == remote_id:
-                        return True
-        if title.lower() in installed_by_title:
-            return True
-
-        # Deduplicate installed objects by identity
+    ) -> Tuple[List[Any], Set[str]]:
+        """Pre-computes deduplicated installed mods list and canonical fingerprint set in O(N)."""
         seen_ids: Set[int] = set()
         installed_list: List[Any] = []
+        installed_fp_set: Set[str] = set()
         for im in (*installed_by_remote.values(), *installed_by_title.values()):
             obj_id = id(im)
-            if obj_id not in seen_ids:
-                seen_ids.add(obj_id)
-                installed_list.append(im)
-
-        title_str = title if isinstance(title, str) else str(title or "")
-        stripped_t = _LEADING_THE_RE.sub("", title_str.strip())
-        t_fp = ModMatcher.canonical_fingerprint(ModMatcher.clean_mod_title(stripped_t) or stripped_t)
-        for im in installed_list:
+            if obj_id in seen_ids:
+                continue
+            seen_ids.add(obj_id)
+            installed_list.append(im)
             im_fp = getattr(im, "_cached_title_fp", None)
             if im_fp is None:
                 im_title = getattr(im, "title", None)
@@ -156,8 +139,39 @@ class DependencyActions:
                     im._cached_title_fp = im_fp
                 except Exception:
                     pass
-            if im_fp and im_fp == t_fp:
+            if im_fp:
+                installed_fp_set.add(im_fp)
+        return installed_list, installed_fp_set
+
+    def check_installed(
+        self,
+        source: str,
+        remote_id: str,
+        title: str,
+        installed_by_remote: Dict[Tuple[str, str], Any],
+        installed_by_title: Dict[str, Any],
+        precomputed_index: Optional[Tuple[List[Any], Set[str]]] = None,
+    ) -> bool:
+        """Checks whether a mod is currently installed in the user's Sims 4 directory."""
+        if remote_id:
+            if (source, remote_id) in installed_by_remote:
                 return True
+            if remote_id in SPECIAL_DEPENDENCY_REMOTE_IDS:
+                for _inst_src, inst_rid in installed_by_remote:
+                    if inst_rid == remote_id:
+                        return True
+        if title.lower() in installed_by_title:
+            return True
+
+        installed_list, installed_fp_set = precomputed_index or self.build_installed_index(
+            installed_by_remote, installed_by_title
+        )
+
+        title_str = title if isinstance(title, str) else str(title or "")
+        stripped_t = _LEADING_THE_RE.sub("", title_str.strip())
+        t_fp = ModMatcher.canonical_fingerprint(ModMatcher.clean_mod_title(stripped_t) or stripped_t)
+        if t_fp and t_fp in installed_fp_set:
+            return True
 
         im_match = ModMatcher.find_best_installed_match(title, installed_list, min_threshold=0.85)
         return bool(im_match)

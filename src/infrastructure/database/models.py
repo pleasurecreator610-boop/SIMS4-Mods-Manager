@@ -1,11 +1,10 @@
-"""Modèles déclaratifs SQLAlchemy pour l'infrastructure de persistance."""
+"""Modèles déclaratifs SQLAlchemy 2.0 typés pour l'infrastructure de persistance."""
 
 import json
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from sqlalchemy import (
     Boolean,
-    Column,
     DateTime,
     Float,
     ForeignKey,
@@ -15,14 +14,16 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.orm import Mapped, declarative_base, relationship
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from src.core.crypto import decrypt_to_dict, encrypt_dict
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    """Classe de base déclarative SQLAlchemy 2.0 pour l'ensemble des entités ORM."""
 
 
-def _get_json_data(val: Any, default_type: type):
+def _get_json_data(val: Any, default_type: type) -> Any:
     if isinstance(val, default_type):
         return default_type(val)
     try:
@@ -31,37 +32,37 @@ def _get_json_data(val: Any, default_type: type):
         return default_type()
 
 
-def _set_json_data(val: Any, default_type: type):
+def _set_json_data(val: Any, default_type: type) -> Any:
     return default_type(val) if val is not None else default_type()
 
 
 class CatalogMod(Base):
-    """Représente un mod répertorié dans le catalogue distant (LoversLab, Patreon...)."""
+    """Représente un mod répertorié dans le catalogue distant (LoversLab, Patreon, CurseForge...)."""
 
     __tablename__ = "catalog_mods"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    source = Column(String(50), nullable=False, index=True)
-    remote_id = Column(String(100), nullable=False, index=True)
-    title = Column(String(255), nullable=False, index=True)
-    author = Column(String(100), index=True)
-    category = Column(String(100), index=True)
-    tags = Column(JSON, default=list)
-    description = Column(Text, default="")
-    page_url = Column(String(500), nullable=False)
-    thumbnail_url = Column(String(500), default="")
-    download_urls = Column(JSON, default=list)
-    external_links = Column(JSON, default=list)
-    published_date = Column(DateTime, nullable=True)
-    updated_date = Column(DateTime, nullable=True, index=True)
-    version_str = Column(String(50), default="")
-    patreon_status = Column(String(20), default="NONE", index=True)
-    patreon_tier = Column(String(100), default="")
-    requirements_text = Column(Text, nullable=True)
-    requirements_status = Column(String(50), default="NONE")
-    requirements_mods_json = Column(JSON, default=list)
-    requirements_overrides_json = Column(JSON, default=dict)
-    last_scraped_at = Column(DateTime, default=datetime.now)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    source: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    remote_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    author: Mapped[str] = mapped_column(String(100), default="", index=True)
+    category: Mapped[str] = mapped_column(String(100), default="", index=True)
+    tags: Mapped[Any] = mapped_column(JSON, default=list)
+    description: Mapped[str] = mapped_column(Text, default="")
+    page_url: Mapped[str] = mapped_column(String(500), nullable=False)
+    thumbnail_url: Mapped[str] = mapped_column(String(500), default="")
+    download_urls: Mapped[Any] = mapped_column(JSON, default=list)
+    external_links: Mapped[Any] = mapped_column(JSON, default=list)
+    published_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    updated_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+    version_str: Mapped[str] = mapped_column(String(50), default="")
+    patreon_status: Mapped[str] = mapped_column(String(20), default="NONE", index=True)
+    patreon_tier: Mapped[str] = mapped_column(String(100), default="")
+    requirements_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    requirements_status: Mapped[str] = mapped_column(String(50), default="NONE")
+    requirements_mods_json: Mapped[Any] = mapped_column(JSON, default=list)
+    requirements_overrides_json: Mapped[Any] = mapped_column(JSON, default=dict)
+    last_scraped_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.now)
 
     __table_args__ = (
         Index("idx_source_remote", "source", "remote_id", unique=True),
@@ -116,18 +117,20 @@ class InstalledMod(Base):
 
     __tablename__ = "installed_mods"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    catalog_mod_id = Column(Integer, ForeignKey("catalog_mods.id", ondelete="SET NULL"), nullable=True)
-    source = Column(String(50), default="manual")
-    remote_id = Column(String(100), default="")
-    title = Column(String(255), nullable=False, index=True)
-    folder_name = Column(String(255), nullable=False, index=True)
-    installed_files = Column(JSON, default=list)
-    installed_date = Column(DateTime, default=datetime.now)
-    version_date = Column(DateTime, nullable=True)
-    version_str = Column(String(50), default="")
-    is_enabled = Column(Boolean, default=True, index=True)
-    backup_path = Column(String(500), nullable=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    catalog_mod_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("catalog_mods.id", ondelete="SET NULL"), nullable=True
+    )
+    source: Mapped[str] = mapped_column(String(50), default="manual")
+    remote_id: Mapped[str] = mapped_column(String(100), default="")
+    title: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    folder_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    installed_files: Mapped[Any] = mapped_column(JSON, default=list)
+    installed_date: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.now)
+    version_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    version_str: Mapped[str] = mapped_column(String(50), default="")
+    is_enabled: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    backup_path: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
     catalog_mod: Mapped[Optional["CatalogMod"]] = relationship("CatalogMod", backref="installed_mod", uselist=False)
 
@@ -148,16 +151,16 @@ class InstalledMod(Base):
 
 
 class AccountSession(Base):
-    """Stocke la session de connexion et cookies pour un provider (LoversLab, Patreon)."""
+    """Stocke la session de connexion et cookies pour un provider (LoversLab, Patreon, etc.)."""
 
     __tablename__ = "account_sessions"
 
-    provider_name = Column(String(50), primary_key=True)
-    is_authenticated = Column(Boolean, default=False)
-    user_display_name = Column(String(100), default="")
-    cookies_data = Column(JSON, default=dict)
-    user_agent = Column(String(255), default="")
-    last_verified = Column(DateTime, default=datetime.now)
+    provider_name: Mapped[str] = mapped_column(String(50), primary_key=True)
+    is_authenticated: Mapped[bool] = mapped_column(Boolean, default=False)
+    user_display_name: Mapped[str] = mapped_column(String(100), default="")
+    cookies_data: Mapped[Any] = mapped_column(JSON, default=dict)
+    user_agent: Mapped[str] = mapped_column(String(255), default="")
+    last_verified: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.now)
 
     def get_cookies_dict(self) -> Dict[str, str]:
         """Retourne le dictionnaire des cookies avec déchiffrement AES-256-GCM ou rétrocompatibilité."""
@@ -173,11 +176,11 @@ class DbpfPackageCache(Base):
 
     __tablename__ = "dbpf_package_cache"
 
-    file_path = Column(String(500), primary_key=True)
-    mtime = Column(Float, nullable=False)
-    file_size = Column(Integer, nullable=False)
-    resource_count = Column(Integer, default=0)
-    tgi_json = Column(Text, default="[]")
+    file_path: Mapped[str] = mapped_column(String(500), primary_key=True)
+    mtime: Mapped[float] = mapped_column(Float, nullable=False)
+    file_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    resource_count: Mapped[int] = mapped_column(Integer, default=0)
+    tgi_json: Mapped[str] = mapped_column(Text, default="[]")
 
     def get_tgi_list(self) -> List[List[Any]]:
         """Retourne la liste des tuples [tgi_str, resource_type_name, is_stbl] désérialisés."""

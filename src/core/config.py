@@ -5,44 +5,16 @@ from pathlib import Path
 from dataclasses import dataclass, fields
 from typing import Optional, ClassVar, Tuple
 
+from src.core.provider_metadata import (
+    get_account_supported_providers,
+    get_adult_providers,
+    get_public_no_account_providers,
+)
+
 APP_DIR_NAME = ".sims4_mod_manager"
-ADULT_PROVIDERS: Tuple[str, ...] = (
-    "loverslab",
-    "nsfwmods",
-    "wickedcc",
-    "basemental",
-    "synthira",
-    "f95zone",
-    "smutbase",
-)
-ACCOUNT_SUPPORTED_PROVIDERS: Tuple[str, ...] = (
-    "loverslab",
-    "nsfwmods",
-    "curseforge",
-    "thesimsresource",
-    "modthesims",
-    "simsfinds",
-    "patreon",
-    "nexusmods",
-    "simfileshare",
-    "mmccworld",
-    "sims4studio",
-    "f95zone",
-    "itchio",
-    "gamebanana",
-    "synthira",
-)
-PUBLIC_NO_ACCOUNT_PROVIDERS: Tuple[str, ...] = (
-    "deaderpool",
-    "scumbumbo",
-    "lumpinou",
-    "wickedcc",
-    "basemental",
-    "thesimscatalog",
-    "littlemssam",
-    "sixamcc",
-    "smutbase",
-)
+ADULT_PROVIDERS: Tuple[str, ...] = get_adult_providers()
+ACCOUNT_SUPPORTED_PROVIDERS: Tuple[str, ...] = get_account_supported_providers()
+PUBLIC_NO_ACCOUNT_PROVIDERS: Tuple[str, ...] = get_public_no_account_providers()
 
 
 @dataclass

@@ -5,8 +5,14 @@ Special dependency cases registry with official creator site routing
 
 from __future__ import annotations
 
+from functools import lru_cache
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
+
+_PARENS_RE = re.compile(r"[\(\[\{][^\)\]\}]*[\)\]\}]")
+_STRIP_BRACKETS_RE = re.compile(r"^[\(\[\{]+|[\)\]\}]+$")
+_COMPRESS_RE = re.compile(r"[\s\-_.'’]+")
+_TRAILING_VERSION_RE = re.compile(r"v?\d+(?:\.\d+)*[a-z]?$")
 
 __all__ = [
     "SPECIAL_DEPENDENCY_CASES",
@@ -390,59 +396,74 @@ SPECIAL_DEPENDENCY_CASES: List[Dict[str, Any]] = [
 
 SPECIAL_DEPENDENCY_REMOTE_IDS = {case["remote_id"] for case in SPECIAL_DEPENDENCY_CASES if "remote_id" in case}
 
+_CASE_BY_REMOTE_ID: Dict[str, Dict[str, Any]] = {}
+_CASE_BY_LOWER_ALIAS: Dict[str, Dict[str, Any]] = {}
+_CASE_BY_COMPRESSED_ALIAS: Dict[str, Dict[str, Any]] = {}
+_SUBSTRING_ALIASES: List[Tuple[str, Dict[str, Any]]] = []
+_URL_PATTERNS: List[Tuple[str, Dict[str, Any]]] = []
 
+for _case in SPECIAL_DEPENDENCY_CASES:
+    _rid = _case.get("remote_id")
+    if _rid:
+        _CASE_BY_REMOTE_ID[str(_rid)] = _case
+    for _pat in _case.get("url_patterns", []):
+        _URL_PATTERNS.append((_pat.lower(), _case))
+    for _alias in _case.get("aliases", []):
+        _alias_low = _alias.strip().lower()
+        _alias_comp = _COMPRESS_RE.sub("", _alias_low)
+        _CASE_BY_LOWER_ALIAS.setdefault(_alias_low, _case)
+        if _alias_comp:
+            _CASE_BY_COMPRESSED_ALIAS.setdefault(_alias_comp, _case)
+            if len(_alias_comp) >= 5:
+                _SUBSTRING_ALIASES.append((_alias_comp, _case))
+
+
+@lru_cache(maxsize=2048)
 def find_special_dependency_case(
     name: str,
     url: str = "",
     remote_id: str = "",
 ) -> Optional[Dict[str, Any]]:
     """
-    Recherche si un nom de mod, une URL ou un identifiant correspond à l'un des frameworks
-    officiels définis dans SPECIAL_DEPENDENCY_CASES afin de router systématiquement la dépendance
-    vers le site officiel de son créateur (Deaderpool, Scumbumbo, Lumpinou, Wicked.cc, Basemental, S4S).
+    Recherche en O(1) (index pré-calculé + cache LRU) si un nom de mod, une URL ou un identifiant
+    correspond à l'un des frameworks officiels définis dans SPECIAL_DEPENDENCY_CASES afin de router
+    systématiquement la dépendance vers le site officiel de son créateur.
     """
     r_id_clean = (remote_id or "").strip()
-    if r_id_clean:
-        for case in SPECIAL_DEPENDENCY_CASES:
-            if case.get("remote_id") == r_id_clean:
-                return case
+    if r_id_clean and r_id_clean in _CASE_BY_REMOTE_ID:
+        return _CASE_BY_REMOTE_ID[r_id_clean]
 
     url_lower = (url or "").strip().lower()
     if url_lower:
-        for case in SPECIAL_DEPENDENCY_CASES:
-            for pat in case.get("url_patterns", []):
-                if pat.lower() in url_lower:
-                    return case
+        for pat_low, case in _URL_PATTERNS:
+            if pat_low in url_lower:
+                return case
 
     if not name:
         return None
 
     cleaned_name = name.strip()
-    # Remove version suffixes like (v175), v4.2, etc. before matching
-    without_parens = re.sub(r"[\(\[\{][^\)\]\}]*[\)\]\}]", "", cleaned_name).strip()
+    without_parens = _PARENS_RE.sub("", cleaned_name).strip()
     target_candidates = [cleaned_name]
     if without_parens and without_parens != cleaned_name:
         target_candidates.append(without_parens)
 
     for cand in target_candidates:
-        stripped_name = re.sub(r"^[\(\[\{]+|[\)\]\}]+$", "", cand).strip()
+        stripped_name = _STRIP_BRACKETS_RE.sub("", cand).strip()
         raw_lower = stripped_name.lower()
-        compressed = re.sub(r"[\s\-_.'’]+", "", raw_lower)
-        compressed_no_ver = re.sub(r"v?\d+(?:\.\d+)*[a-z]?$", "", compressed)
+        if raw_lower in _CASE_BY_LOWER_ALIAS:
+            return _CASE_BY_LOWER_ALIAS[raw_lower]
 
-        for case in SPECIAL_DEPENDENCY_CASES:
-            for alias in case.get("aliases", []):
-                alias_lower = alias.strip().lower()
-                alias_compressed = re.sub(r"[\s\-_.'’]+", "", alias_lower)
+        compressed = _COMPRESS_RE.sub("", raw_lower)
+        if compressed in _CASE_BY_COMPRESSED_ALIAS:
+            return _CASE_BY_COMPRESSED_ALIAS[compressed]
 
-                if (
-                    raw_lower == alias_lower
-                    or compressed in (alias_compressed,)
-                    or compressed_no_ver == alias_compressed
-                ):
-                    return case
+        compressed_no_ver = _TRAILING_VERSION_RE.sub("", compressed)
+        if compressed_no_ver in _CASE_BY_COMPRESSED_ALIAS:
+            return _CASE_BY_COMPRESSED_ALIAS[compressed_no_ver]
 
-                if len(alias_compressed) >= 5 and alias_compressed in compressed:
-                    return case
+        for alias_comp, case in _SUBSTRING_ALIASES:
+            if alias_comp in compressed:
+                return case
 
     return None

@@ -107,7 +107,7 @@ class BrowserLoginHelper:
             ]
 
             # Détecter et prioriser immédiatement le canal natif le plus rapide (Edge / Chrome)
-            channels_to_try = []
+            channels_to_try: list[Optional[str]] = []
             edge_exists = any(
                 (Path(os.environ.get(k, "")) / p).exists()
                 for k in ["ProgramFiles(x86)", "ProgramFiles"]

@@ -4,48 +4,12 @@ Filter adapter converting UI filter state into REST API query parameters for cat
 
 from typing import Dict, Any, Optional
 
+from src.core.provider_metadata import build_source_mapping
+
 __all__ = ["build_catalog_api_params"]
 
 
-_SOURCE_MAPPING: Dict[str, str] = {
-    "loverslab": "loverslab",
-    "nsfwmods": "nsfwmods",
-    "curseforge": "curseforge",
-    "the sims resource": "thesimsresource",
-    "tsr": "thesimsresource",
-    "thesimsresource": "thesimsresource",
-    "modthesims": "modthesims",
-    "simsfinds": "simsfinds",
-    "nexus mods": "nexusmods",
-    "nexusmods": "nexusmods",
-    "maxis match cc world": "mmccworld",
-    "mmccworld": "mmccworld",
-    "patreon": "patreon",
-    "deaderpool": "deaderpool",
-    "deaderpool (mccc)": "deaderpool",
-    "scumbumbo": "scumbumbo",
-    "scumbumbo mods": "scumbumbo",
-    "lumpinou": "lumpinou",
-    "lumpinou mods": "lumpinou",
-    "gamebanana": "gamebanana",
-    "the sims catalog": "thesimscatalog",
-    "thesimscatalog": "thesimscatalog",
-    "itch.io (sims 4)": "itchio",
-    "itchio": "itchio",
-    "sims 4 studio": "sims4studio",
-    "sims4studio": "sims4studio",
-    "littlemssam": "littlemssam",
-    "littlemssam mods": "littlemssam",
-    "sixam cc": "sixamcc",
-    "sixamcc": "sixamcc",
-    "wicked.cc (official ww)": "wickedcc",
-    "wickedcc": "wickedcc",
-    "basemental": "basemental",
-    "basemental cc": "basemental",
-    "synthira": "synthira",
-    "f95zone": "f95zone",
-    "smutbase": "smutbase",
-}
+_SOURCE_MAPPING: Dict[str, str] = build_source_mapping()
 
 
 def build_catalog_api_params(
