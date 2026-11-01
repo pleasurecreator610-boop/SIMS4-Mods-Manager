@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from sqlalchemy import distinct, or_
+from sqlalchemy import distinct, func, or_, tuple_
 from sqlalchemy.orm import defer
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -107,7 +107,7 @@ class SqlAlchemyCatalogRepository(ICatalogRepository):
             if author:
                 q = q.filter(CatalogMod.author.ilike(f"%{author.strip()}%"))
 
-            total_count = q.count()
+            total_count = int(q.order_by(None).with_entities(func.count(CatalogMod.id)).scalar() or 0)
             models = q.options(defer(CatalogMod.description)).offset(offset).limit(limit).all()
             return [ModelMapper.catalog_to_entity(m) for m in models], total_count
 
@@ -178,29 +178,35 @@ class SqlAlchemyCatalogRepository(ICatalogRepository):
             return ModelMapper.catalog_to_entity(model)
 
     def save_batch(self, entities: list[CatalogModEntity]) -> int:
-        """Exécute l'opération save batch.
-
-        Args:
-            entities: Paramètre entities.
-
-        Returns:
-            Résultat de l'opération save_batch.
-        """
+        """Sauvegarde en lot sans requêtes N+1 (pré-chargement groupé en 1 requête)."""
         if not entities:
             return 0
         saved_count = 0
         with self.db_manager.get_session() as session:
+            keys = [(ent.source, ent.remote_id) for ent in entities if ent.source and ent.remote_id]
+            existing_map: dict[tuple[str, str], CatalogMod] = {}
+            if keys:
+                for i in range(0, len(keys), 250):
+                    batch_keys = keys[i : i + 250]
+                    found = (
+                        session.query(CatalogMod)
+                        .options(defer(CatalogMod.description), defer(CatalogMod.requirements_text))
+                        .filter(tuple_(CatalogMod.source, CatalogMod.remote_id).in_(batch_keys))
+                        .all()
+                    )
+                    for m in found:
+                        existing_map[(m.source, m.remote_id)] = m
+
             for ent in entities:
-                model = (
-                    session.query(CatalogMod)
-                    .filter(CatalogMod.source == ent.source, CatalogMod.remote_id == ent.remote_id)
-                    .first()
-                )
+                key = (ent.source, ent.remote_id)
+                model = existing_map.get(key)
                 if model:
                     ModelMapper.catalog_to_model(ent, model)
                 else:
                     model = ModelMapper.catalog_to_model(ent)
                     session.add(model)
+                    if ent.source and ent.remote_id:
+                        existing_map[key] = model
                 saved_count += 1
             session.commit()
         return saved_count
@@ -241,10 +247,6 @@ class SqlAlchemyCatalogRepository(ICatalogRepository):
             return sorted([r[0] for r in results if r[0]])
 
     def count(self) -> int:
-        """Exécute l'opération count.
-
-        Returns:
-            Résultat de l'opération count.
-        """
+        """Retourne le nombre total d'entrées dans catalog_mods via COUNT(id) direct."""
         with self.db_manager.get_session() as session:
-            return session.query(CatalogMod).count()
+            return int(session.query(func.count(CatalogMod.id)).scalar() or 0)

@@ -1,6 +1,7 @@
 """Modèles déclaratifs SQLAlchemy 2.0 typés pour l'infrastructure de persistance."""
 
 import json
+import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from sqlalchemy import (
@@ -13,10 +14,23 @@ from sqlalchemy import (
     JSON,
     String,
     Text,
+    event,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from src.core.crypto import decrypt_to_dict, encrypt_dict
+from src.utils.title_normalizer import TitleNormalizer
+
+_LEADING_ARTICLE_RE = re.compile(r"^(?:the|a|an|le|la|les)\s+", re.IGNORECASE)
+
+
+def compute_title_fingerprint(title: Optional[str]) -> str:
+    """Calcule l'empreinte canonique normalisée d'un titre de mod pour l'indexation SQLite."""
+    if not title:
+        return ""
+    stripped = _LEADING_ARTICLE_RE.sub("", str(title).strip())
+    cleaned = TitleNormalizer.clean_mod_title(stripped) or stripped
+    return TitleNormalizer.canonical_fingerprint(cleaned)[:150]
 
 
 class Base(DeclarativeBase):
@@ -45,6 +59,7 @@ class CatalogMod(Base):
     source: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     remote_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    title_fingerprint: Mapped[str] = mapped_column(String(150), default="", index=True)
     author: Mapped[str] = mapped_column(String(100), default="", index=True)
     category: Mapped[str] = mapped_column(String(100), default="", index=True)
     tags: Mapped[Any] = mapped_column(JSON, default=list)
@@ -69,6 +84,9 @@ class CatalogMod(Base):
         Index("idx_source_updated", "source", "updated_date"),
         Index("idx_source_title", "source", "title"),
         Index("idx_catalog_category_updated", "category", "updated_date"),
+        Index("idx_catalog_title_fp", "title_fingerprint"),
+        Index("idx_catalog_updated_id", "updated_date", "id"),
+        Index("idx_catalog_patreon_source", "patreon_status", "source"),
     )
 
     def get_tags_list(self) -> List[str]:
@@ -124,6 +142,7 @@ class InstalledMod(Base):
     source: Mapped[str] = mapped_column(String(50), default="manual")
     remote_id: Mapped[str] = mapped_column(String(100), default="")
     title: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    title_fingerprint: Mapped[str] = mapped_column(String(150), default="", index=True)
     folder_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     installed_files: Mapped[Any] = mapped_column(JSON, default=list)
     installed_date: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.now)
@@ -139,6 +158,7 @@ class InstalledMod(Base):
         Index("idx_installed_catalog_id", "catalog_mod_id"),
         Index("idx_installed_folder", "folder_name"),
         Index("idx_installed_enabled_folder", "is_enabled", "folder_name"),
+        Index("idx_installed_title_fp", "title_fingerprint"),
     )
 
     def get_installed_files_list(self) -> List[str]:
@@ -189,3 +209,19 @@ class DbpfPackageCache(Base):
     def set_tgi_list(self, entries: List[Any]) -> None:
         """Sérialise en JSON la liste des entrées TGI."""
         self.tgi_json = json.dumps(entries)
+
+
+@event.listens_for(CatalogMod, "before_insert")
+@event.listens_for(CatalogMod, "before_update")
+def _sync_catalog_mod_fingerprint(_mapper: Any, _connection: Any, target: CatalogMod) -> None:
+    """Maintient automatiquement title_fingerprint sur CatalogMod avant insertion ou mise à jour."""
+    if target.title:
+        target.title_fingerprint = compute_title_fingerprint(target.title)
+
+
+@event.listens_for(InstalledMod, "before_insert")
+@event.listens_for(InstalledMod, "before_update")
+def _sync_installed_mod_fingerprint(_mapper: Any, _connection: Any, target: InstalledMod) -> None:
+    """Maintient automatiquement title_fingerprint sur InstalledMod avant insertion ou mise à jour."""
+    if target.title:
+        target.title_fingerprint = compute_title_fingerprint(target.title)

@@ -1,40 +1,44 @@
 """
 Gestionnaire SQLite FTS5 (Full-Text Search) pour le catalogue de mods.
-Indexe les colonnes textuelles (titre, auteur, tags, description) avec tokenization unicode61
-et recherche ultra-rapide par correspondance préfixée et pertinence BM25.
+Indexe les colonnes textuelles (titre, auteur, tags, description) avec tokenization unicode61,
+alignement rowid = catalog_mods.id en O(log N), triggers sélectifs UPDATE OF et pertinence BM25.
 """
 
 from __future__ import annotations
 
 import re
 import threading
-from typing import Optional, Set
+from typing import List, Optional, Set
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
 from src.utils.logger import logger
 
+_FTS_SANITIZE_RE = re.compile(r'["\'*^:()\[\]{}\-+~]')
+
 
 class CatalogFtsManager:
-    """Gère la table virtuelle FTS5, ses déclencheurs de synchronisation et la recherche plein-texte."""
+    """Gère la table virtuelle FTS5, ses déclencheurs sélectifs O(log N) et la recherche plein-texte."""
 
     _initialized: bool = False
+    _initialized_engines: Set[int] = set()
     _lock = threading.Lock()
 
     @classmethod
     def initialize(cls, engine: Engine) -> bool:
-        """Initialise la table FTS5 et ses déclencheurs SQLite si FTS5 est supporté."""
-        if cls._initialized:
+        """Initialise la table FTS5 et ses déclencheurs SQLite sur l'instance d'Engine fournie."""
+        engine_id = id(engine)
+        if engine_id in cls._initialized_engines and cls._initialized:
             return True
 
         with cls._lock:
-            if cls._initialized:
+            if engine_id in cls._initialized_engines and cls._initialized:
                 return True
 
             try:
                 with engine.connect() as conn:
-                    # 1. Vérification du support SQLite FTS5
+                    # 1. Table virtuelle FTS5 avec rowid aligné sur catalog_mods.id
                     conn.execute(
                         text(
                             """
@@ -50,13 +54,24 @@ class CatalogFtsManager:
                         )
                     )
 
-                    # 2. Déclencheurs de synchronisation automatique avec catalog_mods
+                    # 2. Mise à niveau des déclencheurs vers rowid = id (O(log N)) et UPDATE OF sélectif
+                    conn.execute(text("DROP TRIGGER IF EXISTS trg_catalog_mods_ai"))
+                    conn.execute(text("DROP TRIGGER IF EXISTS trg_catalog_mods_ad"))
+                    conn.execute(text("DROP TRIGGER IF EXISTS trg_catalog_mods_au"))
+
                     conn.execute(
                         text(
                             """
-                            CREATE TRIGGER IF NOT EXISTS trg_catalog_mods_ai AFTER INSERT ON catalog_mods BEGIN
-                                INSERT INTO catalog_mods_fts(catalog_id, title, author, tags, description)
-                                VALUES (new.id, new.title, coalesce(new.author, ''), coalesce(new.tags, ''), coalesce(new.description, ''));
+                            CREATE TRIGGER trg_catalog_mods_ai AFTER INSERT ON catalog_mods BEGIN
+                                INSERT INTO catalog_mods_fts(rowid, catalog_id, title, author, tags, description)
+                                VALUES (
+                                    new.id,
+                                    new.id,
+                                    new.title,
+                                    coalesce(new.author, ''),
+                                    coalesce(new.tags, ''),
+                                    coalesce(new.description, '')
+                                );
                             END;
                             """
                         )
@@ -64,8 +79,8 @@ class CatalogFtsManager:
                     conn.execute(
                         text(
                             """
-                            CREATE TRIGGER IF NOT EXISTS trg_catalog_mods_ad AFTER DELETE ON catalog_mods BEGIN
-                                DELETE FROM catalog_mods_fts WHERE catalog_id = old.id;
+                            CREATE TRIGGER trg_catalog_mods_ad AFTER DELETE ON catalog_mods BEGIN
+                                DELETE FROM catalog_mods_fts WHERE rowid = old.id;
                             END;
                             """
                         )
@@ -73,16 +88,29 @@ class CatalogFtsManager:
                     conn.execute(
                         text(
                             """
-                            CREATE TRIGGER IF NOT EXISTS trg_catalog_mods_au AFTER UPDATE ON catalog_mods BEGIN
-                                DELETE FROM catalog_mods_fts WHERE catalog_id = old.id;
-                                INSERT INTO catalog_mods_fts(catalog_id, title, author, tags, description)
-                                VALUES (new.id, new.title, coalesce(new.author, ''), coalesce(new.tags, ''), coalesce(new.description, ''));
+                            CREATE TRIGGER trg_catalog_mods_au
+                            AFTER UPDATE OF title, author, tags, description ON catalog_mods
+                            WHEN old.title IS NOT new.title
+                              OR old.author IS NOT new.author
+                              OR old.tags IS NOT new.tags
+                              OR old.description IS NOT new.description
+                            BEGIN
+                                DELETE FROM catalog_mods_fts WHERE rowid = old.id;
+                                INSERT INTO catalog_mods_fts(rowid, catalog_id, title, author, tags, description)
+                                VALUES (
+                                    new.id,
+                                    new.id,
+                                    new.title,
+                                    coalesce(new.author, ''),
+                                    coalesce(new.tags, ''),
+                                    coalesce(new.description, '')
+                                );
                             END;
                             """
                         )
                     )
 
-                    # 3. Peuplage initial si la table FTS est vide alors que catalog_mods contient des lignes
+                    # 3. Peuplage initial aligné sur rowid = id si la table FTS est vide
                     fts_count_row = conn.execute(text("SELECT count(*) FROM catalog_mods_fts")).fetchone()
                     fts_count = fts_count_row[0] if fts_count_row else 0
                     if fts_count == 0:
@@ -92,8 +120,8 @@ class CatalogFtsManager:
                             conn.execute(
                                 text(
                                     """
-                                    INSERT INTO catalog_mods_fts(catalog_id, title, author, tags, description)
-                                    SELECT id, title, coalesce(author, ''), coalesce(tags, ''), coalesce(description, '')
+                                    INSERT INTO catalog_mods_fts(rowid, catalog_id, title, author, tags, description)
+                                    SELECT id, id, title, coalesce(author, ''), coalesce(tags, ''), coalesce(description, '')
                                     FROM catalog_mods;
                                     """
                                 )
@@ -102,6 +130,7 @@ class CatalogFtsManager:
 
                     conn.commit()
 
+                cls._initialized_engines.add(engine_id)
                 cls._initialized = True
                 return True
             except Exception as e:
@@ -115,13 +144,11 @@ class CatalogFtsManager:
         if not raw_query:
             return None
 
-        # Nettoyage des caractères syntaxiques risqués pour FTS5
-        cleaned = re.sub(r'["\'*^:()\[\]{}]', " ", raw_query).strip()
+        cleaned = _FTS_SANITIZE_RE.sub(" ", raw_query).strip()
         tokens = [t.strip() for t in cleaned.split() if t.strip()]
         if not tokens:
             return None
 
-        # Formulation de recherche : préfixe pour chaque mot (auto-complétion rapide)
         formatted_tokens = [f'"{tok}"*' for tok in tokens]
         return " AND ".join(formatted_tokens)
 
@@ -142,14 +169,48 @@ class CatalogFtsManager:
         try:
             sql = text(
                 """
-                SELECT catalog_id FROM catalog_mods_fts
+                SELECT rowid FROM catalog_mods_fts
                 WHERE catalog_mods_fts MATCH :expr
                 ORDER BY rank
                 LIMIT :limit
                 """
             )
             rows = session.execute(sql, {"expr": match_expr, "limit": limit}).fetchall()
-            return {int(r[0]) for r in rows}
+            return {int(r[0]) for r in rows if r[0] is not None}
         except Exception as e:
-            logger.debug(f"Erreur recherche FTS5 '{raw_query}', déclenchement du repli LIKE : {e}")
+            logger.debug(f"Requête FTS5 échouée pour '{raw_query}' (repli LIKE) : {e}")
+            return None
+
+    @classmethod
+    def search_candidate_ids_any_token(
+        cls, session: Session, tokens: List[str], limit: int = 100
+    ) -> Optional[Set[int]]:
+        """
+        Pré-sélectionne rapidement en O(log N) via l'index inversé FTS5 (opérateur OR sur title)
+        les candidats partageant au moins un jeton significatif avec la requête.
+        """
+        if not cls._initialized or not tokens:
+            return None
+
+        clean_toks = []
+        for tok in tokens[:4]:
+            sanitized = _FTS_SANITIZE_RE.sub("", tok).strip()
+            if len(sanitized) >= 2:
+                clean_toks.append(f'title : "{sanitized}"*')
+        if not clean_toks:
+            return None
+
+        match_expr = " OR ".join(clean_toks)
+        try:
+            sql = text(
+                """
+                SELECT rowid FROM catalog_mods_fts
+                WHERE catalog_mods_fts MATCH :expr
+                ORDER BY rank
+                LIMIT :limit
+                """
+            )
+            rows = session.execute(sql, {"expr": match_expr, "limit": limit}).fetchall()
+            return {int(r[0]) for r in rows if r[0] is not None}
+        except Exception:
             return None

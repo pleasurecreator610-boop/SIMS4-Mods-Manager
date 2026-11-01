@@ -4,7 +4,8 @@ import re
 import threading
 import urllib.parse
 from typing import Optional
-from sqlalchemy.orm import Session
+from sqlalchemy import func, text
+from sqlalchemy.orm import Session, load_only
 
 from src.infrastructure.database.connection import create_db_engine, get_session_factory, init_db_schema
 from src.infrastructure.database.fts_manager import CatalogFtsManager
@@ -43,17 +44,15 @@ class DatabaseManager:
         """Répare les enregistrements corrompus et purge les mods fantômes (exécuté de façon optimisée)."""
         try:
             with self.get_session() as session:
-                ghosts = (
+                ghost_count = (
                     session.query(CatalogMod)
                     .filter((CatalogMod.remote_id == "51260") | (CatalogMod.author == "dohmra"))
-                    .all()
+                    .delete(synchronize_session=False)
                 )
-                for g in ghosts:
-                    logger.info(f"Purge du mod fantôme LoversLab #{g.remote_id} ({g.author})")
-                    session.delete(g)
 
                 corrupt_items = (
                     session.query(CatalogMod)
+                    .options(load_only(CatalogMod.id, CatalogMod.title, CatalogMod.page_url))
                     .filter(
                         (CatalogMod.title == "")
                         | (CatalogMod.title == "''")
@@ -84,12 +83,29 @@ class DatabaseManager:
                     else:
                         session.delete(item)
 
-                installed_mods = session.query(InstalledMod).filter(InstalledMod.catalog_mod_id.isnot(None)).all()
+                installed_mods = (
+                    session.query(InstalledMod)
+                    .options(
+                        load_only(
+                            InstalledMod.id,
+                            InstalledMod.catalog_mod_id,
+                            InstalledMod.source,
+                            InstalledMod.remote_id,
+                            InstalledMod.title,
+                        )
+                    )
+                    .filter(InstalledMod.catalog_mod_id.isnot(None))
+                    .all()
+                )
                 repaired_links = 0
                 if installed_mods:
                     cat_ids = {im.catalog_mod_id for im in installed_mods if im.catalog_mod_id}
                     catalog_map = {
-                        cm.id: cm for cm in session.query(CatalogMod).filter(CatalogMod.id.in_(cat_ids)).all()
+                        cm.id: cm
+                        for cm in session.query(CatalogMod)
+                        .options(load_only(CatalogMod.id, CatalogMod.source, CatalogMod.remote_id, CatalogMod.title))
+                        .filter(CatalogMod.id.in_(cat_ids))
+                        .all()
                     }
                     for im in installed_mods:
                         cm = catalog_map.get(im.catalog_mod_id) if im.catalog_mod_id is not None else None
@@ -102,18 +118,30 @@ class DatabaseManager:
                                 f"était faussement lié au mod catalogue #{cm.id} '{cm.title}' (remote_id={cm.remote_id}). Dissociation."
                             )
                             true_match = (
-                                session.query(CatalogMod).filter_by(source=im.source, remote_id=im.remote_id).first()
+                                session.query(CatalogMod)
+                                .options(load_only(CatalogMod.id))
+                                .filter_by(source=im.source, remote_id=im.remote_id)
+                                .first()
                             )
                             im.catalog_mod_id = true_match.id if true_match else None
                             repaired_links += 1
 
-                if ghosts or repaired_count or repaired_links:
+                if ghost_count or repaired_count or repaired_links:
                     session.commit()
                     logger.info(
-                        f"Maintenance catalogue : {len(ghosts)} fantôme(s), {repaired_count} titre(s) réparé(s), {repaired_links} lien(s) corrigé(s)."
+                        f"Maintenance catalogue : {ghost_count} fantôme(s), {repaired_count} titre(s) réparé(s), {repaired_links} lien(s) corrigé(s)."
                     )
         except Exception as e:
             logger.debug(f"Erreur maintenance catalogue: {e}")
+
+    def optimize(self) -> None:
+        """Exécute PRAGMA optimize sur SQLite pour mettre à jour les statistiques de l'optimiseur de requêtes."""
+        try:
+            with self.engine.connect() as conn:
+                conn.execute(text("PRAGMA optimize"))
+                conn.commit()
+        except Exception as e:
+            logger.debug(f"Erreur PRAGMA optimize: {e}")
 
     def purge_catalog(self) -> int:
         """Purge l'intégralité du catalogue distant pour réinitialiser."""
@@ -132,6 +160,6 @@ class DatabaseManager:
         """Retourne le nombre total de mods répertoriés dans le catalogue."""
         try:
             with self.get_session() as session:
-                return session.query(CatalogMod).count()
+                return int(session.query(func.count(CatalogMod.id)).scalar() or 0)
         except Exception:
             return 0

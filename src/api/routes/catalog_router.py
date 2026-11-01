@@ -1,6 +1,7 @@
 import re
 from typing import Optional, Any
 from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, Depends
+from sqlalchemy import func
 from sqlalchemy.orm import Session, defer
 
 from src.api.schemas.catalog import (
@@ -80,13 +81,8 @@ def get_catalog(
         include_adult=effective_adult,
     )
 
-    total = query.count()
-    paginated_mods = (
-        query.options(defer(CatalogMod.description), defer(CatalogMod.requirements_text))
-        .offset((page - 1) * limit)
-        .limit(limit)
-        .all()
-    )
+    total = int(query.order_by(None).with_entities(func.count(CatalogMod.id)).scalar() or 0)
+    paginated_mods = query.options(defer(CatalogMod.description)).offset((page - 1) * limit).limit(limit).all()
 
     # Load all installed mods once (small table) so both parent status AND dependency status resolve accurately
     all_installed = session.query(InstalledMod).options(defer(InstalledMod.installed_files)).all()
@@ -94,6 +90,7 @@ def get_catalog(
         ((im.source or "unknown").lower(), str(im.remote_id)): im for im in all_installed if im.remote_id
     }
     installed_by_title = {im.title.strip().lower(): im for im in all_installed if im.title}
+    installed_by_fp = {im.title_fingerprint: im for im in all_installed if getattr(im, "title_fingerprint", None)}
     installed_by_id = {im.catalog_mod_id: im for im in all_installed if im.catalog_mod_id and not im.remote_id}
 
     # Pre-collect all requirement remote_ids for batch lookup (eliminates N+1 queries)
@@ -119,10 +116,12 @@ def get_catalog(
         m_rid = str(m.remote_id or "")
         m_title = (m.title or "").strip().lower()
 
+        m_fp = getattr(m, "title_fingerprint", "") or ""
         inst = (
             installed_by_remote.get((m_source, m_rid))
             or installed_by_id.get(m.id)
             or (installed_by_title.get(m_title) if m_title else None)
+            or (installed_by_fp.get(m_fp) if m_fp else None)
         )
         is_installed = inst is not None
         has_update = check_has_update(inst, m) if inst is not None else False

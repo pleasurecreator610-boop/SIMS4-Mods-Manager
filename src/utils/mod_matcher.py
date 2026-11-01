@@ -171,16 +171,36 @@ class ModMatcher(TitleNormalizer):
         informative_tokens.sort(key=len, reverse=True)
 
         from sqlalchemy.orm import defer
+        from src.infrastructure.database.models import compute_title_fingerprint
 
         candidate_query = session.query(CatalogMod).options(
             defer(CatalogMod.description),
             defer(CatalogMod.requirements_text),
         )
-        if informative_tokens:
-            from sqlalchemy import or_
 
-            token_filters = [CatalogMod.title.ilike(f"%{tok}%") for tok in informative_tokens[:3]]
-            candidates = candidate_query.filter(or_(*token_filters)).limit(100).all()
+        # 1. O(log N) B-Tree lookup on canonical title_fingerprint
+        query_fp = compute_title_fingerprint(query)
+        if query_fp and len(query_fp) >= 3:
+            fp_match = candidate_query.filter(CatalogMod.title_fingerprint == query_fp).first()
+            if fp_match is not None and isinstance(getattr(fp_match, "title", None), str):
+                fp_score = cls.match_score(query, fp_match.title, fp_match.author)
+                if fp_score >= dynamic_threshold:
+                    return fp_match, max(fp_score, 0.96)
+
+        # 2. O(log N) FTS5 inverted index pre-selection before falling back to ILIKE
+        candidates = []
+        if informative_tokens:
+            from src.infrastructure.database.fts_manager import CatalogFtsManager
+
+            fts_ids = CatalogFtsManager.search_candidate_ids_any_token(session, informative_tokens, limit=100)
+            if fts_ids:
+                candidates = candidate_query.filter(CatalogMod.id.in_(list(fts_ids))).limit(100).all()
+
+            if not candidates:
+                from sqlalchemy import or_
+
+                token_filters = [CatalogMod.title.ilike(f"%{tok}%") for tok in informative_tokens[:3]]
+                candidates = candidate_query.filter(or_(*token_filters)).limit(100).all()
         else:
             candidates = candidate_query.limit(50).all()
 

@@ -5,7 +5,7 @@ extracting details, and persisting records into the database.
 """
 
 from typing import Any, Dict, List, Optional, Tuple
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, defer
 
 from src.infrastructure.database.manager import DatabaseManager
 from src.infrastructure.database.models import CatalogMod
@@ -57,6 +57,7 @@ class CatalogSyncActions:
         if remote_ids:
             found = (
                 session.query(CatalogMod)
+                .options(defer(CatalogMod.description), defer(CatalogMod.requirements_text))
                 .filter(
                     CatalogMod.source.in_(sources),
                     CatalogMod.remote_id.in_(remote_ids),
